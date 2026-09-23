@@ -385,6 +385,9 @@
     .welcome-features{ gap:10px; margin-bottom:14px; }
     .welcome-feature{ font-size:12px; }
     .welcome-feature svg{ width:18px; height:18px; }
+    /* on phones the intro modal must fit without scrolling: show only the
+       feature headlines, hide the explanatory sentences (desktop keeps all) */
+    .welcome-feature-desc{ display:none; }
     .welcome-use{ font-size:12px; margin-bottom:12px; }
     .welcome-cta-label{ font-size:12.5px; margin-bottom:10px; }
     /* bigger tap targets on modal action buttons, like the header */
@@ -871,19 +874,19 @@
     <div class="welcome-features">
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 48 L464 152 L256 256 L48 152 Z"/><path d="M48 216 L256 320 L464 216 L464 264 L256 368 L48 264 Z"/><path d="M48 296 L256 400 L464 296 L464 344 L256 448 L48 344 Z"/></svg>
-        <div><strong>A song library that thinks in sections.</strong> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by cover/original or ready/not ready.</div>
+        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by cover/original or ready/not ready.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M421 38 L474 91 L191 374 L80 432 L139 321 Z"/></svg>
-        <div><strong>Chords and lyrics, entered together.</strong> Type chord symbols on the row above each lyric line and SetBook keeps them synchronized — in the live preview and in every PDF you generate.</div>
+        <div><strong>Chords and lyrics, entered together.</strong><span class="welcome-feature-desc"> Type chord symbols on the row above each lyric line and SetBook keeps them synchronized — in the live preview and in every PDF you generate.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M112 32 h176 l112 112 v336 H112 Z M160 248 h192 v26 H160 Z M160 312 h192 v26 H160 Z M160 376 h120 v26 H160 Z"/></svg>
-        <div><strong>PDFs for the stage and the music stand.</strong> Generate section-by-section lead sheets — one section per page, made for Bluetooth page-turner pedals — or a full-song print-friendly chart sized for phone, tablet, or paper.</div>
+        <div><strong>PDFs for the stage and the music stand.</strong><span class="welcome-feature-desc"> Generate section-by-section lead sheets — one section per page, made for Bluetooth page-turner pedals — or a full-song print-friendly chart sized for phone, tablet, or paper.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M240 64 L384 192 L240 320 L384 448 M240 64 V448" stroke="currentColor" stroke-width="46" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div><strong>Plays nicely with your reading apps.</strong> Section PDFs open in Apple Books on iPad and Files by Google on Android — both pair with Bluetooth page turners for hands-free performing.</div>
+        <div><strong>Plays nicely with your reading apps.</strong><span class="welcome-feature-desc"> Section PDFs open in Apple Books on iPad and Files by Google on Android — both pair with Bluetooth page turners for hands-free performing.</span></div>
       </div>
     </div>
     <p class="welcome-use">Built for jam sessions, open mics, band rehearsals, and recording sessions — anywhere a lead sheet is needed.</p>
