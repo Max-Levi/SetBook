@@ -1,0 +1,3985 @@
+<!DOCTYPE html>
+<!--
+  ============================================================================
+  AI MAINTAINER INSTRUCTIONS — READ THIS BEFORE MODIFYING THE FILE
+  ============================================================================
+  This file is SetBook: a single-file HTML application. All markup, CSS, and
+  JavaScript live in this one document — there is no build step and no
+  backend.
+
+  The in-app technical documentation lives in the Help modal. In the HTML it
+  is the element with id "helpModalOverlay"; its content sections carry ids
+  of the form "help-*". The modal's styles are the ".help-*" CSS rules and
+  its open/close wiring sits with the other modal wiring near the end of the
+  main script.
+
+  STANDING DIRECTIVE — DOCUMENTATION REFRESH:
+  Whenever you add a new function or feature to this app — or change or
+  remove an existing one — ASK THE USER whether the in-app technical
+  documentation should be updated/refreshed to cover it. Ask every time a
+  change lands; do not silently skip the question, and do not rewrite the
+  documentation without the user's go-ahead. If the user says yes, update
+  the Help modal content (and its "Last updated" date) to describe the
+  change accurately.
+
+  Also keep the code comments adjacent to any logic you touch accurate.
+  ============================================================================
+-->
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SetBook — Section Editor</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Inconsolata:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+  // Applied as early as possible (before the body paints) to avoid a
+  // flash of the wrong theme. A saved choice in localStorage wins; else
+  // the device's light/dark preference if queryable; else the dark default.
+  (function(){
+    try{
+      const saved = localStorage.getItem('setbook-theme');
+      if (saved === 'light'){ document.documentElement.setAttribute('data-theme', 'light'); return; }
+      if (saved === 'dark') return;
+      if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches){
+        document.documentElement.setAttribute('data-theme', 'light');
+      }
+    } catch(e){ /* storage/matchMedia unsupported — fall back to the dark default */ }
+  })();
+</script>
+<style>
+  :root{
+    --bg: #1b1b1e;
+    --panel: #232327;
+    --panel-2: #29292e;
+    --paper: #ede7da;
+    --paper-line: #d9d2bf;
+    --gold: #c9a227;
+    --gold-dim: #8a7220;
+    --gold-hover: #d9b12c;
+    --gold-tint: #2f2a1c;
+    --gold-tint-strong: #3a3320;
+    --text: #ede9e1;
+    --text-muted: #9c9890;
+    --placeholder: #6b6864;
+    --border: #38383d;
+    --hover-bg: #2d2d33;
+    --hover-border: #55555c;
+    --focus-border: #6b6b73;
+    --danger: #b1503f;
+    --danger-hover-text: #e79789;
+    --on-gold-text: #1b1b1e;
+    --success: #6fae6a;
+    --save-dot-idle: #5c5a56;
+    --scrollbar-thumb: #3a3a3f;
+  }
+  /* Clean, fresh light palette — warm off-white rather than stark white,
+     with a deeper amber accent (the dark theme's bright gold reads too
+     low-contrast as text on a light background). */
+  html[data-theme="light"]{
+    --bg: #f6f5f0;
+    --panel: #ffffff;
+    --panel-2: #eeece3;
+    --gold: #8a6a10;
+    --gold-dim: #b08f4a;
+    --gold-hover: #74590c;
+    --gold-tint: #f6eed7;
+    --gold-tint-strong: #ecdfb3;
+    --text: #29271f;
+    --text-muted: #746f62;
+    --placeholder: #aca690;
+    --border: #e1ddd0;
+    --hover-bg: #efece2;
+    --hover-border: #c9c3b2;
+    --focus-border: #a39c8a;
+    --danger: #a4402f;
+    --danger-hover-text: #c0453a;
+    --on-gold-text: #ffffff;
+    --success: #4a9350;
+    --save-dot-idle: #b3ac98;
+    --scrollbar-thumb: #ddd7c6;
+  }
+  *{ box-sizing: border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Work Sans', sans-serif;
+    display:flex;
+    flex-direction:column;
+    height:100vh;
+    overflow:hidden;
+  }
+  mono, .mono{ font-family:'JetBrains Mono', monospace; }
+
+  /* ---------- top bar ---------- */
+  header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding: 14px 20px;
+    border-bottom:1px solid var(--border);
+    background: var(--panel);
+    flex-shrink:0;
+  }
+  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand h1{
+    font-size:17px; margin:0; font-weight:600; letter-spacing:.2px;
+  }
+  .brand span{ color: var(--gold); }
+  .brand small{ color: var(--text-muted); font-size:12px; }
+  .file-status{ display:flex; align-items:center; gap:7px; margin-left:6px; padding-left:12px; border-left:1px solid var(--border); }
+  .file-name{ font-size:12.5px; color:var(--text-muted); font-family:'JetBrains Mono', monospace; }
+  .save-dot{ width:7px; height:7px; border-radius:50%; background: var(--save-dot-idle); flex-shrink:0; }
+  .save-dot.saved{ background: var(--success); }
+  .save-dot.pending{ background:var(--gold); }
+  .save-dot.saving{ background:var(--gold); animation:pulse 1s ease-in-out infinite; }
+  .save-dot.error{ background:var(--danger); }
+  .save-text{ font-size:11.5px; color:var(--text-muted); }
+  @keyframes pulse{ 0%,100%{ opacity:1; } 50%{ opacity:.35; } }
+  .actions{ display:flex; gap:8px; }
+  button{
+    font-family:inherit;
+    font-size:13px;
+    border:1px solid var(--border);
+    background: var(--panel-2);
+    color: var(--text);
+    padding:7px 13px;
+    border-radius:6px;
+    cursor:pointer;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  button:hover{ border-color: var(--hover-border); background: var(--hover-bg); }
+  button.primary{
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--on-gold-text);
+    font-weight:600;
+  }
+  button.primary:hover{ background: var(--gold-hover); }
+  button.ghost{ background:transparent; }
+  button.small{ padding:4px 9px; font-size:12px; }
+  button.icon{ padding:4px 8px; font-size:12px; line-height:1; }
+  button.icon svg{ vertical-align:-1px; }
+  button.danger:hover{ border-color: var(--danger); color: var(--danger-hover-text); }
+  input[type=file]{ display:none; }
+
+  /* ---------- file menu ---------- */
+  .file-menu-wrap{ position:relative; }
+  .menu-chev{ font-size:9px; margin-left:2px; }
+  .file-menu-dropdown{
+    display:none; position:absolute; top:calc(100% + 6px); right:0;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:5px; width:230px; z-index:50;
+    box-shadow: 0 12px 30px rgba(0,0,0,.45);
+  }
+  .file-menu-dropdown.open{ display:block; }
+  .file-menu-item{
+    white-space:normal; word-wrap:break-word; line-height:1.35;
+    display:flex; align-items:center; width:100%; text-align:left;
+    background:transparent; border:none; color: var(--text); font-family:inherit;
+    padding:8px 9px; font-size:12.5px; border-radius:5px; cursor:pointer;
+  }
+  .file-menu-item:hover{ background: var(--hover-bg); border-color:transparent; }
+  .file-menu-item-hint{ margin-left:auto; padding-left:10px; font-size:11px; color: var(--text-muted); }
+  .sidebar.focus-mode .sidebar-tools{ display:none; }
+  .focus-exit-bar{ display:flex; align-items:center; gap:8px; padding:10px 10px 4px; }
+  .focus-exit-bar .focus-label{ font-size:11px; color: var(--text-muted); }
+  .file-menu-divider{ height:1px; background: var(--border); margin:4px 6px; }
+
+  /* ---------- toasts ---------- */
+  .toast-container{
+    position:fixed; top:18px; right:18px; z-index:400;
+    display:flex; flex-direction:column; gap:8px; max-width:320px;
+  }
+  .toast{
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:11px 13px; font-size:13px; color: var(--text); line-height:1.4;
+    display:flex; align-items:center; gap:10px;
+    box-shadow: 0 10px 28px rgba(0,0,0,.45);
+  }
+  .toast.error{ border-color: var(--danger); }
+  .toast-msg{ flex:1; min-width:0; }
+  .toast-action{
+    flex-shrink:0; background:transparent; border:1px solid var(--gold); color: var(--gold);
+    border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; font-family:inherit;
+  }
+  .toast-action:hover{ background: var(--gold-tint); }
+
+  /* ---------- inline confirm / prompt popovers (replace confirm()/prompt()) ---------- */
+  .confirm-popover{
+    position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
+    border-radius:8px; padding:12px 14px; width:230px; font-size:12.5px; color: var(--text);
+    box-shadow: 0 12px 30px rgba(0,0,0,.45);
+  }
+  .confirm-popover-msg{ margin-bottom:10px; line-height:1.45; }
+  .confirm-popover input{
+    width:100%; box-sizing:border-box; background: var(--panel); border:1px solid var(--border);
+    color: var(--text); border-radius:6px; padding:7px 9px; font-size:12.5px; font-family:inherit;
+    margin-bottom:10px;
+  }
+  .confirm-popover input:focus{ outline:none; border-color: var(--focus-border); }
+  .confirm-popover-actions{ display:flex; justify-content:flex-end; gap:6px; }
+  .confirm-popover-actions button{ padding:6px 11px; font-size:12px; }
+  .confirm-popover-actions button[data-action="confirm"]{
+    background: var(--danger); border-color: var(--danger); color: var(--on-gold-text);
+  }
+  .confirm-popover-actions button[data-action="confirm"].primary-confirm{
+    background: var(--gold); border-color: var(--gold); color: var(--on-gold-text);
+  }
+
+  /* ---------- performance PDF modal ---------- */
+  .modal-overlay{
+    display:none; position:fixed; inset:0; background:rgba(0,0,0,.55);
+    align-items:center; justify-content:center; z-index:100;
+  }
+  .modal-overlay.open{ display:flex; }
+  .modal{
+    background: var(--panel); border:1px solid var(--border); border-radius:12px;
+    padding: 24px 26px; width: 380px; max-width:90vw;
+    max-height: 88vh; overflow-y:auto;
+    box-shadow: 0 20px 50px rgba(0,0,0,.5);
+  }
+  .modal h2{ margin:0 0 14px; font-size:17px; }
+  .modal-sub{ margin:0 0 18px; font-size:12.5px; color: var(--text-muted); line-height:1.5; }
+  .modal-label{ display:block; font-size:11.5px; color: var(--text-muted); margin-bottom:5px; letter-spacing:.2px; }
+  .song-checklist{
+    max-height:180px; overflow-y:auto; border:1px solid var(--border); border-radius:6px;
+    padding:6px 8px; margin-bottom:16px; background: var(--panel-2);
+  }
+  .checklist-bulk{ display:flex; gap:6px; margin-bottom:8px; }
+  .song-check-row{
+    display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:13px;
+    cursor:pointer; border-radius:4px;
+  }
+  .song-check-row:hover{ background: var(--hover-bg); }
+  .song-check-row input{ flex-shrink:0; }
+  .song-check-row .artist{ color: var(--text-muted); }
+  .subset-controls{ display:flex; gap:6px; margin-bottom:10px; align-items:center; }
+  .subset-controls select{
+    flex:1; background: var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:6px 32px 6px 10px; font-size:12.5px; font-family:inherit; min-width:0;
+    appearance:none; -webkit-appearance:none; cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center;
+  }
+  .modal-input{
+    width:100%; background: var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:8px 10px; font-size:13.5px; font-family:inherit;
+    box-sizing:border-box; margin-bottom:16px;
+  }
+  .modal-input:focus{ outline:none; border-color: var(--focus-border); }
+  .mode-toggle{ display:flex; gap:8px; margin-bottom:20px; }
+  .mode-btn{
+    flex:1; padding:9px; border-radius:6px; text-align:center; font-size:13px;
+    background: var(--panel-2); border:1px solid var(--border); color: var(--text-muted);
+  }
+  .mode-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  .device-toggle{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
+  .device-btn{
+    flex:1 1 calc(50% - 4px); padding:8px 6px; border-radius:6px; text-align:center; font-size:12.5px;
+    background: var(--panel-2); border:1px solid var(--border); color: var(--text-muted);
+  }
+  .device-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
+  /* Configuration modal: label/description rows with a control at right */
+  .config-row{ display:flex; align-items:center; gap:14px; padding:12px 2px; border-bottom:1px solid var(--border); }
+  .config-row:has(+ .modal-actions){ border-bottom:0; } /* last row sits right above the actions: no divider */
+  #configModalOverlay .modal-actions{ margin-top:14px; }
+  .config-text{ flex:1; min-width:0; }
+  .config-name{ font-size:13.5px; font-weight:600; }
+  .config-desc{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .config-row .mode-toggle{ flex-shrink:0; }
+  .config-check{ width:18px; height:18px; accent-color:var(--gold); flex-shrink:0; cursor:pointer; }
+  .modal-welcome{ width:520px; }
+
+  /* Technical documentation / Help modal */
+  .modal-help{ width:760px; }
+  .help-layout{ display:flex; gap:22px; align-items:flex-start; margin-top:14px; }
+  .help-nav{
+    width:168px; flex:none; display:flex; flex-direction:column; gap:2px;
+    position:sticky; top:0; max-height:calc(88vh - 180px); overflow-y:auto;
+  }
+  .help-nav a{
+    font-size:12.5px; color:var(--text-muted); text-decoration:none;
+    padding:5px 8px; border-radius:5px; white-space:nowrap;
+  }
+  .help-nav a:hover{ background:var(--hover-bg); color:var(--text); }
+  .help-content{ flex:1; min-width:0; font-size:13px; line-height:1.55; color:var(--text-muted); }
+  .help-content h3{ font-size:14px; color:var(--text); margin:18px 0 8px; }
+  .help-content section:first-child h3{ margin-top:0; }
+  .help-content section{ scroll-margin-top:6px; }
+  .help-content p{ margin:0 0 10px; }
+  .help-content ul{ margin:0 0 10px; padding-left:20px; }
+  .help-content li{ margin-bottom:6px; }
+  .help-content strong{ color:var(--text); }
+  .help-content code{
+    background:var(--panel-2); padding:1px 5px; border-radius:4px;
+    font-size:12px; font-family:'JetBrains Mono',monospace;
+  }
+  @media (max-width:680px){
+    .help-layout{ flex-direction:column; }
+    .help-nav{ width:100%; flex-direction:row; flex-wrap:wrap; position:static; max-height:none; }
+  }
+  .welcome-tagline{ margin:-8px 0 14px; font-size:13px; color:var(--gold); font-style:italic; }
+  /* Inline SVG icons (no icon-font dependency; all icons are embedded below) */
+  svg.svg-icon{ width:1em; height:1em; fill:currentColor; flex:none; }
+  .welcome-features{ display:flex; flex-direction:column; gap:12px; margin:0 0 14px; }
+  .welcome-feature{ display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:var(--text-muted); }
+  .welcome-feature svg{ color:var(--gold); width:18px; height:18px; flex:none; margin-top:2px; }
+  .welcome-feature strong{ color:var(--text); font-weight:600; }
+  .welcome-use{ font-size:12.5px; font-style:italic; color:var(--text-muted); border-top:1px solid var(--border); padding-top:12px; margin:0 0 14px; line-height:1.5; }
+  .welcome-cta-label{ text-align:center; font-size:12.5px; color:var(--text-muted); margin:0 0 10px; }
+  .share-topics{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
+  .share-topic{
+    display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:8px; padding:10px 12px; font-size:13px; font-family:inherit;
+    cursor:pointer; text-align:left;
+  }
+  .share-topic:hover:not(:disabled){ border-color:var(--focus-border); }
+  .share-topic.active{ border-color:var(--gold); background:var(--gold-tint); }
+  .share-topic:disabled{ opacity:.55; cursor:default; }
+  .share-topic > svg{ width:20px; height:20px; color:var(--gold); flex:none; }
+  .share-topic-label{ display:flex; flex-direction:column; line-height:1.35; font-weight:600; }
+  .share-topic-label em{ font-style:normal; font-weight:400; font-size:11.5px; color:var(--text-muted); }
+  .share-instructions{ margin-bottom:16px; }
+  .share-guide-title{ font-size:13.5px; font-weight:600; margin-bottom:8px; }
+  .share-guide-steps{ margin:0; padding-left:20px; font-size:13px; line-height:1.55; color:var(--text-muted); }
+  .share-guide-steps li{ margin-bottom:8px; }
+  .share-guide-steps li::marker{ color:var(--gold); font-weight:600; }
+  .modal-group{ border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px; }
+  .modal-group .modal-input{ margin-bottom:14px; }
+  .modal-group-label{
+    font-size:10.5px; font-weight:600; color: var(--gold); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:10px;
+  }
+  .modal-wide{ width:760px; max-width:95vw; }
+  .modal-wide .modal-sub{ margin-bottom:16px; }
+  .modal-columns{ display:flex; gap:14px; align-items:flex-start; }
+  .modal-columns .modal-group{ flex:1; min-width:0; margin-bottom:12px; }
+  @media (max-width: 680px){
+    .modal-columns{ flex-direction:column; }
+  }
+  .pdf-download-link{
+    display:block; text-align:center; text-decoration:none;
+    background: var(--gold-tint); border:1px solid var(--gold); color: var(--gold);
+    border-radius:6px; padding:9px; font-size:13.5px; font-weight:600;
+    margin-bottom:16px;
+  }
+  .pdf-download-link:hover{ background: var(--gold-tint-strong); }
+
+  /* ---------- layout ---------- */
+  .layout{ flex:1; display:flex; min-height:0; }
+  nav.sidebar{
+    width: 270px;
+    flex-shrink:0;
+    position:relative;
+    border-right:1px solid var(--border);
+    background: var(--panel);
+    display:flex;
+    flex-direction:column;
+    overflow:hidden;
+  }
+  .sidebar-resize-handle{
+    position:absolute; top:0; right:-3px; width:6px; height:100%;
+    cursor:col-resize; z-index:20; touch-action:none;
+  }
+  .sidebar-resize-handle:hover, .sidebar-resize-handle.dragging{
+    background: rgba(201,162,39,.35);
+  }
+  .sidebar-tools{
+    flex-shrink:0;
+    padding: 12px 10px 10px;
+    border-bottom:1px solid var(--border);
+  }
+  .sidebar-search{
+    width:100%; background: var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:7px 9px; font-size:12.5px; font-family:inherit;
+    box-sizing:border-box; margin-bottom:9px;
+  }
+  .sidebar-search:focus{ outline:none; border-color: var(--focus-border); }
+  .tools-section{
+    padding-top:10px; margin-top:10px; border-top:1px solid var(--border);
+  }
+  .tools-section:first-child{ border-top:none; margin-top:0; padding-top:0; }
+  .sidebar-search + .tools-section{ border-top:none; margin-top:0; padding-top:0; }
+  .tools-section-label{
+    font-size:10px; font-weight:600; color: var(--gold); text-transform:uppercase;
+    letter-spacing:.4px; margin-bottom:7px;
+  }
+  .tools-buttons{ display:flex; gap:6px; }
+  .tools-buttons button{ flex:1; padding:5px 6px; font-size:11.5px; min-width:0; }
+  .tools-buttons + .tools-buttons{ margin-top:6px; }
+  .sort-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  .sort-chev{ display:inline-block; font-size:9px; margin-left:2px; }
+  .sidebar-list{
+    flex:1; overflow-y:auto; padding: 10px 10px 40px;
+  }
+  .search-result-song{
+    font-size:11.5px; font-weight:600; color: var(--text-muted);
+    margin: 12px 0 4px; padding: 0 2px;
+    text-transform:uppercase; letter-spacing:.3px;
+  }
+  .search-result-song:first-child{ margin-top:2px; }
+  .search-result-song .artist{ text-transform:none; font-weight:400; }
+  .search-result-row{
+    display:flex; align-items:center; gap:6px;
+    padding:7px 8px; border-radius:5px; cursor:pointer; font-size:13px;
+  }
+  .search-result-row:hover{ background: var(--panel-2); }
+  .search-result-row .snippet{
+    font-size:11px; color: var(--text-muted); overflow:hidden; text-overflow:ellipsis;
+    white-space:nowrap; flex:1; min-width:0;
+  }
+  .search-empty{ color: var(--text-muted); font-size:12.5px; padding: 16px 4px; text-align:center; }
+  .group{
+    margin-bottom: 6px;
+    border-radius:8px;
+    overflow:hidden;
+  }
+  .group-head{
+    display:flex; align-items:center; gap:8px;
+    padding:8px 10px;
+    cursor:pointer;
+    border-radius:6px;
+  }
+  .group-head:hover{ background: var(--panel-2); }
+  .group-head.active{ background: var(--panel-2); }
+  .group-head .chev{ color: var(--text); font-size:15px; width:14px; flex-shrink:0; text-align:center; }
+  .group-head:hover .chev{ color: var(--gold); }
+  .group-titles{
+    flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;
+  }
+  .group-name{
+    font-size:13.5px; font-weight:500;
+  }
+  .group-name-field{
+    display:block; width:100%; background:transparent; border:none; color:var(--text);
+    font-family:inherit; font-size:13.5px; font-weight:500; padding:0; margin:0;
+    resize:none; overflow:hidden; white-space:normal; overflow-wrap:break-word;
+    line-height:1.3; height:auto;
+  }
+  .group-name-field:focus{ outline:none; }
+  .group-artist-field{
+    display:block; width:100%; background:transparent; border:none; color: var(--text-muted);
+    font-family:inherit; font-size:11px; padding:0; margin:0;
+    resize:none; overflow:hidden; white-space:normal; overflow-wrap:break-word;
+    line-height:1.3; height:auto;
+  }
+  .group-artist-field:focus{ outline:none; }
+  .group-artist-field::placeholder{ color: var(--placeholder); }
+  .group-video{
+    display:flex; align-items:center; gap:6px; margin-top:3px; min-height:16px;
+  }
+  .group-video-input{
+    flex:1; min-width:0; background: var(--panel-2); border:1px solid var(--border);
+    color: var(--text); border-radius:4px;
+    font-family:inherit; font-size:10.5px; padding:2px 5px; margin:0;
+  }
+  .group-video-input:focus{ outline:none; border-color: var(--focus-border); }
+  .group-video-input::placeholder{ color: var(--placeholder); }
+  .group-video-open{
+    flex-shrink:0; align-items:center; background:transparent; border:none;
+    color: var(--gold); font-size:10.5px; font-weight:600; padding:1px 4px; cursor:pointer;
+    font-family:inherit; border-radius:3px;
+  }
+  .group-video-open:hover{ background: var(--gold-tint); }
+  .group-video-edit{
+    flex-shrink:0; align-items:center; background:transparent; border:none;
+    color: var(--text-muted); font-size:10.5px; padding:1px 4px; cursor:pointer;
+    font-family:inherit; border-radius:3px;
+  }
+  .group-video-edit:hover{ background: var(--hover-bg); color: var(--text); }
+  .group-type{ margin-top:3px; display:flex; gap:5px; flex-wrap:wrap; }
+  .group-type-badge{
+    background: var(--panel-2); border:1px solid var(--border); color: var(--text-muted);
+    font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; cursor:pointer;
+    font-family:inherit; letter-spacing:.2px;
+  }
+  .group-type-badge:hover{ border-color: var(--focus-border); }
+  .group-type-badge.is-original{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  .group-type-badge.is-ready{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  .artist-suggest-popover{
+    position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
+    border-radius:6px; padding:4px; max-height:180px; overflow-y:auto;
+    box-shadow: 0 12px 30px rgba(0,0,0,.45);
+  }
+  .artist-suggest-row{
+    padding:6px 8px; font-size:12px; color: var(--text); border-radius:4px; cursor:pointer;
+  }
+  .artist-suggest-row:hover{ background: var(--hover-bg); }
+  .group-count{ font-size:11px; color: var(--text-muted); }
+  .section-list{ padding: 2px 4px 6px 22px; }
+  .section-row{
+    display:flex; align-items:center; gap:4px;
+    padding:6px 8px; border-radius:5px;
+    font-size:12.5px; cursor:pointer; color: var(--text-muted);
+  }
+  .section-row:hover{ background: var(--panel-2); color:var(--text); }
+  .section-row.active{ background: var(--gold-tint-strong); color: var(--gold); }
+  .section-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .section-row .order-btns{ display:none; gap:2px; }
+  .section-row:hover .order-btns{ display:flex; }
+  .order-btns button{ padding:1px 5px; font-size:10px; border-radius:3px; }
+  .add-section-btn{
+    margin: 4px 0 10px 22px;
+    font-size:12px; color: var(--text-muted); background:none; border:1px dashed var(--border);
+    padding:5px 10px;
+  }
+  .add-group-btn{
+    width:100%; margin-top:8px; border-style:dashed; color:var(--text-muted);
+  }
+
+  /* ---------- main editor ---------- */
+  main{ flex:1; overflow-y:auto; padding: 24px 32px 60px; min-width:0; }
+  .empty-state{
+    display:flex; align-items:center; justify-content:center;
+    height:100%; color: var(--text-muted); font-size:14px; text-align:center;
+  }
+  .editor-head{
+    display:flex; align-items:center; gap:10px; margin-bottom: 22px; flex-wrap:wrap;
+  }
+  .editor-head-titles{ flex:1; min-width:0; }
+  .dup-section-btn{ white-space:nowrap; margin:0 0 30px 8px; }
+  .editor-head .group-label{
+    font-size:12px; color: var(--gold); text-transform:none;
+  }
+  .editor-head .group-label .artist{ color: var(--text-muted); }
+  .section-name-row{ display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
+  .section-type-select{
+    font-size:15px; font-weight:600; font-family:inherit; color:var(--text);
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:7px 30px 7px 10px; max-width:200px; cursor:pointer;
+    appearance:none; -webkit-appearance:none;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 11px center;
+  }
+  .section-custom-input, .section-suffix-input{
+    font-family:inherit; color:var(--text); background:transparent;
+    border:none; border-bottom:2px solid transparent; padding:7px 2px;
+  }
+  .section-custom-input{ font-size:15px; font-weight:600; min-width:140px; flex:1; max-width:300px; }
+  .section-suffix-input{ font-size:13px; color:var(--text-muted); min-width:130px; flex:1; max-width:220px; }
+  .section-custom-input:focus, .section-suffix-input:focus{ outline:none; border-bottom-color:var(--gold); }
+  .section-name-preview{ font-size:12px; color:var(--text-muted); margin-top:5px; }
+  .section-name-preview strong{ color:var(--text); font-weight:600; }
+
+  .lines-wrap{ max-width: 760px; }
+  .line-row{
+    display:flex; align-items:flex-start; gap:10px;
+    margin-bottom:10px; padding: 6px 8px 8px 4px;
+    border-radius:8px;
+    border:1px solid transparent;
+  }
+  .line-row:hover{ border-color: var(--border); background: var(--hover-bg); }
+  .line-num{
+    color: var(--text-muted); font-size:11px; width:20px; text-align:right;
+    padding-top:26px; flex-shrink:0; user-select:none;
+  }
+  .line-editor{ flex:1; min-width:0; }
+  .hint-row{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:3px; height:16px;
+  }
+  .hint-row .hint{ font-size:10.5px; color: var(--text-muted); }
+  .line-tools{ display:flex; gap:5px; }
+  .clear-btn{
+    font-size:10.5px; padding:1px 8px; border-radius:4px;
+    background:transparent; border:1px solid var(--border); color: var(--text-muted);
+  }
+  .clear-btn:hover{ color: var(--danger-hover-text); border-color: var(--danger); background: var(--hover-bg); }
+  .mono-edit{ font-family:'Inconsolata', 'JetBrains Mono', monospace; }
+  .chord-input-wrap input{
+    width:100%; background: var(--panel-2); border:1px solid var(--border);
+    border-bottom:none; color: var(--gold); font-weight:600;
+    border-radius:5px 5px 0 0; padding: 6px 8px; font-size:14.5px; box-sizing:border-box;
+  }
+  .chord-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
+  .chord-input-wrap input::placeholder{ color: var(--placeholder); font-weight:400; }
+  .text-input-wrap input{
+    width:100%; background: var(--panel-2); border:1px solid var(--border);
+    color:var(--text); border-radius:0 0 5px 5px; padding: 6px 8px;
+    font-size:14.5px; box-sizing:border-box;
+  }
+  .text-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
+  .line-controls{ display:flex; flex-direction:column; gap:3px; padding-top:20px; flex-shrink:0; }
+
+  .add-line-btn{ margin: 6px 0 10px 30px; }
+  .bulk-paste-btn{ margin: 0 0 30px 30px; }
+  .bulk-paste-wrap{
+    max-width: 760px; margin: 0 0 30px 30px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding: 12px 14px;
+  }
+  .bulk-paste-hint{ font-size:11.5px; color: var(--text-muted); line-height:1.5; margin-bottom:8px; }
+  .bp-hint-chord{ color: var(--gold); font-weight:600; }
+  .bulk-paste-editor{ position:relative; margin-bottom:10px; }
+  .bulk-paste-backdrop{
+    position:absolute; top:0; left:0; right:0; bottom:0; margin:0;
+    padding:10px; font-size:13px; line-height:1.5; white-space:pre-wrap; word-wrap:break-word;
+    overflow:hidden; pointer-events:none; box-sizing:border-box;
+    border:1px solid transparent; color: var(--text); background: var(--panel);
+    border-radius:6px;
+  }
+  .bp-line-chord{ color: var(--gold); font-weight:600; }
+  .bp-line-lyric{ color: var(--text); }
+  .bulk-paste-textarea{
+    position:relative; width:100%; background: transparent; border:1px solid var(--border);
+    color:transparent; caret-color: var(--text);
+    border-radius:6px; padding:10px; font-size:13px; line-height:1.5; resize:vertical;
+    box-sizing:border-box; margin-bottom:0;
+  }
+  .bulk-paste-textarea:focus{ outline:none; border-color: var(--focus-border); }
+  .bulk-paste-actions{ display:flex; justify-content:flex-end; gap:8px; }
+
+  .preview-block{ max-width:760px; }
+  .preview-label{
+    font-size:11px; color: var(--text-muted); margin-bottom:8px; letter-spacing:.3px;
+  }
+  .paper{
+    background: var(--paper); color:#2a2620; border-radius:10px;
+    padding: 22px 26px; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+  }
+  .paper .p-section-title{
+    font-size:17px; font-weight:700; margin-bottom:12px; letter-spacing:.3px;
+    color:#2a2620;
+  }
+  .paper .p-line{ margin-bottom:14px; position:relative; }
+  .paper .p-repeat-marker{
+    position:absolute; top:50%; transform:translateY(-50%); white-space:nowrap;
+    color:var(--gold); font-size:15.5px; font-weight:700;
+  }
+  .paper .p-symbols{ color: var(--gold-dim); font-size:15.5px; font-weight:700; white-space:pre; line-height:1.5; }
+  .paper .p-text{ font-size:15.5px; white-space:pre; line-height:1.5; }
+  .paper .p-line:last-child{ margin-bottom:0; }
+  .paper .p-empty{ color:#a89f88; font-style:italic; font-size:13px; }
+
+  /* Themed scrollbars are scoped to the main app scroll areas only.
+  Styling ::-webkit-scrollbar globally forces permanently-visible
+  scrollbars on macOS (instead of the native auto-hiding overlay kind),
+  which made modals show a bar for even sub-pixel fractional overflow
+  (webfont swap, 88vh rounding, checklist cap boundary) though nothing
+  was actually scrollable. Inside modals the native behavior is what we
+  want: a bar appears only while genuinely scrolling. */
+  main::-webkit-scrollbar, .sidebar-list::-webkit-scrollbar{ width:10px; height:10px; }
+  main::-webkit-scrollbar-thumb, .sidebar-list::-webkit-scrollbar-thumb{ background: var(--scrollbar-thumb); border-radius:6px; }
+  main::-webkit-scrollbar-track, .sidebar-list::-webkit-scrollbar-track{ background:transparent; }
+</style>
+</head>
+<body>
+
+<div class="toast-container" id="toastContainer"></div>
+
+<header>
+  <div class="brand">
+    <h1>Set<span>Book</span></h1>
+    <div class="file-status" id="fileStatus">
+      <span class="file-name" id="fileNameLabel">No file open</span>
+      <span class="save-dot" id="saveDot"></span>
+      <span class="save-text" id="saveText">not saved to disk</span>
+    </div>
+  </div>
+  <div class="actions">
+    <button class="ghost small" id="btnShareHelp" title="Help: getting PDFs onto your devices"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M176 168 L336 226 M176 344 L336 286" stroke="currentColor" stroke-width="44" fill="none" stroke-linecap="round"/><circle cx="128" cy="128" r="72"/><circle cx="384" cy="256" r="72"/><circle cx="128" cy="384" r="72"/></svg></button>
+    <button class="ghost small" id="btnHelp" title="Help & technical documentation"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M256 32 C132.3 32 32 132.3 32 256 s100.3 224 224 224 224-100.3 224-224 S379.7 32 256 32 z M256 448 c-106 0-192-86-192-192 S150 64 256 64 s192 86 192 192-86 192-192 192 z"/><text x="256" y="352" text-anchor="middle" font-size="280" font-weight="700" fill="currentColor">?</text></svg></button>
+    <div class="file-menu-wrap">
+      <button class="ghost small" id="btnFileMenu">File <span class="menu-chev">▾</span></button>
+      <div class="file-menu-dropdown" id="fileMenuDropdown">
+        <button class="file-menu-item" id="btnNewFile">New file</button>
+        <button class="file-menu-item" id="btnOpen">Open…</button>
+        <button class="file-menu-item" id="btnSaveAs">Save as…</button>
+        <button class="file-menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="file-menu-item-hint"></span></button>
+        <button class="file-menu-item" id="btnRevealFolder">Open enclosing folder…</button>
+        <div class="file-menu-divider"></div>
+        <button class="file-menu-item" id="btnCopySongs">Import songs</button>
+        <div class="file-menu-divider"></div>
+        <button class="file-menu-item" id="btnConfigureLayout">Configuration…</button>
+      </div>
+    </div>
+    <input type="file" id="fileInput" accept="application/json">
+    <button class="primary small pdf-trigger" id="btnPdf">Export PDF…</button>
+  </div>
+</header>
+
+<div class="modal-overlay" id="pdfModalOverlay">
+  <div class="modal modal-wide">
+    <h2 id="pdfModalTitle">Performance PDF</h2>
+    <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
+
+    <div class="modal-columns">
+      <div class="modal-group">
+        <div class="modal-group-label">Output</div>
+        <label class="modal-label">PDF type</label>
+        <div class="mode-toggle" id="pdfTypeToggle">
+          <button type="button" class="mode-btn active" data-pdftype="performance">Performance PDF</button>
+          <button type="button" class="mode-btn" data-pdftype="print-friendly">Print Friendly PDF</button>
+        </div>
+
+        <label class="modal-label" for="pdfProjectName">Project name</label>
+        <input id="pdfProjectName" class="modal-input" placeholder="e.g. Great North Band">
+      </div>
+
+      <div class="modal-group">
+        <div class="modal-group-label">Format</div>
+        <label class="modal-label">Device</label>
+        <div class="device-toggle" id="deviceToggle">
+          <button type="button" class="device-btn active" data-device="ipad">iPad</button>
+          <button type="button" class="device-btn" data-device="ipad-mini">iPad mini</button>
+          <button type="button" class="device-btn" data-device="iphone">iPhone</button>
+          <button type="button" class="device-btn" data-device="letter">Letter (print)</button>
+        </div>
+
+        <label class="modal-label">Orientation</label>
+        <div class="mode-toggle" id="orientationToggle">
+          <button type="button" class="mode-btn" data-orientation="portrait">Portrait</button>
+          <button type="button" class="mode-btn active" data-orientation="landscape">Landscape</button>
+        </div>
+
+        <div id="appearanceSection">
+          <label class="modal-label">Appearance</label>
+          <div class="mode-toggle">
+            <button type="button" class="mode-btn active" data-mode="light">Light mode</button>
+            <button type="button" class="mode-btn" data-mode="dark">Dark mode</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-group">
+        <div class="modal-group-label">Songs</div>
+        <div class="subset-controls">
+          <select id="pdfSubsetSelect">
+            <option value="">All songs</option>
+          </select>
+          <button type="button" class="ghost small" id="pdfSaveSubsetBtn">Save…</button>
+          <button type="button" class="ghost small danger" id="pdfDeleteSubsetBtn" style="display:none;">Delete</button>
+        </div>
+        <div class="checklist-bulk">
+          <button type="button" class="ghost small" id="pdfSelectAllBtn">Select all</button>
+          <button type="button" class="ghost small" id="pdfSelectNoneBtn">Select none</button>
+          <button type="button" class="ghost small" id="pdfSelectReadyBtn">Ready only</button>
+        </div>
+        <div class="song-checklist" id="pdfSongChecklist"></div>
+      </div>
+    </div>
+
+    <a id="pdfDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
+
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="pdfCancelBtn">Close</button>
+      <button type="button" class="primary small" id="pdfGenerateBtn">Generate PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="copyModalOverlay">
+  <div class="modal">
+    <h2>Import songs</h2>
+    <p class="modal-sub">Choose a JSON file that was generated by SetBook (yours or someone else's), then pick which of its songs to bring into the file you have open now.</p>
+    <div id="copySourceInfo" class="modal-sub" style="display:none;"></div>
+    <div id="copySongChecklist" class="song-checklist">
+      <div class="search-empty">Choose a file to see its songs.</div>
+    </div>
+    <input type="file" id="copyFileInput" accept="application/json">
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="copyCancelBtn">Close</button>
+      <button type="button" class="ghost small" id="copyPickFileBtn">Choose file…</button>
+      <button type="button" class="primary small" id="copyImportBtn" disabled>Add selected songs</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="welcomeModalOverlay">
+  <div class="modal modal-welcome">
+    <h2>Welcome to SetBook</h2>
+    <p class="welcome-tagline">Lead sheets, organized the way musicians think — by section.</p>
+    <p class="modal-sub">SetBook is a lead-sheet workspace for anyone who needs a chart in a hurry: band leaders, open-mic hosts, recording studios, producers, and music students.</p>
+    <div class="welcome-features">
+      <div class="welcome-feature">
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 48 L464 152 L256 256 L48 152 Z"/><path d="M48 216 L256 320 L464 216 L464 264 L256 368 L48 264 Z"/><path d="M48 296 L256 400 L464 296 L464 344 L256 448 L48 344 Z"/></svg>
+        <div><strong>A song library that thinks in sections.</strong> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by cover/original or ready/not ready.</div>
+      </div>
+      <div class="welcome-feature">
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M421 38 L474 91 L191 374 L80 432 L139 321 Z"/></svg>
+        <div><strong>Chords and lyrics, entered together.</strong> Type chord symbols on the row above each lyric line and SetBook keeps them synchronized — in the live preview and in every PDF you generate.</div>
+      </div>
+      <div class="welcome-feature">
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M112 32 h176 l112 112 v336 H112 Z M160 248 h192 v26 H160 Z M160 312 h192 v26 H160 Z M160 376 h120 v26 H160 Z"/></svg>
+        <div><strong>PDFs for the stage and the music stand.</strong> Generate section-by-section lead sheets — one section per page, made for Bluetooth page-turner pedals — or a full-song print-friendly chart sized for phone, tablet, or paper.</div>
+      </div>
+      <div class="welcome-feature">
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M240 64 L384 192 L240 320 L384 448 M240 64 V448" stroke="currentColor" stroke-width="46" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <div><strong>Plays nicely with your reading apps.</strong> Section PDFs open in Apple Books on iPad and Files by Google on Android — both pair with Bluetooth page turners for hands-free performing.</div>
+      </div>
+    </div>
+    <p class="welcome-use">Built for jam sessions, open mics, band rehearsals, and recording sessions — anywhere a lead sheet is needed.</p>
+    <p class="welcome-cta-label">Open a file you've already started, or begin a new one.</p>
+    <div class="modal-actions" style="justify-content:center; margin-top:6px;">
+      <button type="button" class="ghost small" id="welcomeStartNewBtn">Start new file</button>
+      <button type="button" class="primary small" id="welcomeOpenBtn">Open existing file…</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="shareHelpModalOverlay">
+  <div class="modal modal-welcome">
+    <h2>Getting PDFs onto your devices</h2>
+    <p class="modal-sub">Choose a destination for step-by-step instructions.</p>
+    <div class="share-topics">
+      <button type="button" class="share-topic active" data-topic="apple-books">
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M256 104 C214 76 150 70 64 96 v304 c86-26 150-20 192 8 c42-28 106-34 192-8 v-304 c-86-26-150-20-192-8 z M246 132 h20 v236 h-20 Z"/></svg>
+        <span class="share-topic-label">Apple Books<em>iPhone / iPad</em></span>
+      </button>
+      <button type="button" class="share-topic" data-topic="files-google">
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M64 112 h160 l48 56 h192 v288 H64 Z"/></svg>
+        <span class="share-topic-label">Files by Google<em>Android</em></span>
+      </button>
+      <button type="button" class="share-topic" disabled>
+        <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><circle cx="102" cy="256" r="58"/><circle cx="256" cy="256" r="58"/><circle cx="410" cy="256" r="58"/></svg>
+        <span class="share-topic-label">More destinations<em>coming soon</em></span>
+      </button>
+    </div>
+    <div class="share-instructions" id="shareInstructions"></div>
+    <div class="modal-actions">
+      <button type="button" class="primary small" id="shareHelpCloseBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Configuration modal -->
+<div class="modal-overlay" id="configModalOverlay">
+  <div class="modal">
+    <h2>Configuration</h2>
+    <p class="modal-sub">Appearance and layout preferences.</p>
+    <div class="config-row">
+      <div class="config-text">
+        <div class="config-name">Appearance</div>
+        <div class="config-desc">Dark or light theme for the editor. Saved on this device.</div>
+      </div>
+      <div class="mode-toggle" id="configThemeToggle">
+        <button type="button" class="mode-btn" data-theme-choice="dark">Dark</button>
+        <button type="button" class="mode-btn" data-theme-choice="light">Light</button>
+      </div>
+    </div>
+    <div class="config-row">
+      <div class="config-text">
+        <div class="config-name">Number single sections</div>
+        <div class="config-desc">Also number sections that appear only once in a song (“Chorus 1” instead of “Chorus”). Saved in the file.</div>
+      </div>
+      <input type="checkbox" class="config-check" id="configNumberSingles" aria-label="Number single sections">
+    </div>
+    <div class="config-row">
+      <div class="config-text">
+        <div class="config-name">Watch video links</div>
+        <div class="config-desc">Open ▶ Watch videos in a new tab, or the same tab (leaves SetBook — use the back button to return). Saved on this device.</div>
+      </div>
+      <div class="mode-toggle" id="configWatchToggle">
+        <button type="button" class="mode-btn" data-watch-target="blank">New tab</button>
+        <button type="button" class="mode-btn" data-watch-target="self">Same tab</button>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="primary small" id="configCloseBtn">Done</button>
+    </div>
+  </div>
+</div>
+
+<!-- Technical documentation / Help modal -->
+<div class="modal-overlay" id="helpModalOverlay">
+  <div class="modal modal-help">
+    <h2>SetBook — Technical Documentation</h2>
+    <p class="modal-sub">Last updated 2026-09-23.</p>
+    <div class="help-layout">
+      <nav class="help-nav">
+        <a href="#help-overview">1. Overview</a>
+        <a href="#help-architecture">2. Architecture</a>
+        <a href="#help-datamodel">3. Data model</a>
+        <a href="#help-library">4. Song library</a>
+        <a href="#help-editor">5. Section editor</a>
+        <a href="#help-preview">6. Live preview</a>
+        <a href="#help-pdf">7. PDF export</a>
+        <a href="#help-files">8. File management</a>
+        <a href="#help-transfer">9. Device transfer</a>
+        <a href="#help-requirements">10. Requirements</a>
+        <a href="#help-maintainers">11. Maintainer notes</a>
+        <a href="#help-qa">12. QA regression checklist</a>
+      </nav>
+      <div class="help-content">
+        <section id="help-overview">
+          <h3>1. Overview</h3>
+          <p>SetBook is a single-file, client-side web application for building and managing a personal song library as structured lead sheets. It is designed for musicians who need readable chord charts at rehearsals, jam sessions, open mics, recording sessions, and live performances.</p>
+          <p>The entire application — markup, styles, and logic — is contained in one HTML file. There is no build step, no backend, no account system, and no local database. Third-party code is loaded from CDNs at runtime: jsPDF (PDF generation) and Google Fonts (typefaces). All UI icons are inline SVG assets embedded directly in the file, so they render with no network access.</p>
+        </section>
+        <section id="help-architecture">
+          <h3>2. Architecture</h3>
+          <ul>
+            <li>All application state is held in a single in-memory <code>state</code> object. Rendering is performed by a set of render functions (<code>renderSidebar</code>, <code>renderMain</code>, <code>renderPreview</code>) that rebuild their panes from that state.</li>
+            <li>PDF generation is handled by the jsPDF library with a custom embedded monospace typeface (IBM Plex Mono, regular and bold), fetched once per session from a CDN and cached in memory, with graceful fallback if the fetch fails.</li>
+            <li>Appearance is controlled by a <code>data-theme</code> attribute on the <code>&lt;html&gt;</code> element. The default theme is dark; a light theme follows the device's system preference. The choice can be overridden in File → <strong>Configuration…</strong>, and is persisted on the device.</li>
+            <li>Layout consists of a resizable song-library sidebar alongside the main editor column, and adapts responsively down to phone widths.</li>
+          </ul>
+        </section>
+        <section id="help-datamodel">
+          <h3>3. Data model</h3>
+          <p>All persistent data is a JSON serialization of the <code>state</code> object:</p>
+          <ul>
+            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>).</li>
+            <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number (e.g. a legacy custom <code>"Verse 1"</code>) is ignored for grouping so numbering is never doubled. The <strong>Number single sections</strong> setting (File → Configuration…) also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code>.</li>
+            <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
+            <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
+            <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
+          </ul>
+        </section>
+        <section id="help-library">
+          <h3>4. Song library (sidebar)</h3>
+          <ul>
+            <li>Songs are listed alphabetically with their sections nested beneath. Songs can be expanded and collapsed individually or all at once.</li>
+            <li>Search is a case-insensitive substring match across song title, artist, section name, lyric text, and chord symbols. Matches are shown per section with a snippet of the matching lyric line. The Cover/Original and Ready/Not ready filters apply to search results as well as to browsing.</li>
+            <li>Sorting is by title or artist, ascending or descending. Untitled songs are pinned below titled songs in both directions; songs without an artist are pinned below songs that have one. A leading "The " in an artist name is ignored for ordering ("The Beatles" sorts under B).</li>
+            <li>Filter toggles: Cover/Original and Ready/Not ready. Each song carries a clickable status badge that flips its value. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
+            <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically.</li>
+            <li>Per-song metadata: editable title and artist, optional video link (with open/edit controls), Cover/Original badge, and Ready/Not Ready badge.</li>
+            <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Number single sections is saved in the file.</li>
+          </ul>
+        </section>
+        <section id="help-editor">
+          <h3>5. Section editor</h3>
+          <ul>
+            <li>Each section is an ordered list of rows. Every row has a chord-entry field and a lyric-text field. New songs start with an empty "Intro" section.</li>
+            <li>Keyboard navigation: ArrowUp/ArrowDown move vertically between fields; pressing Down in the last lyric field appends a new row.</li>
+            <li>Chord entry is tokenized on whitespace; each token becomes a chord symbol positioned at its character offset, keeping chords aligned over the lyric line.</li>
+            <li>Bulk paste: pasting multiple lines into the editor alternates chord/lyric pairing automatically.</li>
+            <li>Sections can be added, moved up and down, and deleted; renaming is done through the name picker in the editor header.</li>
+            <li>Section names are chosen from a picker: Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or Custom (free text). A tag field next to the picker holds informational text shown after the number, e.g. <code>(guitar solo)</code>; a "Shows as" line under the picker previews the final derived name.</li>
+            <li>Numbering is automatic and always derived from the current sections: a lone Chorus is shown as <code>Chorus</code>, but two Choruses in one song become <code>Chorus 1</code> and <code>Chorus 2</code> — deleting or retyping one renumbers the rest. Custom names are counted as well, so a custom <code>Chorus</code> numbers together with a picked Chorus. The <strong>Number single sections</strong> setting (File → Configuration…) numbers lone sections too (<code>Chorus 1</code>); it is saved per file and defaults to off. The derived name is used everywhere: sidebar, preview, search, and both PDF pipelines.</li>
+            <li>"+ Add section" picks its type from the bottom section's name: after a Verse comes a Chorus; after a Chorus, Bridge, or Instrumental comes a Verse; a Pre-Chorus leads into a Chorus; anything else (Intro, Outro, Custom, untitled) starts a Verse. Matching is by name prefix, so "Chorus 2" and a custom "Chorus (reprise)" count as choruses. "Create copy of section" copies the section's type along with its lyrics.</li>
+            <li>Row actions: each row has <strong>Clear chords</strong> and <strong>Clear lyrics</strong> buttons above its fields (these clear one input only), plus icon buttons at the right edge to move the row up, move it down, copy it (duplicate icon), and delete it. Copying duplicates the row's chords and lyrics and appends the copy at the bottom of the section, then scrolls it into view.</li>
+            <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
+            <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line.</li>
+            <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
+          </ul>
+        </section>
+        <section id="help-preview">
+          <h3>6. Live preview</h3>
+          <p>The preview pane renders the currently selected section through the same display-block grouping logic (<code>groupLinesForDisplay</code>) used by the PDF pipelines, so what is shown on screen matches the exported layout, minus PDF pagination.</p>
+        </section>
+        <section id="help-pdf">
+          <h3>7. PDF export</h3>
+          <ul>
+            <li><strong>Performance PDF.</strong> One page per song section (long sections paginate across pages). The page is sized for a target device — iPad, iPad mini, iPhone, or US Letter — in portrait or landscape, rendered in dark or light mode. It includes a tappable table of contents, one title page per song, a "back to Contents" link and the song title on every page, and previous/next-section navigation links at the bottom of each section page. The body font size is unified per song — every section page within one song uses the same size, the largest at which all of that song's sections still fit on their pages (the minimum of the per-section best-fit sizes, picked from fixed tiers so content fits without overflow); the layout is designed for use with Bluetooth page-turner pedals.</li>
+            <li><strong>Print-Friendly PDF.</strong> A continuous document stacking all selected songs and sections with page numbers. The body font size is auto-selected once for the whole document.</li>
+            <li>Both pipelines use the embedded IBM Plex Mono typeface so chord alignment is exact in any PDF viewer.</li>
+            <li>Export scope: all songs in the library, one saved subset, or a manual per-song checklist. The checklist offers bulk selection — Select all, Select none, and Ready only (songs whose ready status is Ready). Like a manual checkbox change, a bulk selection clears the subset dropdown so the selection is clearly custom.</li>
+          </ul>
+        </section>
+        <section id="help-files">
+          <h3>8. File management</h3>
+          <ul>
+            <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
+            <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type and ready status are carried over, defaulting to Cover / Not Ready when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the tag slot).</li>
+          </ul>
+        </section>
+        <section id="help-transfer">
+          <h3>9. Device transfer</h3>
+          <p>The share button in the header opens step-by-step guides for transferring exported PDFs to reading devices. Current guides: Apple Books on iPhone/iPad, and Files by Google on Android. The guide set is extensible — additional destinations can be added to the built-in hub.</p>
+        </section>
+        <section id="help-requirements">
+          <h3>10. Requirements</h3>
+          <p>A modern browser with JavaScript enabled. Internet access is required on first load to fetch the jsPDF library and fonts from CDNs; afterwards the application runs entirely from the single local file.</p>
+        </section>
+        <section id="help-maintainers">
+          <h3>11. Maintainer notes</h3>
+          <ul>
+            <li>All display-affecting transforms (lyric-continuation grouping, comment-line stripping, repeat markers) are centralized in <code>groupLinesForDisplay</code> and its helpers so the preview and both PDF pipelines share one code path. Editor source data is never mutated by display logic.</li>
+            <li>UI icons are hand-drawn inline SVGs (<code>&lt;svg class="svg-icon" viewBox="0 0 512 512"&gt;</code>) embedded directly in the markup — there is no icon font or icon CDN. To add an icon, inline a new SVG with the <code>svg-icon</code> class; it sizes to <code>1em</code> and inherits <code>currentColor</code>. Do not reintroduce an external icon library.</li>
+            <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
+            <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
+            <li>When adding, changing, or removing a feature, update this documentation to describe it and refresh the "Last updated" date above.</li>
+          </ul>
+        </section>
+        <section id="help-qa">
+          <h3>12. QA regression checklist</h3>
+          <p>Run this pass after any code change — especially refactors — before calling the work done. It is written so a human or an automated browser script can repeat it.</p>
+          <p><strong>A. Static checks</strong> (fast, no browser needed):</p>
+          <ul>
+            <li>Extract the inline <code>&lt;script&gt;</code> blocks and run <code>node --check</code> on them — JavaScript syntax must pass.</li>
+            <li>Verify balanced <code>div</code> / <code>section</code> / <code>ul</code> / <code>button</code> tags.</li>
+            <li>After a refactor, grep for dangling references to removed identifiers and confirm every modal open/close button has exactly one listener path.</li>
+          </ul>
+          <p><strong>B. Browser regression pass</strong> (serve the file over local HTTP, e.g. <code>python3 -m http.server</code> in the file's folder, then open it in a real browser with the console visible):</p>
+          <ul>
+            <li><strong>Load:</strong> no console errors; the welcome modal appears; the jsPDF library loads from CDN.</li>
+            <li><strong>Welcome modal:</strong> dismisses cleanly via its start button.</li>
+            <li><strong>Create content:</strong> add a song (title + artist), set its section type via the picker, add rows, type chords and lyrics. The live preview must reflect every edit.</li>
+            <li><strong>Focus mode:</strong> click the ◎ button on a song header and confirm the search box, sort/filter controls, "+ New song", and other songs are hidden while the focused song's sections stay listed and selectable, and confirm the editor opens the focused song's top section (not whatever section was open in the previous song); click "← All songs" and confirm everything returns; reload and confirm the focus choice is restored.</li>
+            <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a tag like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); open a legacy JSON whose sections only have <code>name</code> and confirm titles (including trailing parentheticals) survive unchanged.</li>
+            <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. No console errors.</li>
+            <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
+            <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close both via their close buttons and via clicking the overlay background.</li>
+            <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
+            <li><strong>Sidebar:</strong> search filters the song list; title and artist sorting reorder correctly; Cover/Original and Ready/Not ready filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
+            <li><strong>Save:</strong> Save as produces a file download with no errors.</li>
+            <li><strong>Narrow layout:</strong> at phone width the app renders with no console errors.</li>
+          </ul>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks) and <code>setbook-qa/section-names-test.js</code> (32 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+        </section>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="primary small" id="helpCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidebar">
+    <div class="sidebar-tools">
+      <input id="sidebarSearch" class="sidebar-search" type="text" placeholder="Search lyrics, chords, sections…">
+
+      <div class="tools-section">
+        <div class="tools-section-label">Sort by</div>
+        <div class="tools-buttons">
+          <button class="ghost small sort-btn" id="sortByTitleBtn">Title <span class="sort-chev" id="titleChev"></span></button>
+          <button class="ghost small sort-btn" id="sortByArtistBtn">Artist <span class="sort-chev" id="artistChev"></span></button>
+        </div>
+      </div>
+
+      <div class="tools-section">
+        <div class="tools-section-label">Show</div>
+        <div class="tools-buttons">
+          <button class="ghost small sort-btn active" id="filterCoverBtn">Covers</button>
+          <button class="ghost small sort-btn active" id="filterOriginalBtn">Originals</button>
+        </div>
+        <div class="tools-buttons">
+          <button class="ghost small sort-btn active" id="filterReadyBtn">Ready</button>
+          <button class="ghost small sort-btn active" id="filterNotReadyBtn">Not ready</button>
+        </div>
+      </div>
+
+      <div class="tools-section">
+        <div class="tools-buttons">
+          <button class="ghost small" id="expandAllBtn">Expand all</button>
+          <button class="ghost small" id="collapseAllBtn">Collapse all</button>
+        </div>
+      </div>
+    </div>
+    <div id="sidebarList" class="sidebar-list"></div>
+    <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
+  </nav>
+  <main id="main"></main>
+</div>
+<datalist id="artistOptions"></datalist>
+
+<script>
+/* ---------------------------------------------------------
+   Data model
+   state = {
+     sectionGroups: [{ id, name }],
+     sections: [{ id, groupId, name, order, lines: [{symbols, text}] }]
+   }
+--------------------------------------------------------- */
+// Single source of truth for a fresh state object — used both for the
+// initial load and for "new file" resets, so a new field can never be
+// added in one place and forgotten in the other.
+function defaultState(){
+  return {
+    sectionGroups: [], sections: [], projectName: '', songSubsets: [],
+    songSort: { field: 'title', dir: 'asc' },
+    lastFolderName: '', sidebarWidth: 270,
+    numberSingleSections: false,
+    focusedGroupId: null,
+    songTypeFilter: { cover: true, original: true },
+    readyFilter: { ready: true, notReady: true }
+  };
+}
+let state = defaultState();
+let selectedGroupId = null;
+let selectedSectionId = null;
+let expandedGroups = new Set();
+
+function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+
+function groupSections(groupId){
+  return state.sections
+    .filter(s => s.groupId === groupId)
+    .sort((a,b) => a.order - b.order);
+}
+
+let songSortField = 'title'; // 'title' | 'artist' — overridden by state.songSort once a file loads
+let songSortDir = 'asc';     // 'asc' | 'desc'
+let searchQuery = '';
+
+function sortedSongGroups(){
+  const groups = [...state.sectionGroups];
+  const dirMult = songSortDir === 'desc' ? -1 : 1;
+  const titleOf = g => (g.name || '').trim();
+  // "The Beatles" sorts under B, not T
+  const artistKey = g => titleOf({ name: g.artist }).replace(/^the\s+/i, '');
+  groups.sort((a, b) => {
+    const an = titleOf(a);
+    const bn = titleOf(b);
+    if (songSortField === 'artist'){
+      const aa = artistKey(a);
+      const bb = artistKey(b);
+      // songs with no artist always sink to the bottom, in either direction
+      if (!aa && bb) return 1;
+      if (aa && !bb) return -1;
+      const cmp = aa.localeCompare(bb, undefined, { sensitivity:'base' });
+      if (cmp !== 0) return cmp * dirMult;
+      // tiebreak within the same artist stays A-Z, with untitled songs below titled ones
+      if (!an && bn) return 1;
+      if (an && !bn) return -1;
+      return an.localeCompare(bn, undefined, { sensitivity:'base' });
+    }
+    // title sort: untitled songs sink to the bottom in either direction —
+    // they must not sort as the literal placeholder text "Untitled Song"
+    if (!an && bn) return 1;
+    if (an && !bn) return -1;
+    return an.localeCompare(bn, undefined, { sensitivity:'base' }) * dirMult;
+  });
+  return groups;
+}
+
+// only affects what's browsable in the sidebar — search, sorting for PDFs,
+// etc. all still see every song regardless of this filter
+function matchesSongTypeFilter(group){
+  const type = group.type || 'cover';
+  const filter = state.songTypeFilter || { cover:true, original:true };
+  return (type === 'cover' && filter.cover) || (type === 'original' && filter.original);
+}
+
+// a song with no stored status counts as Not Ready (covers new songs
+// and songs loaded from older JSONs that predate the status)
+function isSongReady(group){
+  return (group.readyStatus || 'not-ready') === 'ready';
+}
+function matchesReadyFilter(group){
+  const filter = state.readyFilter || { ready:true, notReady:true };
+  const ready = isSongReady(group);
+  return (ready && filter.ready) || (!ready && filter.notReady);
+}
+
+// If the song open in the editor is hidden by the current filters, close it
+// and fall back to the empty starting view — editing a song the user can no
+// longer see in the sidebar makes no sense.
+function closeOpenSongIfFilteredOut(){
+  const group = state.sectionGroups.find(g => g.id === selectedGroupId);
+  if (!group) return;
+  if (matchesSongTypeFilter(group) && matchesReadyFilter(group)) return;
+  selectedGroupId = null;
+  selectedSectionId = null;
+}
+
+function persistSongSort(){
+  state.songSort = { field: songSortField, dir: songSortDir };
+  scheduleSave();
+}
+
+function updateSortButtons(){
+  const titleBtn = document.getElementById('sortByTitleBtn');
+  const artistBtn = document.getElementById('sortByArtistBtn');
+  titleBtn.classList.toggle('active', songSortField === 'title');
+  artistBtn.classList.toggle('active', songSortField === 'artist');
+  document.getElementById('titleChev').textContent = songSortField === 'title' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
+  document.getElementById('artistChev').textContent = songSortField === 'artist' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
+}
+
+function updateSongTypeFilterButtons(){
+  const filter = state.songTypeFilter || { cover:true, original:true };
+  document.getElementById('filterCoverBtn').classList.toggle('active', !!filter.cover);
+  document.getElementById('filterOriginalBtn').classList.toggle('active', !!filter.original);
+}
+
+document.getElementById('filterCoverBtn').addEventListener('click', () => {
+  state.songTypeFilter.cover = !state.songTypeFilter.cover;
+  updateSongTypeFilterButtons();
+  closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+document.getElementById('filterOriginalBtn').addEventListener('click', () => {
+  state.songTypeFilter.original = !state.songTypeFilter.original;
+  updateSongTypeFilterButtons();
+  closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+
+function updateReadyFilterButtons(){
+  const filter = state.readyFilter || { ready:true, notReady:true };
+  document.getElementById('filterReadyBtn').classList.toggle('active', !!filter.ready);
+  document.getElementById('filterNotReadyBtn').classList.toggle('active', !!filter.notReady);
+}
+
+document.getElementById('filterReadyBtn').addEventListener('click', () => {
+  state.readyFilter.ready = !state.readyFilter.ready;
+  updateReadyFilterButtons();
+  closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+document.getElementById('filterNotReadyBtn').addEventListener('click', () => {
+  state.readyFilter.notReady = !state.readyFilter.notReady;
+  updateReadyFilterButtons();
+  closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+
+function searchSections(query){
+  const q = query.trim().toLowerCase();
+  if (!q) return [];
+  const results = [];
+  sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter).forEach(group => {
+    groupSections(group.id).forEach(section => {
+      const haystackParts = [group.name || '', group.artist || '', displaySectionName(section)];
+      section.lines.forEach(line => {
+        haystackParts.push(line.text || '');
+        line.symbols.forEach(s => haystackParts.push(s.value || ''));
+      });
+      const haystack = haystackParts.join(' \u2022 ').toLowerCase();
+      if (haystack.includes(q)){
+        // a short snippet of the matching lyric line, if the match is in a lyric
+        let snippet = '';
+        for (const line of section.lines){
+          if ((line.text || '').toLowerCase().includes(q)){ snippet = line.text; break; }
+        }
+        results.push({ group, section, snippet });
+      }
+    });
+  });
+  return results;
+}
+
+/* ---------------------------------------------------------
+   Song focus mode — hide search, sorting, and other songs,
+   showing only one song and its sections.
+--------------------------------------------------------- */
+function setSongFocus(gid){
+  state.focusedGroupId = gid;
+  if (gid){
+    searchQuery = '';
+    const sb = document.getElementById('sidebarSearch');
+    if (sb) sb.value = '';
+    expandedGroups.add(gid);
+    selectedGroupId = gid;
+    // swap the editor to the focused song's top section — otherwise it
+    // would keep showing whatever section was open in the previous song
+    // under the new song's name
+    const top = groupSections(gid)[0];
+    selectedSectionId = top ? top.id : null;
+  }
+  scheduleSave();
+  renderAll();
+}
+
+/* ---------------------------------------------------------
+   Sidebar rendering
+--------------------------------------------------------- */
+function renderSidebar(){
+  const el = document.getElementById('sidebarList');
+  el.innerHTML = '';
+  updateSortButtons();
+  updateSongTypeFilterButtons();
+  updateReadyFilterButtons();
+
+  const focusGroup = state.focusedGroupId && state.sectionGroups.find(g => g.id === state.focusedGroupId);
+  document.querySelector('nav.sidebar').classList.toggle('focus-mode', !!focusGroup);
+  if (focusGroup){
+    const exitBar = document.createElement('div');
+    exitBar.className = 'focus-exit-bar';
+    exitBar.innerHTML = `<button class="ghost small" id="exitFocusBtn">← All songs</button><span class="focus-label">Focusing on this song</span>`;
+    el.appendChild(exitBar);
+    exitBar.querySelector('#exitFocusBtn').addEventListener('click', () => setSongFocus(null));
+  }
+
+  if (searchQuery.trim()){
+    renderSearchResults(el);
+    return;
+  }
+
+  (focusGroup ? [focusGroup] : sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter)).forEach(group => {
+    const secs = groupSections(group.id);
+    const isExpanded = focusGroup ? true : expandedGroups.has(group.id);
+
+    const gDiv = document.createElement('div');
+    gDiv.className = 'group';
+    gDiv.dataset.gid = group.id;
+
+    const head = document.createElement('div');
+    head.className = 'group-head' + (selectedGroupId === group.id ? ' active' : '');
+    head.innerHTML = `
+      ${focusGroup ? '' : `<span class="chev">${isExpanded ? '▾' : '▸'}</span>`}
+      <div class="group-titles">
+        <span class="group-name" data-gid="${group.id}"></span>
+        <span class="group-artist"></span>
+        <span class="group-video"></span>
+        <span class="group-type"></span>
+      </div>
+      <span class="group-count">${secs.length}</span>
+      ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${group.id}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
+      <button class="icon danger" data-action="del-group" data-gid="${group.id}" title="Delete song">✕</button>
+    `;
+    const nameSpan = head.querySelector('.group-name');
+    const nameInput = document.createElement('textarea');
+    nameInput.className = 'group-name-field';
+    nameInput.rows = 1;
+    nameInput.value = group.name;
+    nameInput.placeholder = 'Untitled song';
+    nameInput.title = group.name || 'Untitled song';
+    nameInput.addEventListener('click', e => e.stopPropagation());
+    nameInput.addEventListener('input', e => {
+      group.name = e.target.value;
+      nameInput.title = group.name || 'Untitled song';
+      autoGrowTextarea(nameInput);
+      scheduleSave();
+    });
+    nameSpan.appendChild(nameInput);
+    deferAutoGrow(nameInput);
+    preventAutoReplace(nameInput);
+
+    const artistSpan = head.querySelector('.group-artist');
+    const artistInput = document.createElement('textarea');
+    artistInput.className = 'group-artist-field';
+    artistInput.rows = 1;
+    artistInput.value = group.artist || '';
+    artistInput.placeholder = 'Artist';
+    artistInput.addEventListener('click', e => e.stopPropagation());
+    artistInput.addEventListener('input', e => {
+      group.artist = e.target.value;
+      autoGrowTextarea(artistInput);
+      scheduleSave();
+      updateArtistDatalist();
+      if (selectedGroupId === group.id) renderMain();
+      showArtistSuggestions(artistInput, artistInput.value, (name) => {
+        artistInput.value = name;
+        group.artist = name;
+        autoGrowTextarea(artistInput);
+        scheduleSave();
+        if (selectedGroupId === group.id) renderMain();
+      });
+    });
+    artistInput.addEventListener('blur', () => setTimeout(closeArtistSuggestions, 150));
+    artistSpan.appendChild(artistInput);
+    deferAutoGrow(artistInput);
+    preventAutoReplace(artistInput);
+
+    const videoSpan = head.querySelector('.group-video');
+    const videoInput = document.createElement('input');
+    videoInput.type = 'text';
+    videoInput.className = 'group-video-input';
+    videoInput.placeholder = 'Paste video link';
+    videoInput.value = group.videoUrl || '';
+    videoInput.title = group.videoUrl || '';
+
+    const videoOpenBtn = document.createElement('button');
+    videoOpenBtn.type = 'button';
+    videoOpenBtn.className = 'group-video-open';
+    videoOpenBtn.textContent = '▶ Watch';
+    videoOpenBtn.title = watchTarget() === 'self' ? 'Open video in the same tab' : 'Open video in a new tab';
+
+    const videoEditBtn = document.createElement('button');
+    videoEditBtn.type = 'button';
+    videoEditBtn.className = 'group-video-edit';
+
+    function setVideoEditing(editing){
+      if (editing){
+        videoInput.style.display = 'block';
+        videoOpenBtn.style.display = 'none';
+        videoEditBtn.style.display = 'none';
+        setTimeout(() => { videoInput.focus(); videoInput.select(); }, 0);
+      } else {
+        videoInput.style.display = 'none';
+        videoOpenBtn.style.display = group.videoUrl ? 'inline-flex' : 'none';
+        videoEditBtn.style.display = 'inline-flex';
+        videoEditBtn.textContent = group.videoUrl ? '✎' : '+ Video';
+        videoEditBtn.title = group.videoUrl ? 'Edit video link' : 'Add a video link';
+      }
+    }
+
+    videoEditBtn.addEventListener('click', e => { e.stopPropagation(); setVideoEditing(true); });
+    videoInput.addEventListener('click', e => e.stopPropagation());
+    videoInput.addEventListener('input', e => {
+      group.videoUrl = e.target.value.trim();
+      videoInput.title = group.videoUrl;
+      scheduleSave();
+    });
+    videoInput.addEventListener('blur', () => setVideoEditing(false));
+    videoInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter'){ e.preventDefault(); videoInput.blur(); }
+    });
+    preventAutoReplace(videoInput);
+    videoOpenBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      openVideoLink(group.videoUrl);
+    });
+
+    videoSpan.appendChild(videoOpenBtn);
+    videoSpan.appendChild(videoEditBtn);
+    videoSpan.appendChild(videoInput);
+    setVideoEditing(false);
+
+    const typeSpan = head.querySelector('.group-type');
+    const typeBtn = document.createElement('button');
+    typeBtn.type = 'button';
+    typeBtn.className = 'group-type-badge';
+    function renderTypeBadge(){
+      const type = group.type || 'cover';
+      typeBtn.textContent = type === 'original' ? 'Original' : 'Cover';
+      typeBtn.classList.toggle('is-original', type === 'original');
+      typeBtn.title = 'Click to mark as ' + (type === 'original' ? 'a cover' : 'an original');
+    }
+    renderTypeBadge();
+    typeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.type = (group.type || 'cover') === 'cover' ? 'original' : 'cover';
+      renderTypeBadge();
+      scheduleSave();
+      renderSidebar();
+    });
+    typeSpan.appendChild(typeBtn);
+
+    const readyBtn = document.createElement('button');
+    readyBtn.type = 'button';
+    readyBtn.className = 'group-type-badge';
+    function renderReadyBadge(){
+      const ready = isSongReady(group);
+      readyBtn.textContent = ready ? 'Ready' : 'Not Ready';
+      readyBtn.classList.toggle('is-ready', ready);
+      readyBtn.title = 'Click to mark as ' + (ready ? 'not ready' : 'ready');
+    }
+    renderReadyBadge();
+    readyBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      group.readyStatus = isSongReady(group) ? 'not-ready' : 'ready';
+      renderReadyBadge();
+      scheduleSave();
+      renderSidebar();
+    });
+    typeSpan.appendChild(readyBtn);
+
+    const focusBtn = head.querySelector('[data-action="focus"]');
+    if (focusBtn) focusBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      setSongFocus(group.id);
+    });
+    head.addEventListener('click', (e) => {
+      if (e.target.closest('button')) return;
+      selectedGroupId = group.id;
+      if (focusGroup) return; // the focused song stays expanded
+      if (isExpanded) expandedGroups.delete(group.id); else expandedGroups.add(group.id);
+      renderSidebar();
+    });
+    head.querySelector('[data-action="del-group"]').addEventListener('click', (e) => {
+      showConfirmPopover(e.currentTarget, `Delete "${group.name || 'this song'}" and all its sections?`, 'Delete', () => {
+        const removedGroup = group;
+        const removedSections = state.sections.filter(s => s.groupId === group.id);
+        state.sections = state.sections.filter(s => s.groupId !== group.id);
+        state.sectionGroups = state.sectionGroups.filter(g => g.id !== group.id);
+        if (selectedGroupId === group.id){ selectedGroupId = null; selectedSectionId = null; }
+        if (state.focusedGroupId === group.id) state.focusedGroupId = null;
+        scheduleSave();
+        renderAll();
+        showUndoToast(`Deleted "${removedGroup.name || 'Untitled song'}"`, () => {
+          state.sectionGroups.push(removedGroup);
+          state.sections.push(...removedSections);
+          scheduleSave();
+          renderAll();
+        });
+      });
+    });
+    gDiv.appendChild(head);
+
+    if (isExpanded){
+      const list = document.createElement('div');
+      list.className = 'section-list';
+      secs.forEach((sec, idx) => {
+        const row = document.createElement('div');
+        row.className = 'section-row' + (selectedSectionId === sec.id ? ' active' : '');
+        row.innerHTML = `
+          <span class="name">${escapeHtml(displaySectionName(sec))}</span>
+          <span class="order-btns">
+            <button data-action="up" ${idx===0 ? 'disabled' : ''}>↑</button>
+            <button data-action="down" ${idx===secs.length-1 ? 'disabled' : ''}>↓</button>
+            <button data-action="del" class="danger">✕</button>
+          </span>
+        `;
+        row.addEventListener('click', e => {
+          if (e.target.closest('button')) return;
+          selectedGroupId = group.id;
+          selectedSectionId = sec.id;
+          renderAll();
+        });
+        row.querySelector('[data-action="up"]')?.addEventListener('click', () => { moveSection(sec, -1); });
+        row.querySelector('[data-action="down"]')?.addEventListener('click', () => { moveSection(sec, 1); });
+        row.querySelector('[data-action="del"]').addEventListener('click', (e) => {
+          showConfirmPopover(e.currentTarget, `Delete section "${displaySectionName(sec)}"?`, 'Delete', () => {
+            const removedName = displaySectionName(sec);
+            const removedSec = sec;
+            state.sections = state.sections.filter(s => s.id !== sec.id);
+            if (selectedSectionId === sec.id) selectedSectionId = null;
+            scheduleSave();
+            renderAll();
+            showUndoToast(`Deleted "${removedName}"`, () => {
+              state.sections.push(removedSec);
+              scheduleSave();
+              renderAll();
+            });
+          });
+        });
+        list.appendChild(row);
+      });
+      gDiv.appendChild(list);
+
+      const addSecBtn = document.createElement('button');
+      addSecBtn.className = 'add-section-btn';
+      addSecBtn.textContent = '+ Add section';
+      addSecBtn.addEventListener('click', () => {
+        const newOrder = secs.length ? Math.max(...secs.map(s=>s.order)) + 1 : 0;
+        const sourceSection = secs.length ? secs[secs.length - 1] : null;
+        const newType = defaultNewSectionType(sourceSection);
+        const sec = { id: uid('sec'), groupId: group.id, nameType: newType, customName: '', nameSuffix: '', name: '', order: newOrder, lines: [] };
+        state.sections.push(sec);
+        selectedGroupId = group.id;
+        selectedSectionId = sec.id;
+        scheduleSave();
+        renderAll();
+      });
+      gDiv.appendChild(addSecBtn);
+    }
+
+    el.appendChild(gDiv);
+  });
+
+  if (!focusGroup){
+  const addGroupBtn = document.createElement('button');
+  addGroupBtn.className = 'add-group-btn';
+  addGroupBtn.textContent = '+ New song';
+  addGroupBtn.addEventListener('click', () => {
+    const g = { id: uid('grp'), name: '', artist: '' };
+    state.sectionGroups.push(g);
+    const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [] };
+    state.sections.push(introSec);
+    selectedGroupId = g.id;
+    selectedSectionId = introSec.id;
+    expandedGroups.add(g.id);
+    scheduleSave();
+    renderAll();
+    setTimeout(() => {
+      const input = el.querySelector(`.group-name[data-gid="${g.id}"] textarea`);
+      input?.focus();
+    }, 0);
+  });
+  el.appendChild(addGroupBtn);
+  }
+  updateArtistDatalist();
+}
+
+function renderSearchResults(el){
+  const results = searchSections(searchQuery);
+  updateArtistDatalist();
+
+  if (!results.length){
+    el.innerHTML = `<div class="search-empty">No matches for "${escapeHtml(searchQuery.trim())}"</div>`;
+    return;
+  }
+
+  let lastGroupId = null;
+  results.forEach(({ group, section, snippet }) => {
+    if (group.id !== lastGroupId){
+      const label = document.createElement('div');
+      label.className = 'search-result-song';
+      label.innerHTML = escapeHtml(group.name || 'Untitled Song') +
+        (group.artist ? ` <span class="artist">— ${escapeHtml(group.artist)}</span>` : '');
+      el.appendChild(label);
+      lastGroupId = group.id;
+    }
+    const row = document.createElement('div');
+    row.className = 'search-result-row';
+    row.innerHTML = `
+      <span class="name">${escapeHtml(displaySectionName(section))}</span>
+      <span class="snippet">${escapeHtml(snippet)}</span>
+    `;
+    row.addEventListener('click', () => {
+      selectedGroupId = group.id;
+      selectedSectionId = section.id;
+      expandedGroups.add(group.id);
+      searchQuery = '';
+      document.getElementById('sidebarSearch').value = '';
+      renderAll();
+    });
+    el.appendChild(row);
+  });
+}
+
+function updateArtistDatalist(){
+  const datalist = document.getElementById('artistOptions');
+  if (!datalist) return;
+  const seen = new Set();
+  const artists = [];
+  state.sectionGroups.forEach(g => {
+    const a = (g.artist || '').trim();
+    if (a && !seen.has(a.toLowerCase())){ seen.add(a.toLowerCase()); artists.push(a); }
+  });
+  artists.sort((a,b) => a.localeCompare(b));
+  datalist.innerHTML = artists.map(a => `<option value="${escapeAttr(a)}"></option>`).join('');
+}
+
+document.getElementById('sidebarSearch').addEventListener('input', (e) => {
+  searchQuery = e.target.value;
+  renderSidebar();
+});
+preventAutoReplace(document.getElementById('sidebarSearch'));
+
+document.getElementById('sortByTitleBtn').addEventListener('click', () => {
+  if (songSortField === 'title'){
+    songSortDir = songSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    songSortField = 'title';
+    songSortDir = 'asc';
+  }
+  persistSongSort();
+  renderSidebar();
+});
+document.getElementById('sortByArtistBtn').addEventListener('click', () => {
+  if (songSortField === 'artist'){
+    songSortDir = songSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    songSortField = 'artist';
+    songSortDir = 'asc';
+  }
+  persistSongSort();
+  renderSidebar();
+});
+
+document.getElementById('expandAllBtn').addEventListener('click', () => {
+  expandedGroups = new Set(state.sectionGroups.map(g => g.id));
+  renderSidebar();
+});
+document.getElementById('collapseAllBtn').addEventListener('click', () => {
+  expandedGroups = new Set();
+  renderSidebar();
+});
+
+
+function moveSection(sec, dir){
+  const secs = groupSections(sec.groupId);
+  const idx = secs.findIndex(s => s.id === sec.id);
+  const swapIdx = idx + dir;
+  if (swapIdx < 0 || swapIdx >= secs.length) return;
+  const a = secs[idx], b = secs[swapIdx];
+  const tmp = a.order; a.order = b.order; b.order = tmp;
+  scheduleSave();
+  renderAll();
+}
+
+// Section naming: each section has a nameType (a picked section kind or
+// 'custom'), an optional customName (used when nameType is 'custom'), and
+// an optional nameSuffix (informational tag appended after the number,
+// e.g. "(guitar solo)"). The visible name is DERIVED: sections sharing a
+// base name within a song are numbered ("Chorus" alone, but "Chorus 1" /
+// "Chorus 2" when there are two) — custom names take part in the counting
+// too, so a custom "Chorus" and a picked Chorus number together.
+const SECTION_TYPES = [
+  { id:'intro', label:'Intro' },
+  { id:'verse', label:'Verse' },
+  { id:'chorus', label:'Chorus' },
+  { id:'pre-chorus', label:'Pre-Chorus' },
+  { id:'bridge', label:'Bridge' },
+  { id:'instrumental', label:'Instrumental' },
+  { id:'outro', label:'Outro' },
+  { id:'custom', label:'Custom' },
+];
+function sectionBaseName(sec){
+  if (!sec) return '';
+  if (sec.nameType && sec.nameType !== 'custom'){
+    const t = SECTION_TYPES.find(t => t.id === sec.nameType);
+    if (t) return t.label;
+    // retired type id (e.g. removed from the picker in a later version):
+    // prettify the id itself rather than showing "Untitled section"
+    return sec.nameType.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+  }
+  return (sec.customName || '').trim();
+}
+// The base used for grouping and numbering: a trailing number the user
+// typed themselves ("Verse 1") is ignored, so the app owns numbering and a
+// legacy "Verse 1" never becomes "Verse 1 1" when single-section numbering
+// is switched on.
+function sectionNumberBase(sec){
+  const base = sectionBaseName(sec);
+  const stripped = base.replace(/\s+\d+\s*$/, '');
+  return stripped || base;
+}
+function displaySectionName(sec){
+  if (!sec) return 'Untitled section';
+  const base = sectionBaseName(sec);
+  if (!base) return 'Untitled section';
+  const numBase = sectionNumberBase(sec);
+  const key = numBase.toLowerCase();
+  const sibs = groupSections(sec.groupId).filter(s => sectionNumberBase(s).toLowerCase() === key);
+  let name;
+  if (sibs.length > 1 || state.numberSingleSections){
+    name = numBase + ' ' + (sibs.findIndex(s => s.id === sec.id) + 1);
+  } else {
+    name = base; // as typed — a legacy custom "Verse 1" keeps its number
+  }
+  const suffix = (sec.nameSuffix || '').trim();
+  if (suffix) name += ' ' + suffix;
+  return name;
+}
+// Smart default for "+ Add section": songs usually alternate verse and
+// chorus, so a bottom section whose name starts with Verse is followed by
+// a Chorus, and one starting with Chorus, Bridge, or Instrumental by a
+// Verse. A Pre-Chorus leads into a Chorus; anything else (Intro, Outro,
+// Custom, untitled, or an empty song) starts a Verse. Matching is on the
+// derived display name, so "Chorus 2", a custom "Chorus (reprise)", and a
+// legacy custom "Verse 1" all behave by their prefix.
+function defaultNewSectionType(sourceSection){
+  if (!sourceSection) return 'verse';
+  const name = displaySectionName(sourceSection).toLowerCase();
+  if (name.startsWith('verse')) return 'chorus';
+  if (name.startsWith('pre-chorus')) return 'chorus';
+  return 'verse';
+}
+// Forwards compatibility: files saved before the picker existed only have
+// `name`. The whole old title becomes a custom name; a trailing
+// parenthetical aside (e.g. "Interlude (guitar solo)") moves into the
+// suffix slot so it keeps rendering exactly as before.
+function migrateSectionName(sec){
+  if (!sec || sec.nameType) return sec;
+  const oldName = (sec.name || '').trim();
+  const m = oldName.match(/^(.*?)\s*(\([^)]*\))\s*$/);
+  sec.nameType = 'custom';
+  sec.customName = m ? m[1].trim() : oldName;
+  sec.nameSuffix = m ? m[2] : '';
+  return sec;
+}
+// Stamp the derived display name onto sec.name before saving, so the raw
+// JSON stays human-readable and older SetBook versions still show a
+// sensible title.
+function stampSectionDisplayNames(){
+  state.sections.forEach(s => { s.name = displaySectionName(s); });
+}
+
+function duplicateSection(sec){
+  const newSec = {
+    id: uid('sec'),
+    groupId: sec.groupId,
+    nameType: sec.nameType || 'custom',
+    customName: sec.customName || '',
+    nameSuffix: sec.nameSuffix || '',
+    name: '',
+    order: 0,
+    lines: sec.lines.map(l => ({
+      text: l.text,
+      symbols: l.symbols.map(s => ({ pos: s.pos, value: s.value }))
+    }))
+  };
+  // duplicates always go at the end of the song's section list, then
+  // renumber the whole group so order stays clean, sequential integers
+  const secs = groupSections(sec.groupId);
+  secs.push(newSec);
+  secs.forEach((s, i) => { s.order = i; });
+  state.sections.push(newSec);
+
+  selectedSectionId = newSec.id;
+  scheduleSave();
+  renderAll();
+}
+
+/* ---------------------------------------------------------
+   Main editor rendering
+--------------------------------------------------------- */
+function attachVerticalLineNav(input, row, isChordField, sec){
+  input.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    // only take over plain up/down — leave selection-extend etc. to the browser
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+
+    const pos = input.selectionStart;
+    let targetField = null;
+    let growAtEnd = false; // down on the very last lyric line — add a new row instead
+
+    if (isChordField){
+      if (e.key === 'ArrowUp'){
+        const prevRow = row.previousElementSibling;
+        if (prevRow && prevRow.classList.contains('line-row')) targetField = prevRow.querySelector('.text');
+        // no row above -> targetField stays null -> do nothing
+      } else {
+        targetField = row.querySelector('.text'); // same row's lyric field
+      }
+    } else {
+      if (e.key === 'ArrowUp'){
+        targetField = row.querySelector('.chord-entry'); // same row's chord field
+      } else {
+        const nextRow = row.nextElementSibling;
+        if (nextRow && nextRow.classList.contains('line-row')) targetField = nextRow.querySelector('.chord-entry');
+        else growAtEnd = true;
+      }
+    }
+
+    if (!targetField && !growAtEnd) return; // e.g. up from the section's first chord line
+
+    e.preventDefault();
+
+    if (growAtEnd){
+      sec.lines.push({ text:'', symbols:[] });
+      scheduleSave();
+      renderMain();
+      setTimeout(() => {
+        const rows = document.querySelectorAll('.line-row .chord-entry');
+        const newField = rows[rows.length - 1];
+        newField?.focus();
+        newField?.setSelectionRange(0, 0);
+      }, 0);
+      return;
+    }
+
+    // land the caret at the same character column, padding with spaces if
+    // the target line is too short to actually reach that column
+    if (targetField.value.length < pos){
+      targetField.value = targetField.value + ' '.repeat(pos - targetField.value.length);
+      targetField.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+    targetField.focus();
+    targetField.setSelectionRange(pos, pos);
+  });
+}
+
+function renderMain(){
+  const main = document.getElementById('main');
+  main.innerHTML = '';
+
+  const sec = state.sections.find(s => s.id === selectedSectionId);
+  const group = state.sectionGroups.find(g => g.id === selectedGroupId);
+
+  if (!sec || !group){
+    main.innerHTML = `<div class="empty-state">Select or create a section to start entering lines.<br>Chords/symbols sit above each lyric line.</div>`;
+    return;
+  }
+
+  if (sec.id !== lastRenderedSectionId){
+    bulkPasteOpen = false;
+    lastRenderedSectionId = sec.id;
+  }
+
+  // remember which song/section was open so reopening this file later
+  // can jump straight back to it, instead of always landing on nothing selected
+  if (group.id !== state.lastOpenGroupId || sec.id !== state.lastOpenSectionId){
+    state.lastOpenGroupId = group.id;
+    state.lastOpenSectionId = sec.id;
+    scheduleSave();
+  }
+
+  const head = document.createElement('div');
+  head.className = 'editor-head';
+  const nameType = sec.nameType || 'custom';
+  head.innerHTML = `
+    <div class="editor-head-titles">
+      <div class="group-label">${escapeHtml(group.name || 'Untitled song')}${group.artist ? ' <span class="artist">— ' + escapeHtml(group.artist) + '</span>' : ''}</div>
+      <div class="section-name-row">
+        <select class="section-type-select" title="Section type">
+          ${SECTION_TYPES.map(t => `<option value="${t.id}"${t.id === nameType ? ' selected' : ''}>${t.label}</option>`).join('')}
+        </select>
+        <input class="section-custom-input" placeholder="Custom name" value="${escapeAttr(sec.customName || '')}"${nameType === 'custom' ? '' : ' style="display:none"'}>
+        <input class="section-suffix-input" placeholder="Tag, e.g. (guitar solo)" value="${escapeAttr(sec.nameSuffix || '')}" title="Informational tag shown after the section name">
+      </div>
+      <div class="section-name-preview">Shows as: <strong>${escapeHtml(displaySectionName(sec))}</strong></div>
+    </div>
+  `;
+  const typeSel = head.querySelector('.section-type-select');
+  const customInput = head.querySelector('.section-custom-input');
+  const suffixInput = head.querySelector('.section-suffix-input');
+  preventAutoReplace(customInput);
+  preventAutoReplace(suffixInput);
+  const previewStrong = head.querySelector('.section-name-preview strong');
+  const refreshNameUI = () => {
+    customInput.style.display = sec.nameType === 'custom' ? '' : 'none';
+    previewStrong.textContent = displaySectionName(sec);
+    scheduleSave();
+    renderSidebar();
+    renderPreview(sec);
+  };
+  typeSel.addEventListener('change', e => { sec.nameType = e.target.value; refreshNameUI(); });
+  customInput.addEventListener('input', e => { sec.customName = e.target.value; refreshNameUI(); });
+  suffixInput.addEventListener('input', e => { sec.nameSuffix = e.target.value; refreshNameUI(); });
+  main.appendChild(head);
+
+  const linesWrap = document.createElement('div');
+  linesWrap.className = 'lines-wrap';
+
+  sec.lines.forEach((line, idx) => {
+    if (!Array.isArray(line.symbols)){
+      // migrate legacy single-string symbols format
+      line.symbols = line.symbols ? [{ pos: 0, value: line.symbols }] : [];
+    }
+
+    const row = document.createElement('div');
+    row.className = 'line-row';
+    row.innerHTML = `
+      <div class="line-num">${idx+1}</div>
+      <div class="line-editor">
+        <div class="hint-row">
+          <span class="hint">type chords with spaces to line them up above the words below</span>
+          <div class="line-tools">
+            <button class="clear-btn clear-chords-btn" title="Remove every chord on this line">Clear chords</button>
+            <button class="clear-btn clear-text-btn" title="Remove the lyric text on this line">Clear lyrics</button>
+          </div>
+        </div>
+        <div class="chord-input-wrap">
+          <input class="chord-entry mono-edit" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="chords, e.g. G          D/F#   Em" value="${escapeAttr(buildSymbolsLine(line.symbols))}">
+        </div>
+        <div class="text-input-wrap">
+          <input class="text mono-edit" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="lyric or text line (optional — leave blank for a chords-only line)" value="${escapeAttr(line.text)}">
+        </div>
+      </div>
+      <div class="line-controls">
+        <button class="icon" data-action="up" ${idx===0?'disabled':''} title="Move up">↑</button>
+        <button class="icon" data-action="down" ${idx===sec.lines.length-1?'disabled':''} title="Move down">↓</button>
+        <button class="icon" data-action="copy" title="Copy this row to the bottom of the section"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M352 96 H160 a32 32 0 0 0 -32 32 V288 a32 32 0 0 0 32 32 H352 a32 32 0 0 0 32-32 V128 a32 32 0 0 0 -32-32z" fill="none" stroke="currentColor" stroke-width="36"/><path d="M176 192 H368 a24 24 0 0 1 24 24 V392 a24 24 0 0 1 -24 24 H176 a24 24 0 0 1 -24-24 V216 a24 24 0 0 1 24-24z"/></svg></button>
+        <button class="icon danger" data-action="del" title="Delete line">✕</button>
+      </div>
+    `;
+
+    row.querySelector('.chord-entry').addEventListener('input', e => {
+      line.symbols = parseChordLine(e.target.value);
+      scheduleSave();
+      renderPreview(sec);
+    });
+    preventAutoReplace(row.querySelector('.chord-entry'));
+    attachVerticalLineNav(row.querySelector('.chord-entry'), row, true, sec);
+
+    row.querySelector('.clear-chords-btn').addEventListener('click', () => {
+      if (!line.symbols.length) return;
+      line.symbols = [];
+      row.querySelector('.chord-entry').value = '';
+      scheduleSave();
+      renderPreview(sec);
+    });
+
+    row.querySelector('.clear-text-btn').addEventListener('click', () => {
+      if (!line.text) return;
+      line.text = '';
+      row.querySelector('.text').value = '';
+      scheduleSave();
+      renderPreview(sec);
+    });
+
+    row.querySelector('.text').addEventListener('input', e => {
+      line.text = e.target.value;
+      scheduleSave();
+      renderPreview(sec);
+    });
+    preventAutoReplace(row.querySelector('.text'));
+    attachVerticalLineNav(row.querySelector('.text'), row, false, sec);
+    row.querySelector('[data-action="up"]')?.addEventListener('click', () => {
+      [sec.lines[idx-1], sec.lines[idx]] = [sec.lines[idx], sec.lines[idx-1]];
+      scheduleSave();
+      renderMain();
+    });
+    row.querySelector('[data-action="down"]')?.addEventListener('click', () => {
+      [sec.lines[idx+1], sec.lines[idx]] = [sec.lines[idx], sec.lines[idx+1]];
+      scheduleSave();
+      renderMain();
+    });
+    row.querySelector('[data-action="copy"]').addEventListener('click', () => {
+      sec.lines.push({
+        text: line.text,
+        symbols: line.symbols.map(s => ({ pos: s.pos, value: s.value }))
+      });
+      scheduleSave();
+      renderMain();
+      document.querySelector('.lines-wrap .line-row:last-child')?.scrollIntoView({ block:'nearest' });
+    });
+    row.querySelector('[data-action="del"]').addEventListener('click', () => {
+      sec.lines.splice(idx, 1);
+      scheduleSave();
+      renderMain();
+    });
+    linesWrap.appendChild(row);
+  });
+
+  main.appendChild(linesWrap);
+
+  const addLineBtn = document.createElement('button');
+  addLineBtn.className = 'add-line-btn small';
+  addLineBtn.textContent = '+ Add line';
+  addLineBtn.addEventListener('click', () => {
+    sec.lines.push({ text:'', symbols:[] });
+    scheduleSave();
+    renderMain();
+    setTimeout(() => {
+      const rows = document.querySelectorAll('.line-row .chord-input-wrap input');
+      rows[rows.length-1]?.focus();
+    }, 0);
+  });
+  main.appendChild(addLineBtn);
+
+  const bulkBtn = document.createElement('button');
+  bulkBtn.className = 'ghost small bulk-paste-btn';
+  bulkBtn.textContent = bulkPasteOpen ? 'Cancel' : '+ Enter multiple lines';
+  bulkBtn.addEventListener('click', () => {
+    bulkPasteOpen = !bulkPasteOpen;
+    renderMain();
+  });
+  main.appendChild(bulkBtn);
+
+  const dupSectionBtn = document.createElement('button');
+  dupSectionBtn.className = 'ghost small dup-section-btn';
+  dupSectionBtn.textContent = 'Create copy of section';
+  dupSectionBtn.title = 'Copy this section, including its lyrics, into a new section';
+  dupSectionBtn.addEventListener('click', () => duplicateSection(sec));
+  main.appendChild(dupSectionBtn);
+
+  if (bulkPasteOpen){
+    const bulkWrap = document.createElement('div');
+    bulkWrap.className = 'bulk-paste-wrap';
+    bulkWrap.innerHTML = `
+      <div class="bulk-paste-hint">Alternate a chord line then its lyric line, repeating for as many lines as you like. As you type, <span class="bp-hint-chord">chord lines turn gold</span> and lyric lines stay white, so you can see exactly how each pair will be saved. Blank lines between pairs are fine — they're skipped, not added as empty lines.</div>
+      <div class="bulk-paste-editor">
+        <pre class="bulk-paste-backdrop mono-edit" aria-hidden="true"></pre>
+        <textarea class="bulk-paste-textarea mono-edit" rows="8" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="G          D/F#    Em
+Looking out at the road rushing under my wheels
+
+D          A
+Looking back at the years gone by like so many summer fields"></textarea>
+      </div>
+      <div class="bulk-paste-actions">
+        <button type="button" class="ghost small" id="bulkCancelBtn">Cancel</button>
+        <button type="button" class="primary small" id="bulkAddBtn">Add these lines</button>
+      </div>
+    `;
+    main.appendChild(bulkWrap);
+    const bulkTextarea = bulkWrap.querySelector('.bulk-paste-textarea');
+    preventAutoReplace(bulkTextarea);
+    const bulkBackdrop = bulkWrap.querySelector('.bulk-paste-backdrop');
+    const syncBulkBackdrop = () => {
+      bulkBackdrop.innerHTML = classifyBulkPasteLines(bulkTextarea.value)
+        .map(({ line, type }) => {
+          const cls = type === 'chord' ? 'bp-line-chord' : type === 'lyric' ? 'bp-line-lyric' : '';
+          return `<span class="${cls}">${escapeHtml(line) || ' '}</span>`;
+        })
+        .join('\n');
+      bulkBackdrop.scrollTop = bulkTextarea.scrollTop;
+      bulkBackdrop.scrollLeft = bulkTextarea.scrollLeft;
+    };
+    bulkTextarea.addEventListener('input', syncBulkBackdrop);
+    bulkTextarea.addEventListener('scroll', () => {
+      bulkBackdrop.scrollTop = bulkTextarea.scrollTop;
+      bulkBackdrop.scrollLeft = bulkTextarea.scrollLeft;
+    });
+    syncBulkBackdrop();
+    setTimeout(() => bulkTextarea.focus(), 0);
+    bulkWrap.querySelector('#bulkCancelBtn').addEventListener('click', () => {
+      bulkPasteOpen = false;
+      renderMain();
+    });
+    bulkWrap.querySelector('#bulkAddBtn').addEventListener('click', () => {
+      const newLines = parseMultiLineBlock(bulkTextarea.value);
+      if (newLines.length){
+        sec.lines.push(...newLines);
+        scheduleSave();
+      }
+      bulkPasteOpen = false;
+      renderMain();
+    });
+  }
+
+  const previewBlock = document.createElement('div');
+  previewBlock.className = 'preview-block';
+  previewBlock.innerHTML = `<div class="preview-label">PREVIEW</div><div class="paper" id="paperPreview"></div>`;
+  main.appendChild(previewBlock);
+  renderPreview(sec);
+}
+
+/* ---------------------------------------------------------
+   Chord/lyric line parsing helpers
+--------------------------------------------------------- */
+let bulkPasteOpen = false; // whether the "paste multiple lines" textarea is showing for the current section
+let lastRenderedSectionId = null;
+
+function parseChordLine(str){
+  const symbols = [];
+  const re = /\S+/g;
+  let m;
+  while ((m = re.exec(str)) !== null){
+    symbols.push({ pos: m.index, value: m[0] });
+  }
+  return symbols;
+}
+
+function parseMultiLineBlock(text){
+  // blank lines are treated as separators between stanzas/pairs and skipped,
+  // not as an empty chord or lyric row of their own
+  const rawLines = text.split('\n').filter(l => l.trim() !== '');
+  const newLines = [];
+  for (let i = 0; i < rawLines.length; i += 2){
+    const chordLine = rawLines[i];
+    const lyricLine = rawLines[i + 1];
+    if (lyricLine === undefined){
+      // an odd line left over at the end always lands at a chord-parity
+      // position (pair 1, 2, 3... each consume 2 lines, so a leftover
+      // single line is always the "chord" half of its pair) — treat it
+      // as a chords-only line, not lyrics with no chords
+      newLines.push({ text: '', symbols: parseChordLine(chordLine) });
+    } else {
+      newLines.push({ text: lyricLine, symbols: parseChordLine(chordLine) });
+    }
+  }
+  return newLines;
+}
+
+// Same pairing rule as parseMultiLineBlock above, but returns a per-raw-line
+// classification (including blank lines, in their original positions) so
+// the live preview overlay can color each line exactly the way it will
+// actually be saved — chord line vs. lyric line vs. blank separator.
+function classifyBulkPasteLines(text){
+  const rawLines = text.split('\n');
+  const nonBlankIdx = [];
+  rawLines.forEach((line, i) => { if (line.trim() !== '') nonBlankIdx.push(i); });
+
+  // strict alternation by position among the non-blank lines: 1st, 3rd,
+  // 5th... non-blank line is a chord line, 2nd, 4th, 6th... is a lyric
+  // line — including a leftover trailing line, which always falls on a
+  // chord-parity position (see parseMultiLineBlock).
+  const typeByIndex = new Map();
+  nonBlankIdx.forEach((idx, pos) => {
+    typeByIndex.set(idx, pos % 2 === 0 ? 'chord' : 'lyric');
+  });
+  return rawLines.map((line, i) => ({ line, type: typeByIndex.get(i) || null }));
+}
+
+function buildSymbolsLine(symbols){
+  const sorted = [...symbols].sort((a,b) => a.pos - b.pos);
+  let result = '';
+  sorted.forEach(sym => {
+    const startPos = Math.max(sym.pos, result.length);
+    result += ' '.repeat(Math.max(0, startPos - result.length)) + sym.value;
+  });
+  return result;
+}
+
+// Repeat shorthand: when a row's chord line contains a standalone (xN)
+// token (e.g. "(x3)") and its lyric line contains the same (xN), the whole
+// row is played N times. For display — the on-screen preview and both PDF
+// exports — both tokens are removed and renderers show a single condensed
+// (xN) marker instead: one character to the right of the rightmost line,
+// vertically centered between the chord and lyric lines. The editor data
+// itself is untouched.
+const REPEAT_TOKEN_IN_TEXT_RE = /\(x(\d+)\)/;
+
+function detectRepeatMarker(symbols, lyricText){
+  const m = REPEAT_TOKEN_IN_TEXT_RE.exec(lyricText || '');
+  if (!m) return null;
+  const token = `(x${m[1]})`;
+  if (!(symbols || []).some(s => s.value === token)) return null;
+  return {
+    count: parseInt(m[1], 10),
+    token,
+    symbols: (symbols || []).filter(s => s.value !== token),
+    lyricText: (lyricText || '').split(token).join('')
+  };
+}
+
+// Groups lines for display in the preview and the PDF exports. A
+// lyric-only row (no chords of its own) that comes right after a row
+// with both chords AND lyrics is rendered as another lyric line under
+// that same chord row, instead of getting an empty chord row of its
+// own. This supports sections where the chords are sparse but the
+// lyrics are dense (e.g. rapped/sung runs): keep typing lyrics on the
+// following rows and they stack under the one chord row. Only output
+// rendering changes — the editor keeps one row per line.
+function groupLinesForDisplay(lines){
+  const blocks = [];
+  (lines || []).forEach(line => {
+    const symbols = Array.isArray(line.symbols) ? line.symbols : [];
+    const text = line.text || '';
+    const last = blocks[blocks.length - 1];
+    if (!symbols.length && text && last && last.anchorHasSymbols && last.anchorHasText){
+      last.lines.push(line);
+    } else {
+      blocks.push({
+        symbols,
+        lines: [line],
+        anchorHasSymbols: symbols.length > 0,
+        anchorHasText: !!text
+      });
+    }
+  });
+  // Strip repeat-shorthand tokens for display (see detectRepeatMarker).
+  // Blocks carrying a marker get repeatCount; renderers draw the single
+  // condensed (xN) in place of both tokens.
+  blocks.forEach(b => {
+    const rep = detectRepeatMarker(b.symbols, b.lines[0] ? b.lines[0].text : '');
+    if (rep){
+      b.repeatCount = rep.count;
+      b.symbols = rep.symbols;
+      b.lines = b.lines.map((l, i) => i === 0 ? { ...l, text: rep.lyricText } : l);
+    } else {
+      b.repeatCount = 0;
+    }
+  });
+  return blocks;
+}
+
+// A lyric line wrapped in /* ... */ is a private note-to-self (e.g.
+// "/*Questionable - relisten to this part*/") — it should still show in
+// the on-screen editor/preview, but never in an exported PDF. The chords
+// on that same line are unaffected either way.
+function isCommentedLine(text){
+  const t = (text || '').trim();
+  return t.length >= 4 && t.startsWith('/*') && t.endsWith('*/');
+}
+function pdfDisplayText(line){
+  return isCommentedLine(line.text) ? '' : (line.text || '');
+}
+
+// Geometry for a block's condensed repeat marker in a PDF: the marker's
+// left edge sits one character to the right of the widest drawn line.
+// Sets the doc font itself so measurements always use the right face/size.
+function repeatMarkerOffsetW(doc, monoFont, block, fontSize){
+  doc.setFont(monoFont, 'normal');
+  doc.setFontSize(fontSize);
+  const marker = `(x${block.repeatCount})`;
+  let lineW = doc.getTextWidth(buildSymbolsLine(block.symbols));
+  block.lines.forEach(l => {
+    const t = pdfDisplayText(l);
+    if (t || !l.symbols.length) lineW = Math.max(lineW, doc.getTextWidth(t.trimEnd() || ' '));
+  });
+  return { marker, x: lineW + doc.getTextWidth(' ') };
+}
+
+function renderPreview(sec){
+  const paper = document.getElementById('paperPreview');
+  if (!paper) return;
+  const titleHtml = `<div class="p-section-title">[${escapeHtml(displaySectionName(sec))}]</div>`;
+  if (!sec.lines.length || sec.lines.every(l => !l.symbols.length && !l.text)){
+    paper.innerHTML = titleHtml + `<div class="p-empty">Nothing to preview yet — add a line above.</div>`;
+    return;
+  }
+  paper.innerHTML = titleHtml + groupLinesForDisplay(sec.lines).map(b => {
+    const symLine = buildSymbolsLine(b.symbols);
+    const shownLines = b.lines.filter(l => l.text || !l.symbols.length); // chords-only anchor: skip its empty text row
+    const textRows = shownLines
+      .map(l => `<div class="p-text mono">${escapeHtml(l.text) || '&nbsp;'}</div>`)
+      .join('');
+    let markerHtml = '';
+    if (b.repeatCount){
+      const rightmost = Math.max(symLine.length, ...shownLines.map(l => l.text.trimEnd().length), 0);
+      markerHtml = `<span class="p-repeat-marker mono" style="left:${rightmost + 1}ch">(x${b.repeatCount})</span>`;
+    }
+    return `
+    <div class="p-line">
+      <div class="p-symbols mono">${escapeHtml(symLine) || '&nbsp;'}</div>
+      ${textRows}
+      ${markerHtml}
+    </div>
+  `;
+  }).join('');
+}
+
+function renderAll(){ renderSidebar(); renderMain(); }
+
+/* ---------------------------------------------------------
+   Local file linking: open a JSON file, keep a handle to it,
+   and autosave straight back to that same file on disk.
+   Falls back to manual upload/download in browsers that don't
+   support the File System Access API (e.g. Safari, Firefox).
+--------------------------------------------------------- */
+/* ---------------------------------------------------------
+   Configuration modal (File menu). Appearance (dark/light) is a
+   device-level preference persisted in localStorage; layout toggles
+   like "number single sections" are saved per file in state.
+--------------------------------------------------------- */
+function currentTheme(){
+  return document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+}
+function setTheme(mode){
+  if (mode === 'light') document.documentElement.setAttribute('data-theme', 'light');
+  else document.documentElement.removeAttribute('data-theme');
+  try{ localStorage.setItem('setbook-theme', mode); }catch(e){}
+  syncConfigModal();
+}
+function syncConfigModal(){
+  document.querySelectorAll('#configThemeToggle .mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.themeChoice === currentTheme()));
+  document.querySelectorAll('#configWatchToggle .mode-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.watchTarget === watchTarget()));
+  const cb = document.getElementById('configNumberSingles');
+  if (cb) cb.checked = !!state.numberSingleSections;
+}
+function setWatchTarget(mode){
+  try{ localStorage.setItem('setbook-watch-target', mode === 'self' ? 'self' : 'blank'); }catch(e){}
+  syncConfigModal();
+  renderSidebar();
+}
+document.querySelectorAll('#configThemeToggle .mode-btn').forEach(b =>
+  b.addEventListener('click', () => setTheme(b.dataset.themeChoice)));
+document.querySelectorAll('#configWatchToggle .mode-btn').forEach(b =>
+  b.addEventListener('click', () => setWatchTarget(b.dataset.watchTarget)));
+document.getElementById('configNumberSingles').addEventListener('change', (e) => {
+  state.numberSingleSections = e.target.checked;
+  scheduleSave();
+  renderAll();
+});
+wireModal({ overlayId:'configModalOverlay', openBtnId:'btnConfigureLayout', closeBtnId:'configCloseBtn', onOpen: syncConfigModal });
+syncConfigModal();
+
+const supportsFsApi = 'showOpenFilePicker' in window && 'showSaveFilePicker' in window;
+
+/* ---------------------------------------------------------
+   File menu (consolidates New/Open/Save as/Set folder/
+   Import songs into one dropdown)
+--------------------------------------------------------- */
+const fileMenuDropdown = document.getElementById('fileMenuDropdown');
+document.getElementById('btnFileMenu').addEventListener('click', (e) => {
+  e.stopPropagation();
+  fileMenuDropdown.classList.toggle('open');
+});
+fileMenuDropdown.addEventListener('click', (e) => {
+  if (e.target.closest('.file-menu-item')) fileMenuDropdown.classList.remove('open');
+});
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.file-menu-wrap')) fileMenuDropdown.classList.remove('open');
+});
+
+let fileHandle = null;
+let currentFileName = null;
+let startInHandle = null; // folder to open Open/Save-As dialogs in, until a real file handle takes over
+let saveTimer = null;
+
+function updateFileLabel(){
+  document.getElementById('fileNameLabel').textContent = currentFileName || 'No file open';
+}
+
+function updateSaveStatus(status){
+  const dot = document.getElementById('saveDot');
+  const text = document.getElementById('saveText');
+  dot.className = 'save-dot' + (status ? ' ' + status : '');
+  const messages = {
+    saved: 'saved to disk',
+    saving: 'saving…',
+    pending: 'unsaved changes',
+    error: 'save failed — check file permissions',
+    nofile: fileHandle ? 'unsaved changes' : (supportsFsApi ? 'not linked to a file yet' : 'download to save (browser has no file access)')
+  };
+  text.textContent = messages[status] || messages.nofile;
+}
+
+function scheduleSave(){
+  if (!supportsFsApi || !fileHandle){ updateSaveStatus('nofile'); return; }
+  updateSaveStatus('pending');
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(doSave, 500);
+}
+
+async function doSave(){
+  if (!fileHandle) return;
+  try{
+    updateSaveStatus('saving');
+    const writable = await fileHandle.createWritable();
+    stampSectionDisplayNames();
+    await writable.write(JSON.stringify(state, null, 2));
+    await writable.close();
+    updateSaveStatus('saved');
+  } catch(err){
+    console.error(err);
+    updateSaveStatus('error');
+  }
+}
+
+function loadParsedState(parsed){
+  if (!Array.isArray(parsed.sectionGroups) || !Array.isArray(parsed.sections)){
+    throw new Error('Missing sectionGroups or sections arrays');
+  }
+  state = parsed;
+  state.sections.forEach(migrateSectionName);
+  if (typeof state.projectName !== 'string') state.projectName = '';
+  if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
+  if (typeof state.lastFolderName !== 'string') state.lastFolderName = '';
+  if (typeof state.numberSingleSections !== 'boolean') state.numberSingleSections = false;
+  if (!state.sectionGroups.some(g => g.id === state.focusedGroupId)) state.focusedGroupId = null;
+  updateLastFolderHint();
+  if (typeof state.sidebarWidth !== 'number' || !isFinite(state.sidebarWidth)) state.sidebarWidth = 270;
+  setSidebarWidth(state.sidebarWidth, { skipPersist:true });
+  if (!state.songTypeFilter || typeof state.songTypeFilter !== 'object'){
+    state.songTypeFilter = { cover: true, original: true };
+  } else {
+    state.songTypeFilter.cover = state.songTypeFilter.cover !== false;
+    state.songTypeFilter.original = state.songTypeFilter.original !== false;
+  }
+  updateSongTypeFilterButtons();
+  if (!state.readyFilter || typeof state.readyFilter !== 'object'){
+    state.readyFilter = { ready: true, notReady: true };
+  } else {
+    state.readyFilter.ready = state.readyFilter.ready !== false;
+    state.readyFilter.notReady = state.readyFilter.notReady !== false;
+  }
+  updateReadyFilterButtons();
+  const sort = state.songSort;
+  if (sort && (sort.field === 'title' || sort.field === 'artist') && (sort.dir === 'asc' || sort.dir === 'desc')){
+    songSortField = sort.field;
+    songSortDir = sort.dir;
+  } else {
+    songSortField = 'title';
+    songSortDir = 'asc';
+    state.songSort = { field: songSortField, dir: songSortDir };
+  }
+  selectedGroupId = state.sectionGroups[0]?.id || null;
+  selectedSectionId = null;
+  expandedGroups = new Set(); // start collapsed — the person can expand what they need
+
+  // reopen whatever song/section was last open, if it still exists
+  if (state.lastOpenSectionId){
+    const restoredSection = state.sections.find(s => s.id === state.lastOpenSectionId);
+    if (restoredSection && state.sectionGroups.some(g => g.id === restoredSection.groupId)){
+      selectedGroupId = restoredSection.groupId;
+      selectedSectionId = restoredSection.id;
+      expandedGroups = new Set([restoredSection.groupId]);
+    }
+  }
+}
+
+// The open dialogs no longer filter by file extension (the .json-only
+// filter intermittently greyed out valid files on macOS), so a wrongly
+// picked file is caught here instead: anything that isn't JSON gets a
+// plain-language error rather than a raw SyntaxError dump.
+function parseJsonText(text, name){
+  try{
+    return JSON.parse(text);
+  }catch{
+    throw new Error(`"${name}" is not a JSON file.`);
+  }
+}
+async function parseJsonFile(file){
+  return parseJsonText(await file.text(), file.name);
+}
+
+async function openFile(){
+  if (!supportsFsApi){
+    document.getElementById('fileInput').click();
+    return;
+  }
+  try{
+    // No `types` filter here on purpose: on macOS, Chrome's .json-only
+    // filter intermittently greyed out valid .json files in the open panel.
+    // With no filter nothing can be disabled; a wrongly-picked file is
+    // caught by the JSON validation below.
+    const opts = {};
+    // start the picker in the same folder as whatever file was last opened
+    // or saved this session (or the folder set via "Set folder…"), instead
+    // of always defaulting back to Documents
+    if (fileHandle) opts.startIn = fileHandle;
+    else if (startInHandle) opts.startIn = startInHandle;
+    const [handle] = await window.showOpenFilePicker(opts);
+    const file = await handle.getFile();
+    loadParsedState(await parseJsonFile(file));
+    fileHandle = handle;
+    currentFileName = file.name;
+    updateFileLabel();
+    updateSaveStatus('saved');
+    renderAll();
+    scrollSelectedSongIntoView();
+  } catch(err){
+    if (err.name !== 'AbortError') showErrorToast('Could not open that file: ' + err.message);
+  }
+}
+
+async function saveAs(){
+  if (!supportsFsApi){
+    downloadCopy();
+    return;
+  }
+  try{
+    const opts = {
+      suggestedName: currentFileName || 'setbook.json',
+      types: [{ description: 'SetBook JSON', accept: { 'application/json': ['.json'] } }]
+    };
+    if (fileHandle) opts.startIn = fileHandle;
+    else if (startInHandle) opts.startIn = startInHandle;
+    const handle = await window.showSaveFilePicker(opts);
+    fileHandle = handle;
+    currentFileName = handle.name;
+    updateFileLabel();
+    await doSave();
+  } catch(err){
+    if (err.name !== 'AbortError') showErrorToast('Could not create that file: ' + err.message);
+  }
+}
+
+function downloadCopy(){
+  stampSectionDisplayNames();
+  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = currentFileName || `setbook-${new Date().toISOString().slice(0,10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function revealEnclosingFolder(){
+  if (!('showDirectoryPicker' in window)){
+    showErrorToast("Your browser doesn't support opening a folder this way (this needs Chrome or Edge).");
+    return;
+  }
+  if (!fileHandle){
+    showErrorToast("Open or save a file first — there's no folder to show yet.");
+    return;
+  }
+  try{
+    // There's no web API that reveals a folder in Finder/Explorer directly —
+    // browsers don't expose that for security reasons. This opens the native
+    // folder picker already sitting in the file's folder instead, so you can
+    // see it and use your OS's normal copy/rename/etc. from there. Nothing
+    // you pick here changes what's open in SetBook.
+    await window.showDirectoryPicker({ startIn: fileHandle });
+  } catch(err){
+    if (err.name !== 'AbortError') showErrorToast('Could not open that folder: ' + err.message);
+  }
+}
+
+document.getElementById('btnOpen').addEventListener('click', openFile);
+document.getElementById('btnSaveAs').addEventListener('click', saveAs);
+function updateLastFolderHint(){
+  const hint = document.getElementById('lastFolderHint');
+  if (!hint) return;
+  hint.textContent = state.lastFolderName ? `(last: ${state.lastFolderName})` : '';
+}
+
+/* ---------------------------------------------------------
+   Resizable sidebar — drag the right edge to resize; the
+   main editor area adjusts on its own since it's flex:1.
+   The chosen width is persisted per-file in the JSON.
+--------------------------------------------------------- */
+const SIDEBAR_MIN_WIDTH = 200;
+const SIDEBAR_MAX_WIDTH = 480;
+const sidebarEl = document.querySelector('nav.sidebar');
+
+function setSidebarWidth(px, opts = {}){
+  const clamped = Math.max(SIDEBAR_MIN_WIDTH, Math.min(SIDEBAR_MAX_WIDTH, Math.round(px)));
+  sidebarEl.style.width = clamped + 'px';
+  if (!opts.skipPersist){
+    state.sidebarWidth = clamped;
+    scheduleSave();
+  }
+  return clamped;
+}
+
+(function initSidebarResize(){
+  const handle = document.getElementById('sidebarResizeHandle');
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    handle.classList.add('dragging');
+    const startX = e.clientX;
+    const startWidth = sidebarEl.getBoundingClientRect().width;
+
+    const onMove = (ev) => {
+      setSidebarWidth(startWidth + (ev.clientX - startX), { skipPersist:true });
+    };
+    const onUp = () => {
+      handle.releasePointerCapture(e.pointerId);
+      handle.removeEventListener('pointermove', onMove);
+      handle.removeEventListener('pointerup', onUp);
+      handle.classList.remove('dragging');
+      setSidebarWidth(sidebarEl.getBoundingClientRect().width); // persist the final width
+    };
+    handle.addEventListener('pointermove', onMove);
+    handle.addEventListener('pointerup', onUp);
+  });
+})();
+
+document.getElementById('btnSetFolder').addEventListener('click', async () => {
+  if (!('showDirectoryPicker' in window)){
+    showErrorToast("Your browser doesn't support picking a starting folder this way (this needs Chrome or Edge).");
+    return;
+  }
+  try{
+    startInHandle = await window.showDirectoryPicker();
+    // Browsers don't let a page silently reopen a specific folder on a
+    // future visit without the person picking it again — there's no way
+    // to store a working, reusable handle inside the JSON itself. What we
+    // CAN persist is the folder's name, purely as a reminder of where you
+    // last worked, shown next to this menu item. Open/Save still default
+    // to the browser's own starting location until you click this again.
+    state.lastFolderName = startInHandle.name;
+    updateLastFolderHint();
+    scheduleSave();
+  } catch(err){
+    if (err.name !== 'AbortError') showErrorToast('Could not set that folder: ' + err.message);
+  }
+});
+document.getElementById('btnRevealFolder').addEventListener('click', revealEnclosingFolder);
+
+/* ---------------------------------------------------------
+   Copy songs from another file
+--------------------------------------------------------- */
+let copySourceState = null;
+let copySourceName = '';
+let copySelectedGroupIds = new Set();
+const copyModal = wireModal({ overlayId:'copyModalOverlay', closeBtnId:'copyCancelBtn' }).overlay;
+
+function renderCopySongChecklist(){
+  const list = document.getElementById('copySongChecklist');
+  list.innerHTML = '';
+  if (!copySourceState){
+    list.innerHTML = '<div class="search-empty">Choose a file to see its songs.</div>';
+    return;
+  }
+  const groupsWithSections = copySourceState.sectionGroups
+    .filter(g => copySourceState.sections.some(s => s.groupId === g.id))
+    .sort((a,b) => (a.name || 'Untitled Song').localeCompare(b.name || 'Untitled Song', undefined, { sensitivity:'base' }));
+
+  if (!groupsWithSections.length){
+    list.innerHTML = '<div class="search-empty">That file has no songs with sections.</div>';
+    return;
+  }
+  groupsWithSections.forEach(group => {
+    const row = document.createElement('label');
+    row.className = 'song-check-row';
+    const checked = copySelectedGroupIds.has(group.id);
+    row.innerHTML = `
+      <input type="checkbox" ${checked ? 'checked' : ''}>
+      <span>${escapeHtml(group.name || 'Untitled Song')}${group.artist ? ` <span class="artist">— ${escapeHtml(group.artist)}</span>` : ''}</span>
+    `;
+    row.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) copySelectedGroupIds.add(group.id);
+      else copySelectedGroupIds.delete(group.id);
+      document.getElementById('copyImportBtn').disabled = copySelectedGroupIds.size === 0;
+    });
+    list.appendChild(row);
+  });
+}
+
+function loadCopySource(parsed, name){
+  if (!Array.isArray(parsed.sectionGroups) || !Array.isArray(parsed.sections)){
+    showErrorToast("That file doesn't look like a SetBook JSON.");
+    return;
+  }
+  copySourceState = parsed;
+  copySourceName = name;
+  copySelectedGroupIds = new Set(
+    parsed.sectionGroups
+      .filter(g => parsed.sections.some(s => s.groupId === g.id))
+      .map(g => g.id)
+  );
+  const info = document.getElementById('copySourceInfo');
+  info.style.display = '';
+  info.textContent = `From: ${name}`;
+  renderCopySongChecklist();
+  document.getElementById('copyImportBtn').disabled = copySelectedGroupIds.size === 0;
+}
+
+async function pickCopySourceFile(){
+  if (supportsFsApi){
+    try{
+      // No `types` filter here on purpose — see openFile(): the .json-only
+      // filter intermittently greyed out valid files in the macOS open panel.
+      const opts = {};
+      if (fileHandle) opts.startIn = fileHandle;
+      else if (startInHandle) opts.startIn = startInHandle;
+      const [handle] = await window.showOpenFilePicker(opts);
+      const file = await handle.getFile();
+      loadCopySource(await parseJsonFile(file), file.name);
+    } catch(err){
+      if (err.name !== 'AbortError') showErrorToast('Could not open that file: ' + err.message);
+    }
+  } else {
+    document.getElementById('copyFileInput').click();
+  }
+}
+
+document.getElementById('copyFileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try{ loadCopySource(parseJsonText(evt.target.result, file.name), file.name); }
+    catch(err){ showErrorToast('Could not load that file: ' + err.message); }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+document.getElementById('btnCopySongs').addEventListener('click', () => {
+  copySourceState = null;
+  copySourceName = '';
+  copySelectedGroupIds = new Set();
+  document.getElementById('copySourceInfo').style.display = 'none';
+  renderCopySongChecklist();
+  document.getElementById('copyImportBtn').disabled = true;
+  copyModal.classList.add('open');
+});
+document.getElementById('copyPickFileBtn').addEventListener('click', pickCopySourceFile);
+
+document.getElementById('copyImportBtn').addEventListener('click', () => {
+  if (!copySourceState || !copySelectedGroupIds.size) return;
+  copySelectedGroupIds.forEach(gid => {
+    const srcGroup = copySourceState.sectionGroups.find(g => g.id === gid);
+    if (!srcGroup) return;
+    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready' };
+    state.sectionGroups.push(newGroup);
+    const srcSections = copySourceState.sections
+      .filter(s => s.groupId === gid)
+      .sort((a,b) => a.order - b.order);
+    srcSections.forEach((srcSec, i) => {
+      // imported sections may predate the picker — migrate old `name`
+      const migrated = migrateSectionName({ name: srcSec.name, nameType: srcSec.nameType, customName: srcSec.customName, nameSuffix: srcSec.nameSuffix });
+      state.sections.push({
+        id: uid('sec'),
+        groupId: newGroup.id,
+        nameType: migrated.nameType,
+        customName: migrated.customName,
+        nameSuffix: migrated.nameSuffix,
+        name: srcSec.name || '',
+        order: i,
+        lines: (srcSec.lines || []).map(l => ({
+          text: l.text || '',
+          symbols: (l.symbols || []).map(s => ({ pos: s.pos, value: s.value }))
+        }))
+      });
+    });
+  });
+  scheduleSave();
+  updateArtistDatalist();
+  renderAll();
+  copyModal.classList.remove('open');
+  copySourceState = null;
+  copySourceName = '';
+  copySelectedGroupIds = new Set();
+});
+
+
+/* ---------------------------------------------------------
+   Performance PDF modal
+--------------------------------------------------------- */
+let pdfMode = 'light';
+let pdfDevice = 'ipad';
+let pdfOrientation = 'landscape';
+let pdfType = 'performance';
+const pdfModal = wireModal({
+  overlayId:'pdfModalOverlay', openBtnId:'btnPdf', closeBtnId:'pdfCancelBtn',
+  onOpen(){
+    pdfProjectNameInput.value = state.projectName || '';
+    document.getElementById('pdfDownloadLink').style.display = 'none';
+    pdfSelectedSongIds = new Set(allSongIdsWithSections());
+    populateSubsetSelect();
+    document.getElementById('pdfSubsetSelect').value = '';
+    document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+    renderPdfSongChecklist();
+  }
+}).overlay;
+const pdfProjectNameInput = document.getElementById('pdfProjectName');
+
+const PDF_TYPE_COPY = {
+  performance: {
+    title: 'Performance PDF',
+    sub: 'One page per section, a tappable table of contents, and text sized to read easily on an iPad.'
+  },
+  'print-friendly': {
+    title: 'Print Friendly PDF',
+    sub: 'Sections stack continuously instead of one-per-page, all in one consistent, comfortable size — built for printing on paper.'
+  }
+};
+
+function updatePdfModalCopy(){
+  const copy = PDF_TYPE_COPY[pdfType];
+  document.getElementById('pdfModalTitle').textContent = copy.title;
+  document.getElementById('pdfModalSub').textContent = copy.sub;
+  document.getElementById('appearanceSection').style.display = pdfType === 'print-friendly' ? 'none' : '';
+}
+
+/* ---- song subset (which songs go in the PDF) ---- */
+let pdfSelectedSongIds = new Set();
+
+function allSongIdsWithSections(){
+  return state.sectionGroups.filter(g => groupSections(g.id).length).map(g => g.id);
+}
+
+function renderPdfSongChecklist(){
+  const list = document.getElementById('pdfSongChecklist');
+  list.innerHTML = '';
+  sortedSongGroups().forEach(group => {
+    if (!groupSections(group.id).length) return;
+    const row = document.createElement('label');
+    row.className = 'song-check-row';
+    const checked = pdfSelectedSongIds.has(group.id);
+    row.innerHTML = `
+      <input type="checkbox" ${checked ? 'checked' : ''}>
+      <span>${escapeHtml(group.name || 'Untitled Song')}${group.artist ? ` <span class="artist">— ${escapeHtml(group.artist)}</span>` : ''}</span>
+    `;
+    row.querySelector('input').addEventListener('change', (e) => {
+      if (e.target.checked) pdfSelectedSongIds.add(group.id);
+      else pdfSelectedSongIds.delete(group.id);
+      document.getElementById('pdfSubsetSelect').value = '';
+      document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+    });
+    list.appendChild(row);
+  });
+}
+
+function populateSubsetSelect(){
+  const sel = document.getElementById('pdfSubsetSelect');
+  const subsets = state.songSubsets || [];
+  sel.innerHTML = '<option value="">All songs</option>' +
+    subsets.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+}
+
+document.getElementById('pdfSubsetSelect').addEventListener('change', (e) => {
+  const id = e.target.value;
+  if (!id){
+    pdfSelectedSongIds = new Set(allSongIdsWithSections());
+  } else {
+    const subset = (state.songSubsets || []).find(s => s.id === id);
+    const validIds = new Set(state.sectionGroups.map(g => g.id));
+    pdfSelectedSongIds = new Set(subset ? subset.songIds.filter(gid => validIds.has(gid)) : []);
+  }
+  renderPdfSongChecklist();
+  document.getElementById('pdfDeleteSubsetBtn').style.display = id ? '' : 'none';
+});
+
+// Bulk song selection for the PDF checklist. Like a manual checkbox change,
+// these reset the subset dropdown so the selection is clearly manual.
+function applyPdfChecklistSelection(ids){
+  pdfSelectedSongIds = new Set(ids);
+  renderPdfSongChecklist();
+  document.getElementById('pdfSubsetSelect').value = '';
+  document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+}
+document.getElementById('pdfSelectAllBtn').addEventListener('click', () => {
+  applyPdfChecklistSelection(allSongIdsWithSections());
+});
+document.getElementById('pdfSelectNoneBtn').addEventListener('click', () => {
+  applyPdfChecklistSelection([]);
+});
+document.getElementById('pdfSelectReadyBtn').addEventListener('click', () => {
+  const readyIds = state.sectionGroups
+    .filter(g => groupSections(g.id).length && (g.readyStatus || 'not-ready') === 'ready')
+    .map(g => g.id);
+  applyPdfChecklistSelection(readyIds);
+});
+
+document.getElementById('pdfSaveSubsetBtn').addEventListener('click', (e) => {
+  showPromptPopover(e.currentTarget, 'Name this subset:', '', 'Save', (trimmed) => {
+    if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
+    const songIds = Array.from(pdfSelectedSongIds);
+    const existing = state.songSubsets.find(s => s.name.toLowerCase() === trimmed.toLowerCase());
+    let targetId;
+    if (existing){
+      existing.songIds = songIds;
+      targetId = existing.id;
+    } else {
+      targetId = uid('subset');
+      state.songSubsets.push({ id: targetId, name: trimmed, songIds });
+    }
+    scheduleSave();
+    populateSubsetSelect();
+    document.getElementById('pdfSubsetSelect').value = targetId;
+    document.getElementById('pdfDeleteSubsetBtn').style.display = '';
+  });
+});
+
+document.getElementById('pdfDeleteSubsetBtn').addEventListener('click', (e) => {
+  const sel = document.getElementById('pdfSubsetSelect');
+  const id = sel.value;
+  const subset = (state.songSubsets || []).find(s => s.id === id);
+  if (!subset) return;
+  showConfirmPopover(e.currentTarget, `Delete the saved subset "${subset.name}"?`, 'Delete', () => {
+    state.songSubsets = state.songSubsets.filter(s => s.id !== id);
+    scheduleSave();
+    populateSubsetSelect();
+    sel.value = '';
+    document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+  });
+});
+
+pdfProjectNameInput.addEventListener('input', (e) => {
+  state.projectName = e.target.value;
+  scheduleSave();
+});
+preventAutoReplace(pdfProjectNameInput);
+
+document.querySelectorAll('.mode-btn[data-pdftype]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    pdfType = btn.dataset.pdftype;
+    document.querySelectorAll('.mode-btn[data-pdftype]').forEach(b => b.classList.toggle('active', b === btn));
+    updatePdfModalCopy();
+  });
+});
+
+document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    pdfMode = btn.dataset.mode;
+    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+document.querySelectorAll('.mode-btn[data-orientation]').forEach(btn => {
+  btn.addEventListener('click', () => {
+    pdfOrientation = btn.dataset.orientation;
+    document.querySelectorAll('.mode-btn[data-orientation]').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+document.querySelectorAll('.device-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    pdfDevice = btn.dataset.device;
+    document.querySelectorAll('.device-btn').forEach(b => b.classList.toggle('active', b === btn));
+  });
+});
+
+let pdfBlobUrl = null; // revoke the previous one each time a new PDF is generated
+
+document.getElementById('pdfGenerateBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('pdfGenerateBtn');
+  const link = document.getElementById('pdfDownloadLink');
+  const original = btn.textContent;
+  btn.textContent = 'Generating…';
+  btn.disabled = true;
+  link.style.display = 'none';
+  try{
+    const { blob, filename } = pdfType === 'print-friendly'
+      ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, pdfSelectedSongIds)
+      : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, pdfSelectedSongIds);
+    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+    pdfBlobUrl = URL.createObjectURL(blob);
+    link.href = pdfBlobUrl;
+    link.download = filename;
+    link.textContent = `↓ Download ${filename}`;
+    link.style.display = 'block';
+  } catch(err){
+    console.error(err);
+    showErrorToast('Could not generate the PDF: ' + err.message);
+  } finally {
+    btn.textContent = original;
+    btn.disabled = false;
+  }
+});
+
+/* ---------------------------------------------------------
+   Performance PDF generation
+   One page per section, sized to read at a distance on a
+   chosen device, with a tappable table of contents (songs A-Z)
+   and a "back to Contents" link plus the song name on every page.
+--------------------------------------------------------- */
+const PDF_DEVICES = {
+  // natural portrait width/height in points, chosen to match each device's
+  // approximate screen aspect ratio so a PDF viewer fills the screen
+  // cleanly. "letter" is for printing on paper instead of a screen.
+  // The orientation choice in the modal swaps these as needed.
+  'ipad':      { label: 'iPad',           w: 820, h: 1180 },
+  'ipad-mini': { label: 'iPad mini',      w: 744, h: 1133 },
+  'iphone':    { label: 'iPhone',         w: 393, h: 852  },
+  'letter':    { label: 'Letter (print)', w: 612, h: 792  },
+};
+
+/* ---------------------------------------------------------
+   Custom monospace font for PDFs (instead of jsPDF's built-in
+   Courier). IBM Plex Mono is fetched once per session and
+   embedded into whichever PDF is being built. Falls back to
+   Courier if the fetch fails for any reason (offline, blocked,
+   etc.) so a PDF can still always be generated.
+--------------------------------------------------------- */
+const PDF_MONO_FONT = {
+  name: 'PdfMono',
+  regularUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/ibmplexmono/IBMPlexMono-Regular.ttf',
+  boldUrl: 'https://cdn.jsdelivr.net/gh/google/fonts@main/ofl/ibmplexmono/IBMPlexMono-Bold.ttf',
+};
+let pdfFontCache = null; // { regular, bold } base64 strings, cached across generations this session
+
+async function fetchFontBase64(url){
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('font fetch failed (' + res.status + ')');
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  let binary = '';
+  const chunkSize = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunkSize){
+    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+  }
+  return btoa(binary);
+}
+
+async function ensurePdfMonoFont(doc){
+  try{
+    if (!pdfFontCache){
+      const [regular, bold] = await Promise.all([
+        fetchFontBase64(PDF_MONO_FONT.regularUrl),
+        fetchFontBase64(PDF_MONO_FONT.boldUrl)
+      ]);
+      pdfFontCache = { regular, bold };
+    }
+    doc.addFileToVFS('PdfMono-Regular.ttf', pdfFontCache.regular);
+    doc.addFont('PdfMono-Regular.ttf', PDF_MONO_FONT.name, 'normal');
+    doc.addFileToVFS('PdfMono-Bold.ttf', pdfFontCache.bold);
+    doc.addFont('PdfMono-Bold.ttf', PDF_MONO_FONT.name, 'bold');
+    return PDF_MONO_FONT.name;
+  } catch(err){
+    console.error('Custom PDF font failed to load, falling back to Courier:', err);
+    return 'courier';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared scaffolding for both PDF pipelines (performance + print-friendly).
+// ---------------------------------------------------------------------------
+const PDF_PALETTES = {
+  dark:  { bg:[27,27,30],  text:[237,233,225], chord:[201,162,39], muted:[150,146,138], accent:[201,162,39] },
+  light: { bg:[255,255,255], text:[35,32,27],  chord:[141,104,10], muted:[120,115,105], accent:[141,104,10], faint:[150,146,138] }
+};
+
+// Throws when the jsPDF library failed to load; otherwise builds the document
+// and returns it together with the page geometry both pipelines derive from
+// the chosen device and orientation.
+async function setupPdfDoc(deviceId, orientationId){
+  if (!window.jspdf){ throw new Error('PDF library did not load — check your internet connection and try again.'); }
+  const { jsPDF } = window.jspdf;
+  const device = PDF_DEVICES[deviceId] || PDF_DEVICES.ipad;
+  const landscape = orientationId !== 'portrait';
+
+  const PAGE_W = landscape ? device.h : device.w;
+  const PAGE_H = landscape ? device.w : device.h;
+  // every other measurement was originally tuned for a 612pt-tall page
+  // (Letter landscape) — scale proportionally to the chosen page height so a
+  // smaller screen (e.g. iPhone) gets correspondingly smaller margins and
+  // font sizes instead of fixed point values that only suit one page size.
+  const SCALE = PAGE_H / 612;
+  const sc = n => Math.max(1, Math.round(n * SCALE));
+
+  const doc = new jsPDF({
+    orientation: PAGE_W >= PAGE_H ? 'landscape' : 'portrait',
+    unit: 'pt',
+    format: [PAGE_W, PAGE_H]
+  });
+  const monoFont = await ensurePdfMonoFont(doc);
+  return { doc, monoFont, PAGE_W, PAGE_H, SCALE, sc, device, landscape };
+}
+
+// Songs that have at least one section (optionally narrowed to a saved
+// subset), sorted for the document. Throws when there is nothing to print.
+function collectPdfSongs(selectedGroupIds){
+  const songs = state.sectionGroups
+    .map(g => ({ group: g, sections: groupSections(g.id) }))
+    .filter(s => s.sections.length > 0 && (!selectedGroupIds || selectedGroupIds.has(s.group.id)))
+    .sort((a,b) => (a.group.name || 'Untitled Song').localeCompare(b.group.name || 'Untitled Song', undefined, { sensitivity:'base' }));
+  if (!songs.length){
+    throw new Error(selectedGroupIds ? 'None of the selected songs have a section yet.' : 'Add at least one song with a section before generating a PDF.');
+  }
+  return songs;
+}
+
+const pdfLineHeight = fs => fs * 1.3;
+
+// Height of one display block: one chord row, then one row per lyric line
+// stacked under it — a lyric-only row after a chords+lyrics row renders as
+// another lyric line of that same block rather than its own empty chord row.
+function pdfBlockHeight(block, fs){
+  let h = pdfLineHeight(fs);
+  block.lines.forEach(l => {
+    if (pdfDisplayText(l) || !l.symbols.length) h += pdfLineHeight(fs);
+  });
+  return h + fs * 0.35;
+}
+
+async function generatePerformancePdf(mode, deviceId, orientationId, selectedGroupIds){
+  const isDark = mode === 'dark';
+  const { doc, monoFont, PAGE_W, PAGE_H, SCALE, sc, device, landscape } = await setupPdfDoc(deviceId, orientationId);
+  const MARGIN = sc(40);
+  const CONTENT_TOP = sc(100);
+  const TOC_TOP = sc(132);
+  const TOC_ROW_H = sc(30);
+
+  const palette = PDF_PALETTES[isDark ? 'dark' : 'light'];
+  const songs = collectPdfSongs(selectedGroupIds);
+
+  const rowsPerTocPage = Math.max(1, Math.floor((PAGE_H - TOC_TOP - MARGIN) / TOC_ROW_H));
+  const numTocPages = Math.ceil(songs.length / rowsPerTocPage);
+
+  const fillBg = () => { doc.setFillColor(...palette.bg); doc.rect(0, 0, PAGE_W, PAGE_H, 'F'); };
+
+  // large-print tiers (lyric/chord point size, both rows share one size),
+  // scaled to this device's page size. A fixed, coarse list of sizes keeps
+  // pages visually consistent; the per-song unification below then settles
+  // every section page of a song onto a single size. Capped lower than
+  // before — the previous max (40pt scaled) ran too big on short sections.
+  const TIERS = [30, 26, 23, 20, 18, 16, 14].map(t => Math.max(9, Math.round(t * SCALE)));
+  const HPAD = 0.95; // extra horizontal breathing room beyond the margin, so text never touches the edge
+  const contentAvailableHeight = (PAGE_H - CONTENT_TOP - MARGIN) * 0.94;
+  const contentAvailableWidth = (PAGE_W - 2 * MARGIN) * HPAD;
+
+  // measuring the actual widest row (via the PDF's own font metrics) tells
+  // us exactly how big we can go before a line would run into or past the margin
+  function widestLineWidth(blocks, fontSize){
+    doc.setFont(monoFont, 'normal');
+    doc.setFontSize(fontSize);
+    let maxW = 0;
+    blocks.forEach(b => {
+      maxW = Math.max(maxW, doc.getTextWidth(buildSymbolsLine(b.symbols) || ' '));
+      b.lines.forEach(l => {
+        maxW = Math.max(maxW, doc.getTextWidth(pdfDisplayText(l) || ' '));
+      });
+      if (b.repeatCount){
+        // the condensed (xN) marker sits one character right of the widest line
+        const { marker, x } = repeatMarkerOffsetW(doc, monoFont, b, fontSize);
+        maxW = Math.max(maxW, x + doc.getTextWidth(marker));
+      }
+    });
+    return maxW;
+  }
+
+  function planSectionPages(section){
+    const srcLines = section.lines.length ? section.lines : [{ text:'', symbols:[] }];
+    const lines = groupLinesForDisplay(srcLines); // blocks: { symbols, lines }
+    const totalHeightAt = (ls, t) => ls.reduce((s,l) => s + pdfBlockHeight(l, t), 0);
+
+    for (const t of TIERS){
+      const contentHeight = totalHeightAt(lines, t);
+      const fitsHeight = contentHeight <= contentAvailableHeight;
+      const fitsWidth = widestLineWidth(lines, t) <= contentAvailableWidth;
+      if (fitsHeight && fitsWidth) return [{ lines, fontSize: t, contentHeight }];
+    }
+
+    // Nothing in the tier list fits both dimensions on one page.
+    // Width always wins — shrink below the smallest tier if that's the only
+    // way to keep every line inside the margins, rather than letting it run off the page.
+    let baseSize = TIERS[TIERS.length - 1];
+    const widest = widestLineWidth(lines, baseSize);
+    if (widest > contentAvailableWidth){
+      baseSize = Math.max(9, baseSize * (contentAvailableWidth / widest) * 0.98);
+    }
+
+    const baseContentHeight = totalHeightAt(lines, baseSize);
+    if (baseContentHeight <= contentAvailableHeight){
+      return [{ lines, fontSize: baseSize, contentHeight: baseContentHeight }];
+    }
+
+    // still too tall even at that size — paginate the section
+    const pages = []; let cur = []; let curH = 0;
+    lines.forEach(line => {
+      const h = pdfBlockHeight(line, baseSize);
+      if (curH + h > contentAvailableHeight && cur.length){ pages.push({ lines: cur, fontSize: baseSize, contentHeight: curH }); cur = []; curH = 0; }
+      cur.push(line); curH += h;
+    });
+    if (cur.length) pages.push({ lines: cur, fontSize: baseSize, contentHeight: curH });
+    return pages;
+  }
+
+  // Build the full page plan and page-number map before drawing anything,
+  // since the TOC links need to know target page numbers up front.
+  //
+  // Uniform size per song: every section page within one song uses the same
+  // font size — the largest size at which every section still fits on its
+  // page(s), i.e. the minimum of the per-section best sizes. This is safe
+  // without re-pagination: a section that fits on one page at its own best
+  // size also fits at the smaller uniform size, and a paginated section's
+  // page breaks still hold when the text shrinks (everything only gets
+  // shorter and narrower).
+  const pagePlan = [];
+  const songMeta = new Map(); // group.id -> { firstPageNumber, tocPageNumber }
+  let pageCursor = numTocPages + 1;
+  songs.forEach((s, songIdx) => {
+    const tocPageNumber = 1 + Math.floor(songIdx / rowsPerTocPage);
+    const titlePageNumber = pageCursor;
+    songMeta.set(s.group.id, { firstPageNumber: titlePageNumber, tocPageNumber });
+    pagePlan.push({ type:'title', song: s, pageNumber: pageCursor });
+    pageCursor++;
+    const songChunks = [];
+    s.sections.forEach(section => {
+      const chunks = planSectionPages(section);
+      chunks.forEach((chunk, chunkIndex) => songChunks.push({ section, chunk, chunkIndex, totalChunks: chunks.length }));
+    });
+    if (songChunks.length){
+      const songFontSize = Math.min(...songChunks.map(c => c.chunk.fontSize));
+      songChunks.forEach(c => {
+        c.chunk.fontSize = songFontSize;
+        // the size changed after the initial fit — recompute the actual
+        // content height at this size so vertical centering stays accurate.
+        c.chunk.contentHeight = c.chunk.lines.reduce((sum, l) => sum + pdfBlockHeight(l, songFontSize), 0);
+      });
+    }
+    songChunks.forEach(c => {
+      pagePlan.push({ type:'section', song: s, section: c.section, chunk: c.chunk, chunkIndex: c.chunkIndex, totalChunks: c.totalChunks, pageNumber: pageCursor });
+      pageCursor++;
+    });
+  });
+
+  // ---- Section navigation indicators ----
+  // Each section page links to its neighboring sections within the same
+  // song: "previous" jumps to the last page of the previous section,
+  // "next" to the first page of the next one. Chunks of the same section
+  // are skipped, so the indicators always name a *different* section.
+  // Title pages get none.
+  pagePlan.forEach((p, i) => {
+    if (p.type !== 'section') return;
+    p.prevNav = null;
+    p.nextNav = null;
+    for (let j = i - 1; j >= 0; j--){
+      const q = pagePlan[j];
+      if (q.type !== 'section' || q.section.id === p.section.id) continue;
+      if (q.song.group.id !== p.song.group.id) break;
+      p.prevNav = { pageNumber: q.pageNumber, name: displaySectionName(q.section) };
+      break;
+    }
+    for (let j = i + 1; j < pagePlan.length; j++){
+      const q = pagePlan[j];
+      if (q.type !== 'section' || q.section.id === p.section.id) continue;
+      if (q.song.group.id !== p.song.group.id) break;
+      p.nextNav = { pageNumber: q.pageNumber, name: displaySectionName(q.section) };
+      break;
+    }
+  });
+
+  // ---- Table of contents ----
+  for (let tp = 0; tp < numTocPages; tp++){
+    if (tp > 0) doc.addPage();
+    fillBg();
+    doc.setTextColor(...palette.text);
+    if (tp === 0){
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(26));
+      doc.text(state.projectName || 'Set List', MARGIN, sc(55));
+      doc.setFont('helvetica','normal'); doc.setFontSize(sc(12));
+      doc.setTextColor(...palette.muted);
+      doc.text('Tap a song to jump to it', MARGIN, sc(74));
+      doc.setFont('helvetica','normal'); doc.setFontSize(sc(11));
+      doc.text(
+        `Formatted for ${device.label} \u2014 ${landscape ? 'Landscape' : 'Portrait'} \u2014 ${isDark ? 'Dark mode' : 'Light mode'}`,
+        MARGIN, sc(92)
+      );
+    }
+    const startIdx = tp * rowsPerTocPage;
+    const endIdx = Math.min(songs.length, startIdx + rowsPerTocPage);
+    let y = TOC_TOP;
+    for (let i = startIdx; i < endIdx; i++){
+      const s = songs[i];
+      const meta = songMeta.get(s.group.id);
+      const label = s.group.name || 'Untitled Song';
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(16));
+      doc.setTextColor(...palette.text);
+      doc.textWithLink(label, MARGIN, y, { pageNumber: meta.firstPageNumber });
+      if (s.group.artist){
+        const labelW = doc.getTextWidth(label);
+        doc.setFont('helvetica','normal'); doc.setFontSize(sc(12));
+        doc.setTextColor(...palette.muted);
+        doc.text('— ' + s.group.artist, MARGIN + labelW + sc(10), y);
+      }
+      doc.link(MARGIN, y - sc(16), PAGE_W - 2 * MARGIN, sc(22), { pageNumber: meta.firstPageNumber });
+      y += TOC_ROW_H;
+    }
+  }
+
+  // ---- Title pages + section pages ----
+  pagePlan.forEach(p => {
+    doc.addPage();
+    fillBg();
+    const meta = songMeta.get(p.song.group.id);
+
+    if (p.type === 'title'){
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+      doc.setTextColor(...palette.accent);
+      doc.textWithLink('<< Contents', MARGIN, sc(40), { pageNumber: meta.tocPageNumber });
+      doc.link(MARGIN - sc(6), sc(25), sc(110), sc(22), { pageNumber: meta.tocPageNumber });
+
+      const songTitle = p.song.group.name || 'Untitled Song';
+      const artist = p.song.group.artist || '';
+      const maxTitleWidth = (PAGE_W - 2 * MARGIN) * 0.9;
+      // the title should read clearly bigger than any lyric page — shrink
+      // toward that floor first, and only wrap to a second line if it
+      // still doesn't fit even there, rather than shrinking indefinitely
+      // down toward (or below) body-text size
+      const titleFloorSize = TIERS[0] + sc(6);
+
+      doc.setFont('helvetica','bold');
+      let titleSize = sc(58);
+      while (titleSize > titleFloorSize){
+        doc.setFontSize(titleSize);
+        if (doc.getTextWidth(songTitle) <= maxTitleWidth) break;
+        titleSize -= sc(2);
+      }
+      doc.setFontSize(titleSize);
+      let titleLines = [songTitle];
+      if (doc.getTextWidth(songTitle) > maxTitleWidth){
+        titleLines = doc.splitTextToSize(songTitle, maxTitleWidth);
+      }
+
+      const artistSize = sc(26);
+      const titleLineHeight = titleSize * 1.15;
+      const blockHeight = titleLines.length * titleLineHeight + (artist ? sc(14) + artistSize : 0);
+      let y = PAGE_H / 2 - blockHeight / 2 + titleLineHeight * 0.8;
+
+      doc.setTextColor(...palette.text);
+      let lastBaseline = y;
+      titleLines.forEach(line => {
+        doc.text(line, PAGE_W / 2, y, { align:'center' });
+        lastBaseline = y;
+        y += titleLineHeight;
+      });
+
+      if (artist){
+        doc.setFont('helvetica','normal'); doc.setFontSize(artistSize);
+        doc.setTextColor(...palette.muted);
+        doc.text(artist, PAGE_W / 2, lastBaseline + sc(14) + artistSize * 0.9, { align:'center' });
+      }
+      return;
+    }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(sc(15));
+    doc.setTextColor(...palette.text);
+    doc.text(p.song.group.name || 'Untitled Song', PAGE_W - MARGIN, sc(40), { align:'right' });
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+    doc.setTextColor(...palette.accent);
+    doc.textWithLink('<< Contents', MARGIN, sc(40), { pageNumber: meta.tocPageNumber });
+    doc.link(MARGIN - sc(6), sc(25), sc(110), sc(22), { pageNumber: meta.tocPageNumber });
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(sc(20));
+    doc.setTextColor(...palette.text);
+    let title = '[' + displaySectionName(p.section) + ']';
+    if (p.totalChunks > 1) title += ` (${p.chunkIndex + 1}/${p.totalChunks})`;
+    doc.text(title, MARGIN, sc(75));
+
+    // center short sections in the leftover vertical space rather than
+    // leaving all the extra room stacked at the bottom of the page
+    let y = CONTENT_TOP + Math.max(0, (contentAvailableHeight - p.chunk.contentHeight) / 2);
+    const fs = p.chunk.fontSize;
+    p.chunk.lines.forEach(block => {
+      const symLine = buildSymbolsLine(block.symbols);
+
+      doc.setFont(monoFont,'bold'); doc.setFontSize(fs);
+      doc.setTextColor(...palette.chord);
+      doc.text(symLine || ' ', MARGIN, y);
+      const chordBaselineY = y;
+      y += pdfLineHeight(fs);
+
+      let shownLyricCount = 0;
+      block.lines.forEach(line => {
+        const displayText = pdfDisplayText(line);
+        const showText = !!(displayText || !line.symbols.length);
+        if (showText){
+          doc.setFont(monoFont,'normal'); doc.setFontSize(fs);
+          doc.setTextColor(...palette.text);
+          doc.text(displayText || ' ', MARGIN, y);
+          y += pdfLineHeight(fs);
+          shownLyricCount++;
+        }
+      });
+
+      if (block.repeatCount){
+        // single condensed (xN): one character right of the widest line,
+        // vertically centered between the chord and lyric lines
+        const { marker, x } = repeatMarkerOffsetW(doc, monoFont, block, fs);
+        doc.setFont(monoFont,'bold'); doc.setFontSize(fs);
+        doc.setTextColor(...palette.chord);
+        doc.text(marker, MARGIN + x, chordBaselineY + (shownLyricCount * pdfLineHeight(fs)) / 2 + fs * 0.35);
+      }
+
+      y += fs * 0.35;
+    });
+
+    // ---- bottom-of-page section navigation ----
+    // Small prev/next-section links: previous on the left, next (or an
+    // [End] marker on the song's last section page) on the right. Tapping
+    // an arrow or a name jumps straight to that section's page. Title
+    // pages get none of this.
+    const navSize = sc(11);
+    const navY = PAGE_H - sc(26); // baseline — sits below the content area with clear padding from the page edge
+    const navGap = sc(7);
+    const arrowHW = navSize * 0.5;  // arrow triangle half-width
+    const arrowHH = navSize * 0.42; // arrow triangle half-height
+    const arrowCy = navY - navSize * 0.35;
+
+    doc.setFont(monoFont, 'normal');
+    doc.setFontSize(navSize);
+    const maxNavNameW = (PAGE_W - 2 * MARGIN) * 0.30;
+    const fitNavName = (name) => {
+      let n = (name || 'Untitled section').trim() || 'Untitled section';
+      if (doc.getTextWidth(n) <= maxNavNameW) return n;
+      while (n.length > 1 && doc.getTextWidth(n + '…') > maxNavNameW) n = n.slice(0, -1);
+      return n + '…';
+    };
+    const drawNavArrow = (cx, dir) => {
+      // vector triangle (not a font glyph) so it renders identically in
+      // every PDF viewer, even when the embedded font fails to load
+      doc.setFillColor(...palette.accent);
+      if (dir < 0) doc.triangle(cx - arrowHW, arrowCy, cx + arrowHW, arrowCy - arrowHH, cx + arrowHW, arrowCy + arrowHH, 'F');
+      else doc.triangle(cx + arrowHW, arrowCy, cx - arrowHW, arrowCy - arrowHH, cx - arrowHW, arrowCy + arrowHH, 'F');
+    };
+    const navLinkRect = (x, w, pageNumber) => {
+      doc.link(x - sc(4), navY - navSize * 1.25, w + sc(8), navSize * 1.7, { pageNumber });
+    };
+
+    if (p.prevNav){
+      const name = fitNavName(p.prevNav.name);
+      const nameW = doc.getTextWidth(name);
+      const arrowCx = MARGIN + arrowHW;
+      const textX = MARGIN + arrowHW * 2 + navGap;
+      drawNavArrow(arrowCx, -1);
+      doc.setTextColor(...palette.muted);
+      doc.textWithLink(name, textX, navY, { pageNumber: p.prevNav.pageNumber });
+      navLinkRect(MARGIN, arrowHW * 2 + navGap + nameW, p.prevNav.pageNumber);
+    }
+    if (p.nextNav){
+      const name = fitNavName(p.nextNav.name);
+      const nameW = doc.getTextWidth(name);
+      const totalW = nameW + navGap + arrowHW * 2;
+      const textX = PAGE_W - MARGIN - totalW;
+      const arrowCx = textX + nameW + navGap + arrowHW;
+      doc.setTextColor(...palette.muted);
+      doc.textWithLink(name, textX, navY, { pageNumber: p.nextNav.pageNumber });
+      drawNavArrow(arrowCx, 1);
+      navLinkRect(textX, totalW, p.nextNav.pageNumber);
+    } else {
+      // last section page of the song — no next section, so mark the end
+      const label = '[End]';
+      const w = doc.getTextWidth(label);
+      doc.setTextColor(...palette.muted);
+      doc.text(label, PAGE_W - MARGIN - w, navY);
+    }
+  });
+
+  const filename = buildPdfFilename([deviceId, orientationId, mode]);
+
+  // Return a blob URL rather than calling doc.save() (which triggers the
+  // download itself via a synthetic click). Chrome and friends treat a
+  // second JS-triggered download in the same page session as an
+  // "automatic multiple downloads" attempt and block it — generating a
+  // second PDF in one sitting would silently fail or throw. Handing back
+  // a link the person clicks themselves keeps every download tied to a
+  // real click, so it isn't rate-limited that way.
+  return { blob: doc.output('blob'), filename };
+}
+
+function buildPdfFilename(extraParts){
+  const dateStr = new Date().toISOString().slice(0,10);
+  const base = state.projectName || (currentFileName ? currentFileName.replace(/\.json$/i,'') : 'setbook');
+  const slug = base.trim().replace(/[^a-z0-9]+/gi,'-').replace(/(^-+|-+$)/g,'') || 'setbook';
+  return [slug, ...extraParts, dateStr].join('-') + '.pdf';
+}
+
+/* ---------------------------------------------------------
+   Print Friendly PDF generation
+   A single continuous, flowing document — sections stack one
+   after another instead of getting their own page, and every
+   section shares one global font size (the largest that still
+   fits every line on the page), rather than auto-fitting per
+   section. Always light mode, since dark backgrounds waste ink
+   on paper.
+--------------------------------------------------------- */
+async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupIds){
+  const { doc, monoFont, PAGE_W, PAGE_H, sc } = await setupPdfDoc(deviceId, orientationId);
+  const MARGIN = sc(44);
+  const palette = PDF_PALETTES.light;
+  const songs = collectPdfSongs(selectedGroupIds);
+
+  const contentAvailableWidth = (PAGE_W - 2 * MARGIN) * 0.95;
+  // a reasonable cap so a short document doesn't blow up to a huge size —
+  // print-friendly favors one consistent, comfortable reading size over
+  // "as big as possible", unlike the Performance PDF's per-page auto-fit
+  const MAX_BODY_SIZE = sc(17);
+  const MIN_BODY_SIZE = Math.max(7, sc(8));
+
+
+  // find the single largest size where every line in the whole document
+  // still fits the page width — since sections stack rather than each
+  // getting a full page, width (not per-section height) is what matters
+  const allBlocks = [];
+  songs.forEach(s => s.sections.forEach(section => {
+    groupLinesForDisplay(section.lines.length ? section.lines : [{ text:'', symbols:[] }]).forEach(b => allBlocks.push(b));
+  }));
+
+  let bodySize = MIN_BODY_SIZE;
+  for (let fsz = MAX_BODY_SIZE; fsz >= MIN_BODY_SIZE; fsz--){
+    doc.setFont(monoFont, 'normal');
+    doc.setFontSize(fsz);
+    let fits = true;
+    for (const b of allBlocks){
+      const symLine = buildSymbolsLine(b.symbols);
+      if (doc.getTextWidth(symLine || ' ') > contentAvailableWidth){ fits = false; break; }
+      for (const l of b.lines){
+        if (doc.getTextWidth(pdfDisplayText(l) || ' ') > contentAvailableWidth){ fits = false; break; }
+      }
+      if (b.repeatCount){
+        // the condensed (xN) marker sits one character right of the widest line
+        const { marker, x } = repeatMarkerOffsetW(doc, monoFont, b, fsz);
+        if (x + doc.getTextWidth(marker) > contentAvailableWidth){ fits = false; break; }
+      }
+      if (!fits) break;
+    }
+    if (fits){ bodySize = fsz; break; }
+  }
+
+  const songTitleSize = Math.min(sc(22), bodySize + sc(6));
+  const sectionTitleSize = Math.min(sc(18), bodySize + sc(3));
+  const pageBottom = PAGE_H - MARGIN;
+  const startY = MARGIN + sc(14);
+  let y = startY;
+
+  const ensureRoom = (h) => {
+    if (y + h > pageBottom){
+      doc.addPage();
+      y = startY;
+      return true;
+    }
+    return false;
+  };
+
+  songs.forEach((s, songIdx) => {
+    if (songIdx > 0){
+      doc.addPage();
+      y = startY;
+    }
+
+    doc.setFont('helvetica','bold'); doc.setFontSize(songTitleSize);
+    doc.setTextColor(...palette.text);
+    const songLabel = s.group.name || 'Untitled Song';
+    doc.text(songLabel, MARGIN, y);
+    if (s.group.artist){
+      const labelW = doc.getTextWidth(songLabel);
+      doc.setFont('helvetica','normal'); doc.setFontSize(sc(11));
+      doc.setTextColor(...palette.muted);
+      doc.text('— ' + s.group.artist, MARGIN + labelW + sc(8), y);
+    }
+    y += pdfLineHeight(songTitleSize) + sc(8);
+
+    s.sections.forEach(section => {
+      const blocks = groupLinesForDisplay(section.lines.length ? section.lines : [{ text:'', symbols:[] }]);
+      // check room for the WHOLE section, not just its title + first line,
+      // so a section only starts if it can run without splitting across
+      // pages — if it's longer than a full page can ever hold, it still
+      // starts fresh on its own page and lets the per-line check below
+      // handle the unavoidable overflow from there
+      const sectionHeight = pdfLineHeight(sectionTitleSize) + sc(4) + blocks.reduce((sum,b) => sum + pdfBlockHeight(b, bodySize), 0);
+      ensureRoom(sectionHeight);
+
+      doc.setFont('helvetica','bold'); doc.setFontSize(sectionTitleSize);
+      doc.setTextColor(...palette.text);
+      doc.text('[' + displaySectionName(section) + ']', MARGIN, y);
+      y += pdfLineHeight(sectionTitleSize) + sc(4);
+
+      blocks.forEach(block => {
+        ensureRoom(pdfBlockHeight(block, bodySize));
+        const symLine = buildSymbolsLine(block.symbols);
+
+        doc.setFont(monoFont, 'bold'); doc.setFontSize(bodySize);
+        doc.setTextColor(...palette.chord);
+        doc.text(symLine || ' ', MARGIN, y);
+        const chordBaselineY = y;
+        y += pdfLineHeight(bodySize);
+
+        let shownLyricCount = 0;
+        block.lines.forEach(line => {
+          const displayText = pdfDisplayText(line);
+          const showText = !!(displayText || !line.symbols.length);
+          if (showText){
+            doc.setFont(monoFont, 'normal'); doc.setFontSize(bodySize);
+            doc.setTextColor(...palette.text);
+            doc.text(displayText || ' ', MARGIN, y);
+            y += pdfLineHeight(bodySize);
+            shownLyricCount++;
+          }
+        });
+
+        if (block.repeatCount){
+          // single condensed (xN): one character right of the widest line,
+          // vertically centered between the chord and lyric lines
+          const { marker, x } = repeatMarkerOffsetW(doc, monoFont, block, bodySize);
+          doc.setFont(monoFont, 'bold'); doc.setFontSize(bodySize);
+          doc.setTextColor(...palette.chord);
+          doc.text(marker, MARGIN + x, chordBaselineY + (shownLyricCount * pdfLineHeight(bodySize)) / 2 + bodySize * 0.35);
+        }
+
+        y += bodySize * 0.35;
+      });
+      y += sc(12);
+    });
+  });
+
+  const totalPages = doc.internal.getNumberOfPages();
+  for (let i = 1; i <= totalPages; i++){
+    doc.setPage(i);
+    doc.setFont('helvetica','normal'); doc.setFontSize(sc(9));
+    doc.setTextColor(...palette.faint);
+    doc.text(`${i} / ${totalPages}`, PAGE_W / 2, PAGE_H - sc(18), { align:'center' });
+  }
+
+  const filename = buildPdfFilename([deviceId, orientationId, 'print-friendly']);
+  return { blob: doc.output('blob'), filename };
+}
+
+// Fallback path for browsers without the File System Access API:
+// loads a file for editing, but saving changes only works via "Save as…"
+// (which falls back to a plain download in these browsers).
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (evt) => {
+    try {
+      loadParsedState(parseJsonText(evt.target.result, file.name));
+      currentFileName = file.name;
+      updateFileLabel();
+      updateSaveStatus('nofile');
+      renderAll();
+      scrollSelectedSongIntoView();
+    } catch(err){
+      showErrorToast('Could not load that file as a SetBook JSON: ' + err.message);
+    }
+  };
+  reader.readAsText(file);
+  e.target.value = '';
+});
+
+function resetToNewFile(){
+  // a new file keeps whatever sidebar width is currently on screen, rather
+  // than resetting back to some fixed default
+  const currentSidebarWidth = state.sidebarWidth || Math.round(document.querySelector('nav.sidebar').getBoundingClientRect().width);
+  state = { ...defaultState(), sidebarWidth: currentSidebarWidth };
+  songSortField = 'title';
+  songSortDir = 'asc';
+  selectedGroupId = null;
+  selectedSectionId = null;
+  expandedGroups = new Set();
+  fileHandle = null;
+  currentFileName = null;
+  updateFileLabel();
+  updateSaveStatus('nofile');
+  updateLastFolderHint();
+  renderAll();
+}
+
+document.getElementById('btnNewFile').addEventListener('click', (e) => {
+  if (state.sectionGroups.length){
+    showConfirmPopover(e.currentTarget, 'Start a new file? Any unsaved changes to the currently linked file will be lost.', 'Start new file', resetToNewFile);
+  } else {
+    resetToNewFile();
+  }
+});
+
+/* ---------------------------------------------------------
+   Helpers
+--------------------------------------------------------- */
+// On macOS, both Safari and Chrome route keyboard input through the same
+// system text layer, so the OS-level "add period with double-space"
+// setting (System Settings > Keyboard) can fire in either browser — it's
+// not Safari-specific, so a Safari-only fix (autocorrect="off") does
+// nothing in Chrome. The `beforeinput` event exposes *why* text is being
+// inserted, though: a real keystroke is `insertText`, while an
+// OS/browser autocorrection is `insertReplacementText`. Blocking just
+// that inputType stops the auto-replacement without touching normal
+// typing — including genuinely fast, deliberate double (or more) spaces.
+function preventAutoReplace(el){
+  el.addEventListener('beforeinput', (e) => {
+    if (e.inputType === 'insertReplacementText') e.preventDefault();
+  });
+}
+
+function autoGrowTextarea(el){
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
+// setTimeout(fn, 0) only guarantees "later this tick" — not that the
+// browser has actually finished layout for what we just inserted. A
+// double requestAnimationFrame guarantees a real layout/paint has
+// happened first, so scrollHeight reflects the final wrapped size
+// instead of occasionally locking in a too-short height that then
+// clips text (e.g. a second wrapped line silently disappearing).
+function deferAutoGrow(el){
+  requestAnimationFrame(() => requestAnimationFrame(() => autoGrowTextarea(el)));
+}
+
+/* Turn a pasted video link into something playable inside the side panel.
+   YouTube and Vimeo links become embed players; anything else is loaded
+   as-is (sites that forbid framing show the panel's "open in tab" hint). */
+function watchTarget(){
+  try{ return localStorage.getItem('setbook-watch-target') === 'self' ? 'self' : 'blank'; }
+  catch(e){ return 'blank'; }
+}
+function openVideoLink(url){
+  const trimmed = (url || '').trim();
+  if (!trimmed) return;
+  const normalized = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
+  if (watchTarget() === 'self') window.location.href = normalized;
+  else window.open(normalized, '_blank', 'noopener,noreferrer');
+}
+
+function scrollSelectedSongIntoView(){
+  if (!selectedGroupId) return;
+  // wait a tick for the just-rendered sidebar DOM (and its expanded
+  // accordion) to actually be laid out before measuring where to scroll
+  setTimeout(() => {
+    const rowEl = document.querySelector(`.group[data-gid="${selectedGroupId}"]`);
+    if (rowEl) rowEl.scrollIntoView({ block: 'center' });
+  }, 0);
+}
+
+let activeArtistPopover = null;
+function closeArtistSuggestions(){
+  if (activeArtistPopover){ activeArtistPopover.remove(); activeArtistPopover = null; }
+}
+function showArtistSuggestions(anchorEl, query, onPick){
+  closeArtistSuggestions();
+  const seen = new Set();
+  const allArtists = [];
+  state.sectionGroups.forEach(g => {
+    const a = (g.artist || '').trim();
+    if (a && !seen.has(a.toLowerCase())){ seen.add(a.toLowerCase()); allArtists.push(a); }
+  });
+  const q = query.trim().toLowerCase();
+  const matches = allArtists
+    .filter(a => q && a.toLowerCase().includes(q) && a.toLowerCase() !== q)
+    .sort((a,b) => a.localeCompare(b))
+    .slice(0, 8);
+  if (!matches.length) return;
+
+  const pop = document.createElement('div');
+  pop.className = 'artist-suggest-popover';
+  matches.forEach(name => {
+    const row = document.createElement('div');
+    row.className = 'artist-suggest-row';
+    row.textContent = name;
+    // mousedown (not click) + preventDefault so the textarea's blur doesn't
+    // close this popover before the click actually registers
+    row.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      onPick(name);
+      closeArtistSuggestions();
+    });
+    pop.appendChild(row);
+  });
+  document.body.appendChild(pop);
+  const rect = anchorEl.getBoundingClientRect();
+  pop.style.top = (rect.bottom + 4) + 'px';
+  pop.style.left = rect.left + 'px';
+  pop.style.width = Math.max(140, rect.width) + 'px';
+  activeArtistPopover = pop;
+}
+
+function escapeHtml(str){
+  return (str || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function escapeAttr(str){ return escapeHtml(str); }
+
+/* ---------------------------------------------------------
+   Toasts and inline confirm/prompt popovers — replace the
+   browser's native alert()/confirm()/prompt() so errors,
+   confirmations, and undos match the rest of the app instead
+   of popping a stock browser dialog.
+--------------------------------------------------------- */
+function showToast(message, opts = {}){
+  const container = document.getElementById('toastContainer');
+  const toast = document.createElement('div');
+  toast.className = 'toast' + (opts.type === 'error' ? ' error' : '');
+  const msg = document.createElement('span');
+  msg.className = 'toast-msg';
+  msg.textContent = message;
+  toast.appendChild(msg);
+  if (opts.actionLabel && opts.onAction){
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'toast-action';
+    btn.textContent = opts.actionLabel;
+    btn.addEventListener('click', () => {
+      opts.onAction();
+      toast.remove();
+    });
+    toast.appendChild(btn);
+  }
+  container.appendChild(toast);
+  const duration = opts.duration || (opts.actionLabel ? 8000 : 5000);
+  setTimeout(() => toast.remove(), duration);
+}
+function showErrorToast(message){ showToast(message, { type:'error' }); }
+
+// One-liner wiring for overlay modals: an open button, a close button, and
+// click-outside-to-dismiss. onOpen runs before the modal opens (for setup
+// like resetting form state). Returns the overlay plus open/close so
+// callers that manage visibility programmatically can keep doing so.
+function wireModal({ overlayId, openBtnId, closeBtnId, onOpen }){
+  const overlay = document.getElementById(overlayId);
+  const open = () => { if (onOpen) onOpen(); overlay.classList.add('open'); };
+  const close = () => overlay.classList.remove('open');
+  if (openBtnId) document.getElementById(openBtnId).addEventListener('click', open);
+  if (closeBtnId) document.getElementById(closeBtnId).addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  return { overlay, open, close };
+}
+function showUndoToast(message, onUndo){ showToast(message, { actionLabel:'Undo', onAction: onUndo, duration: 8000 }); }
+
+let activePopover = null;
+function closeActivePopover(){
+  if (activePopover){ activePopover.remove(); activePopover = null; }
+}
+function positionPopover(pop, anchorEl){
+  document.body.appendChild(pop);
+  const anchorRect = anchorEl.getBoundingClientRect();
+  const popRect = pop.getBoundingClientRect();
+  let top = anchorRect.bottom + 6;
+  let left = anchorRect.right - popRect.width;
+  if (left < 8) left = 8;
+  if (left + popRect.width > window.innerWidth - 8) left = window.innerWidth - popRect.width - 8;
+  if (top + popRect.height > window.innerHeight - 8) top = anchorRect.top - popRect.height - 6;
+  pop.style.top = top + 'px';
+  pop.style.left = left + 'px';
+}
+
+function showConfirmPopover(anchorEl, message, confirmLabel, onConfirm){
+  closeActivePopover();
+  const pop = document.createElement('div');
+  pop.className = 'confirm-popover';
+  pop.innerHTML = `
+    <div class="confirm-popover-msg">${escapeHtml(message)}</div>
+    <div class="confirm-popover-actions">
+      <button type="button" class="ghost small" data-action="cancel">Cancel</button>
+      <button type="button" class="small" data-action="confirm">${escapeHtml(confirmLabel)}</button>
+    </div>
+  `;
+  positionPopover(pop, anchorEl);
+  pop.querySelector('[data-action="confirm"]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeActivePopover();
+    onConfirm();
+  });
+  pop.querySelector('[data-action="cancel"]').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeActivePopover();
+  });
+  activePopover = pop;
+  setTimeout(() => document.addEventListener('click', closeActivePopover, { once:true }), 0);
+}
+
+function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmit){
+  closeActivePopover();
+  const pop = document.createElement('div');
+  pop.className = 'confirm-popover';
+  pop.innerHTML = `
+    <div class="confirm-popover-msg">${escapeHtml(message)}</div>
+    <input type="text" value="${escapeAttr(defaultValue)}">
+    <div class="confirm-popover-actions">
+      <button type="button" class="ghost small" data-action="cancel">Cancel</button>
+      <button type="button" class="small primary-confirm" data-action="confirm">${escapeHtml(submitLabel)}</button>
+    </div>
+  `;
+  positionPopover(pop, anchorEl);
+  const input = pop.querySelector('input');
+  setTimeout(() => { input.focus(); input.select(); }, 0);
+  const submit = () => {
+    const val = input.value.trim();
+    closeActivePopover();
+    if (val) onSubmit(val);
+  };
+  pop.querySelector('[data-action="confirm"]').addEventListener('click', (e) => { e.stopPropagation(); submit(); });
+  pop.querySelector('[data-action="cancel"]').addEventListener('click', (e) => { e.stopPropagation(); closeActivePopover(); });
+  input.addEventListener('click', e => e.stopPropagation());
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); submit(); } });
+  activePopover = pop;
+  setTimeout(() => document.addEventListener('click', closeActivePopover, { once:true }), 0);
+}
+
+/* ---------------------------------------------------------
+   Seed with one empty song so the app isn't blank on load
+--------------------------------------------------------- */
+(function seed(){
+  const g = { id: uid('grp'), name: '', artist: '' };
+  state.sectionGroups.push(g);
+  const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [] };
+  state.sections.push(introSec);
+  selectedGroupId = g.id;
+  selectedSectionId = introSec.id;
+  expandedGroups.add(g.id);
+  updateFileLabel();
+  updateSaveStatus('nofile');
+  setSidebarWidth(state.sidebarWidth, { skipPersist:true });
+  renderAll();
+
+  const welcomeModal = wireModal({ overlayId:'welcomeModalOverlay' }).overlay;
+  welcomeModal.classList.add('open');
+  document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
+    welcomeModal.classList.remove('open');
+  });
+  document.getElementById('welcomeOpenBtn').addEventListener('click', () => {
+    welcomeModal.classList.remove('open');
+    openFile();
+  });
+
+  /* ---- share / device-transfer help hub ----
+     Each guide is a topic in the hub; add new entries here as more
+     destinations get written up. */
+  const SHARE_GUIDES = {
+    'apple-books': {
+      title: 'Save a PDF to Apple Books (iPhone or iPad)',
+      steps: [
+        'Open the PDF from Files, Mail, or Messages.',
+        'Tap the Share button (the box with an arrow pointing up).',
+        'Find and tap the Books app icon. If you don\u2019t see it, swipe through the app list or tap More.',
+        'The PDF will automatically open and save inside your Apple Books library.'
+      ]
+    },
+    'files-google': {
+      title: 'Save a PDF in Files by Google (Android)',
+      steps: [
+        'Download the PDF to your device — for example, tap the download icon on a Gmail attachment, or tap \u22ee \u2192 Download in Drive or Chrome.',
+        'Open the Files by Google app (labeled \u201cFiles\u201d on most devices).',
+        'Tap Browse at the bottom, then tap Downloads — your PDF will be listed there.',
+        'Tap the PDF to open it in the built-in viewer. It stays saved in Downloads for offline use.'
+      ]
+    }
+  };
+
+  function renderShareGuide(topic){
+    const guide = SHARE_GUIDES[topic];
+    const el = document.getElementById('shareInstructions');
+    el.innerHTML = '';
+    if (!guide) return;
+    const h = document.createElement('div');
+    h.className = 'share-guide-title';
+    h.textContent = guide.title;
+    el.appendChild(h);
+    const ol = document.createElement('ol');
+    ol.className = 'share-guide-steps';
+    guide.steps.forEach(step => {
+      const li = document.createElement('li');
+      li.textContent = step;
+      ol.appendChild(li);
+    });
+    el.appendChild(ol);
+  }
+
+  wireModal({
+    overlayId:'shareHelpModalOverlay', openBtnId:'btnShareHelp', closeBtnId:'shareHelpCloseBtn',
+    onOpen(){
+      document.querySelectorAll('.share-topic[data-topic]').forEach(b =>
+        b.classList.toggle('active', b.dataset.topic === 'apple-books'));
+      renderShareGuide('apple-books');
+    }
+  });
+
+  // Technical documentation / Help modal
+  wireModal({ overlayId:'helpModalOverlay', openBtnId:'btnHelp', closeBtnId:'helpCloseBtn' });
+  document.querySelectorAll('.share-topic[data-topic]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.share-topic').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      renderShareGuide(btn.dataset.topic);
+    });
+  });
+
+  // The sidebar's title/artist fields auto-size their height on render, but
+  // if that measurement happens before the Google Font has finished
+  // loading, it's taken against fallback-font metrics — which wrap text
+  // differently — and the wrong height then sticks around indefinitely.
+  // Once the real font is ready, redo that measurement on whatever's on
+  // screen right now so any row sized off the fallback font corrects itself.
+  if (document.fonts && document.fonts.ready){
+    document.fonts.ready.then(() => {
+      document.querySelectorAll('.group-name-field, .group-artist-field').forEach(autoGrowTextarea);
+    });
+  }
+})();
+</script>
+</body>
+</html>
