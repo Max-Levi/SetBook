@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SetBook storage spike — demo</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #16181d; color: #e8e8e8; margin: 0; padding: 20px; }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  p.sub { color: #9aa0aa; font-size: 13px; margin: 0 0 16px; }
+  .panel { background: #1f232b; border: 1px solid #333a45; border-radius: 10px; padding: 14px; margin-bottom: 14px; }
+  .panel h2 { font-size: 14px; margin: 0 0 10px; color: #9aa0aa; text-transform: uppercase; letter-spacing: .05em; }
+  label { display: block; font-size: 13px; margin: 8px 0 4px; }
+  input[type=text], input[type=password], select, textarea {
+    width: 100%; box-sizing: border-box; background: #12151a; color: #e8e8e8;
+    border: 1px solid #333a45; border-radius: 6px; padding: 8px; font-size: 13px;
+  }
+  textarea { font-family: ui-monospace, monospace; min-height: 180px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  button { background: #2c6fdb; color: #fff; border: 0; border-radius: 6px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  button.ghost { background: #2a2f38; }
+  button:disabled { opacity: .45; cursor: default; }
+  #log { background: #0d0f12; border-radius: 6px; padding: 10px; font-family: ui-monospace, monospace;
+         font-size: 12px; max-height: 260px; overflow-y: auto; white-space: pre-wrap; }
+  #log .ok { color: #7ddf9a; } #log .err { color: #ff8a8a; } #log .info { color: #9aa0aa; }
+  .checkline { display: flex; align-items: center; gap: 8px; margin-top: 8px; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>SetBook storage spike — demo</h1>
+<p class="sub">Standalone prototype. Exercises the adapter interface in <code>storage-adapters.js</code>.
+Credentials stay in memory only and are never persisted.</p>
+
+<div class="panel">
+  <h2>1 · Backend</h2>
+  <label for="adapterSelect">Storage backend</label>
+  <select id="adapterSelect"></select>
+  <div id="configForm"></div>
+  <div class="row">
+    <button id="connectBtn">Connect</button>
+    <span id="connStatus" style="align-self:center;font-size:13px;color:#9aa0aa"></span>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>2 · Songbook</h2>
+  <label for="bookId">Book id</label>
+  <input type="text" id="bookId" value="demo-songbook">
+  <label for="bookJson">Book JSON</label>
+  <textarea id="bookJson"></textarea>
+  <div class="row">
+    <button id="listBtn" class="ghost" disabled>List books</button>
+    <button id="loadBtn" class="ghost" disabled>Load</button>
+    <button id="saveBtn" disabled>Save</button>
+    <button id="saveStaleBtn" class="ghost" disabled>Save with stale rev (conflict test)</button>
+    <button id="deleteBtn" class="ghost" disabled>Delete</button>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Log</h2>
+  <div id="log"></div>
+</div>
+
+<script src="storage-adapters.js"></script>
+<script>
+(function () {
+  'use strict';
+  const { ADAPTERS, ConflictError } = SetBookStorage;
+  const $ = (id) => document.getElementById(id);
+  let adapter = null, lastRev = null;
+
+  const SAMPLE = {
+    name: 'Demo songbook',
+    groups: [{
+      id: 'g1', title: 'Fire', artist: 'Jimi Hendrix', ready: true,
+      sections: [{
+        id: 's1', nameType: 'verse', order: 0,
+        lines: [{ chords: 'A7', lyrics: 'Alright' }],
+      }],
+    }],
+  };
+  $('bookJson').value = JSON.stringify(SAMPLE, null, 2);
+
+  function log(msg, cls) {
+    const el = document.createElement('div');
+    if (cls) el.className = cls;
+    el.textContent = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    $('log').appendChild(el);
+    $('log').scrollTop = $('log').scrollHeight;
+  }
+
+  // Backend picker
+  for (const A of ADAPTERS) {
+    const o = document.createElement('option');
+    o.value = A.name; o.textContent = new A().label;
+    $('adapterSelect').appendChild(o);
+  }
+  function renderConfig() {
+    const A = ADAPTERS.find((a) => a.name === $('adapterSelect').value);
+    adapter = new A();
+    const form = $('configForm');
+    form.innerHTML = '';
+    for (const f of adapter.configFields()) {
+      if (f.type === 'checkbox') {
+        const line = document.createElement('label');
+        line.className = 'checkline';
+        line.innerHTML = `<input type="checkbox" data-key="${f.key}"> ${f.label}`;
+        form.appendChild(line);
+      } else {
+        const lab = document.createElement('label');
+        lab.textContent = f.label;
+        const inp = document.createElement('input');
+        inp.type = f.type; inp.dataset.key = f.key;
+        if (f.placeholder) inp.placeholder = f.placeholder;
+        lab.appendChild(inp);
+        form.appendChild(lab);
+      }
+    }
+    setConnected(false);
+    log(`Selected backend: ${adapter.label} (${adapter.kind})`, 'info');
+  }
+  function setConnected(on) {
+    for (const id of ['listBtn', 'loadBtn', 'saveBtn', 'saveStaleBtn', 'deleteBtn'])
+      $(id).disabled = !on;
+    $('connStatus').textContent = on ? `Connected: ${adapter.label}` : 'Not connected';
+  }
+
+  $('adapterSelect').addEventListener('change', renderConfig);
+  $('connectBtn').addEventListener('click', async () => {
+    const opts = {};
+    $('configForm').querySelectorAll('[data-key]').forEach((el) => {
+      opts[el.dataset.key] = el.type === 'checkbox' ? el.checked : el.value;
+    });
+    try {
+      await adapter.configure(opts);
+      if (!adapter.isConfigured()) throw new Error('Missing required settings.');
+      setConnected(true);
+      log(`Connected to ${adapter.label}.`, 'ok');
+    } catch (e) { log(`Connect failed: ${e.message}`, 'err'); }
+  });
+
+  $('listBtn').addEventListener('click', async () => {
+    try {
+      const books = await adapter.listBooks();
+      log(`listBooks() -> ${books.length} book(s): ${books.map((b) => b.id).join(', ') || '(none)'}`, 'ok');
+    } catch (e) { log(`List failed: ${e.message}`, 'err'); }
+  });
+  $('loadBtn').addEventListener('click', async () => {
+    try {
+      const { data, rev } = await adapter.loadBook($('bookId').value.trim());
+      lastRev = rev;
+      $('bookJson').value = JSON.stringify(data, null, 2);
+      log(`Loaded "${$('bookId').value.trim()}" (rev=${String(rev).slice(0, 12)}).`, 'ok');
+    } catch (e) { log(`Load failed: ${e.message}`, 'err'); }
+  });
+  async function doSave(rev) {
+    let data;
+    try { data = JSON.parse($('bookJson').value); }
+    catch (e) { log(`Invalid JSON: ${e.message}`, 'err'); return; }
+    try {
+      const { rev: newRev } = await adapter.saveBook($('bookId').value.trim(), data, rev);
+      lastRev = newRev;
+      log(`Saved (new rev=${String(newRev).slice(0, 12)}).`, 'ok');
+    } catch (e) {
+      if (e instanceof ConflictError) log(`CONFLICT (as designed): ${e.message}`, 'err');
+      else log(`Save failed: ${e.message}`, 'err');
+    }
+  }
+  $('saveBtn').addEventListener('click', () => doSave(lastRev));
+  $('saveStaleBtn').addEventListener('click', () => doSave('stale-rev-for-conflict-test'));
+  $('deleteBtn').addEventListener('click', async () => {
+    try {
+      await adapter.deleteBook($('bookId').value.trim());
+      lastRev = null;
+      log('Deleted.', 'ok');
+    } catch (e) { log(`Delete failed: ${e.message}`, 'err'); }
+  });
+
+  renderConfig();
+
+  // Exposed for automated tests.
+  window.SpikeDemo = { ADAPTERS, ConflictError, getAdapter: () => adapter, log };
+})();
+</script>
+</body>
+</html>
