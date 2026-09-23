@@ -7,7 +7,7 @@ positioned over lyric lines, and export Performance and Print-Friendly PDFs.
 
 Open the hosted app (always the latest version):
 
-**https://\<your-github-username\>.github.io/SetBook/**
+**https://max-levi.github.io/SetBook/**
 
 No build step, no server — it's one self-contained HTML file.
 
