@@ -277,12 +277,15 @@
     background: var(--panel-2); border:1px solid var(--border); color: var(--text-muted);
   }
   .mode-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
-  .device-toggle{ display:flex; flex-wrap:wrap; gap:8px; margin-bottom:20px; }
-  .device-btn{
-    flex:1 1 calc(50% - 4px); padding:8px 6px; border-radius:6px; text-align:center; font-size:12.5px;
-    background: var(--panel-2); border:1px solid var(--border); color: var(--text-muted);
+  /* device picker: grouped native select (optgroups nest the families);
+     same custom-chevron styling as the subset select */
+  .modal-select{
+    width:100%; background: var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:8px 32px 8px 10px; font-size:13px; font-family:inherit; box-sizing:border-box;
+    margin-bottom:16px; appearance:none; -webkit-appearance:none; cursor:pointer;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center;
   }
-  .device-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
   .modal-actions{ display:flex; justify-content:flex-end; gap:8px; }
   /* Configuration modal: label/description rows with a control at right */
   .config-row{ display:flex; align-items:center; gap:14px; padding:12px 2px; border-bottom:1px solid var(--border); }
@@ -799,13 +802,35 @@
 
       <div class="modal-group">
         <div class="modal-group-label">Format</div>
-        <label class="modal-label">Device</label>
-        <div class="device-toggle" id="deviceToggle">
-          <button type="button" class="device-btn active" data-device="ipad">iPad</button>
-          <button type="button" class="device-btn" data-device="ipad-mini">iPad mini</button>
-          <button type="button" class="device-btn" data-device="iphone">iPhone</button>
-          <button type="button" class="device-btn" data-device="letter">Letter (print)</button>
-        </div>
+        <label class="modal-label" for="pdfDeviceSelect">Device</label>
+        <select id="pdfDeviceSelect" class="modal-select">
+          <optgroup label="iPad">
+            <option value="ipad-102">iPad 10.2&quot; (8th/9th gen)</option>
+            <option value="ipad" selected>iPad 10.9&quot;/11&quot; (10th gen+, Air)</option>
+            <option value="ipad-pro-11">iPad Pro 11&quot;</option>
+            <option value="ipad-pro-13">iPad Pro 12.9&quot;/13&quot;</option>
+            <option value="ipad-mini-79">iPad mini 7.9&quot;</option>
+            <option value="ipad-mini">iPad mini 8.3&quot;</option>
+          </optgroup>
+          <optgroup label="iPhone">
+            <option value="iphone-se">iPhone SE</option>
+            <option value="iphone">iPhone 14/15/16 (6.1&quot;)</option>
+            <option value="iphone-max">iPhone Pro Max (6.7&quot;&ndash;6.9&quot;)</option>
+          </optgroup>
+          <optgroup label="Android tablets">
+            <option value="android-tab-11">Galaxy Tab / Pixel Tablet 11&quot;</option>
+            <option value="android-tab-124">Galaxy Tab 12.4&quot;</option>
+            <option value="android-tab-10">Android tablet 10&quot; (16:10)</option>
+          </optgroup>
+          <optgroup label="Android phones">
+            <option value="android-phone">Android phone 6.2&quot; (Galaxy S, Pixel)</option>
+            <option value="android-phone-xl">Android phone 6.8&quot; (Ultra, XL)</option>
+          </optgroup>
+          <optgroup label="Paper">
+            <option value="letter">US Letter (print)</option>
+            <option value="a4">A4 (print)</option>
+          </optgroup>
+        </select>
 
         <label class="modal-label">Orientation</label>
         <div class="mode-toggle" id="orientationToggle">
@@ -3035,11 +3060,8 @@ document.querySelectorAll('.mode-btn[data-orientation]').forEach(btn => {
   });
 });
 
-document.querySelectorAll('.device-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    pdfDevice = btn.dataset.device;
-    document.querySelectorAll('.device-btn').forEach(b => b.classList.toggle('active', b === btn));
-  });
+document.getElementById('pdfDeviceSelect').addEventListener('change', (e) => {
+  pdfDevice = e.target.value;
 });
 
 let pdfBlobUrl = null; // revoke the previous one each time a new PDF is generated
@@ -3079,12 +3101,26 @@ document.getElementById('pdfGenerateBtn').addEventListener('click', async () => 
 const PDF_DEVICES = {
   // natural portrait width/height in points, chosen to match each device's
   // approximate screen aspect ratio so a PDF viewer fills the screen
-  // cleanly. "letter" is for printing on paper instead of a screen.
+  // cleanly. Apple entries are points (px / scale); Android entries use
+  // px / 2 so relative proportions stay consistent with the iPad values.
+  // "letter"/"a4" are for printing on paper instead of a screen.
   // The orientation choice in the modal swaps these as needed.
-  'ipad':      { label: 'iPad',           w: 820, h: 1180 },
-  'ipad-mini': { label: 'iPad mini',      w: 744, h: 1133 },
-  'iphone':    { label: 'iPhone',         w: 393, h: 852  },
-  'letter':    { label: 'Letter (print)', w: 612, h: 792  },
+  'ipad-102':       { label: 'iPad 10.2" (8th/9th gen)',      w: 810,  h: 1080 },
+  'ipad':           { label: 'iPad 10.9"/11" (10th gen+, Air)', w: 820, h: 1180 },
+  'ipad-pro-11':    { label: 'iPad Pro 11"',                  w: 834,  h: 1194 },
+  'ipad-pro-13':    { label: 'iPad Pro 12.9"/13"',            w: 1024, h: 1366 },
+  'ipad-mini-79':   { label: 'iPad mini 7.9"',                w: 768,  h: 1024 },
+  'ipad-mini':      { label: 'iPad mini 8.3"',                w: 744,  h: 1133 },
+  'iphone-se':      { label: 'iPhone SE',                     w: 375,  h: 667  },
+  'iphone':         { label: 'iPhone 14/15/16 (6.1")',        w: 393,  h: 852  },
+  'iphone-max':     { label: 'iPhone Pro Max (6.7"–6.9")',    w: 430,  h: 932  },
+  'android-tab-11': { label: 'Galaxy Tab / Pixel Tablet 11"', w: 800,  h: 1280 },
+  'android-tab-124':{ label: 'Galaxy Tab 12.4"',              w: 876,  h: 1400 },
+  'android-tab-10': { label: 'Android tablet 10" (16:10)',    w: 600,  h: 960  },
+  'android-phone':  { label: 'Android phone 6.2"',            w: 540,  h: 1200 },
+  'android-phone-xl':{ label: 'Android phone 6.8"',           w: 720,  h: 1560 },
+  'letter':         { label: 'US Letter (print)',             w: 612,  h: 792  },
+  'a4':             { label: 'A4 (print)',                    w: 595,  h: 842  },
 };
 
 /* ---------------------------------------------------------
