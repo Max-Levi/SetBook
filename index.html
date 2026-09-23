@@ -363,6 +363,35 @@
   @media (max-width: 680px){
     .modal-columns{ flex-direction:column; }
   }
+
+  /* ---------- mobile modal adaptation ---------- */
+  /* On phones the modals feel oversized: trim the chrome, tighten the
+     type, and let tall modals use the viewport as a sheet. Desktop
+     layout is unchanged. */
+  @media (max-width: 760px){
+    .modal, .modal-wide{
+      width:94vw; max-width:94vw;
+      padding:18px 16px;
+      border-radius:14px;
+      max-height:88vh; max-height:calc(100dvh - 20px);
+    }
+    .modal h2{ font-size:16px; margin-bottom:8px; }
+    .modal .modal-sub{ font-size:12.5px; margin-bottom:10px; }
+    .modal-group{ padding:12px; margin-bottom:12px; }
+    .modal-group-label{ margin-bottom:8px; }
+    /* welcome modal: compact the feature list so it reads as a sheet,
+       not a wall of text */
+    .welcome-tagline{ font-size:13px; margin:8px 0 12px; }
+    .welcome-features{ gap:10px; margin-bottom:14px; }
+    .welcome-feature{ font-size:12px; }
+    .welcome-feature svg{ width:18px; height:18px; }
+    .welcome-use{ font-size:12px; margin-bottom:12px; }
+    .welcome-cta-label{ font-size:12.5px; margin-bottom:10px; }
+    /* bigger tap targets on modal action buttons, like the header */
+    .modal-actions .ghost.small, .modal-actions .primary.small{
+      padding:10px 16px; font-size:14px;
+    }
+  }
   .pdf-download-link{
     display:block; text-align:center; text-decoration:none;
     background: var(--gold-tint); border:1px solid var(--gold); color: var(--gold);
