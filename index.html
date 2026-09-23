@@ -390,6 +390,42 @@
   .sidebar-resize-handle:hover, .sidebar-resize-handle.dragging{
     background: rgba(201,162,39,.35);
   }
+  /* ---------- mobile: the sidebar becomes a slide-in drawer ----------
+     On narrow viewports the 270px sidebar would leave the editor only a
+     sliver of space, so it moves off-canvas and opens as an overlay
+     drawer (toggled by the hamburger button in the header). The inline
+     width set by the resize handle is overridden with !important while
+     the drawer rules apply. */
+  #btnSidebarToggle{ display:none; }
+  .sidebar-scrim{ display:none; }
+  @media (max-width: 760px){
+    #btnSidebarToggle{ display:inline-flex; align-items:center; }
+    header{ padding:10px 12px; }
+    header .actions{ gap:6px; }
+    .brand .file-status{ display:none; }
+    #btnPdf{ white-space:nowrap; }
+    nav.sidebar{
+      position:fixed; top:0; left:0; bottom:0; height:100dvh;
+      width:min(320px, 86vw) !important;
+      z-index:70;
+      transform:translateX(-105%);
+      transition:transform .22s ease;
+      border-right:1px solid var(--border);
+      box-shadow:none;
+    }
+    body.sidebar-open nav.sidebar{
+      transform:none;
+      box-shadow:0 0 44px rgba(0,0,0,.5);
+    }
+    body.sidebar-open{ overflow:hidden; }
+    .sidebar-resize-handle{ display:none; }
+    .sidebar-scrim{
+      display:block; position:fixed; inset:0; z-index:65;
+      background:rgba(0,0,0,.45); opacity:0; pointer-events:none;
+      transition:opacity .22s ease;
+    }
+    body.sidebar-open .sidebar-scrim{ opacity:1; pointer-events:auto; }
+  }
   .sidebar-tools{
     flex-shrink:0;
     padding: 12px 10px 10px;
@@ -674,6 +710,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <header>
+  <button class="ghost small" id="btnSidebarToggle" title="Song library" aria-label="Open song library"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M64 128 h384 M64 256 h384 M64 384 h384" stroke="currentColor" stroke-width="52" fill="none" stroke-linecap="round"/></svg></button>
   <div class="brand">
     <h1>Set<span>Book</span></h1>
     <div class="file-status" id="fileStatus">
@@ -1068,6 +1105,7 @@
     <div id="sidebarList" class="sidebar-list"></div>
     <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
   </nav>
+  <div class="sidebar-scrim" id="sidebarScrim"></div>
   <main id="main"></main>
 </div>
 <datalist id="artistOptions"></datalist>
@@ -1511,6 +1549,7 @@ function renderSidebar(){
           selectedGroupId = group.id;
           selectedSectionId = sec.id;
           renderAll();
+          closeSidebarAfterNavigate();
         });
         row.querySelector('[data-action="up"]')?.addEventListener('click', () => { moveSection(sec, -1); });
         row.querySelector('[data-action="down"]')?.addEventListener('click', () => { moveSection(sec, 1); });
@@ -1546,6 +1585,7 @@ function renderSidebar(){
         selectedSectionId = sec.id;
         scheduleSave();
         renderAll();
+        closeSidebarAfterNavigate();
       });
       gDiv.appendChild(addSecBtn);
     }
@@ -1609,6 +1649,7 @@ function renderSearchResults(el){
       searchQuery = '';
       document.getElementById('sidebarSearch').value = '';
       renderAll();
+      closeSidebarAfterNavigate();
     });
     el.appendChild(row);
   });
@@ -2594,6 +2635,34 @@ function setSidebarWidth(px, opts = {}){
     handle.addEventListener('pointerup', onUp);
   });
 })();
+
+/* ---------------------------------------------------------
+   Mobile drawer — on narrow viewports the sidebar is an
+   off-canvas drawer instead of a fixed column. It opens via the
+   hamburger button in the header and closes via the scrim, the
+   Escape key, or automatically once the user navigates to a
+   section (so the editor gets the full screen).
+--------------------------------------------------------- */
+const mobileSidebarMQ = window.matchMedia('(max-width: 760px)');
+const isMobileLayout = () => mobileSidebarMQ.matches;
+function setSidebarOpen(open){
+  document.body.classList.toggle('sidebar-open', !!open);
+}
+function closeSidebarAfterNavigate(){
+  if (isMobileLayout()) setSidebarOpen(false);
+}
+document.getElementById('btnSidebarToggle').addEventListener('click', () => setSidebarOpen(true));
+document.getElementById('sidebarScrim').addEventListener('click', () => setSidebarOpen(false));
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape'
+      && document.body.classList.contains('sidebar-open')
+      && !document.querySelector('.modal-overlay.open')){
+    setSidebarOpen(false);
+  }
+});
+// If the viewport grows out of the mobile range with the drawer open,
+// reset so the desktop layout can't inherit a stuck-open state.
+mobileSidebarMQ.addEventListener('change', (e) => { if (!e.matches) setSidebarOpen(false); });
 
 document.getElementById('btnSetFolder').addEventListener('click', async () => {
   if (!('showDirectoryPicker' in window)){
