@@ -878,6 +878,28 @@
   .recovery-banner-text span{ color:var(--text-muted); }
   .recovery-banner-actions{ display:flex; gap:8px; }
 
+  /* ---------- snapshots & diff ---------- */
+  .snapshot-top-actions{ justify-content:flex-start; margin-bottom:10px; flex-wrap:wrap; }
+  .snapshot-row{ display:flex; align-items:center; gap:8px; padding:8px 10px;
+    border:1px solid var(--border); border-radius:6px; margin-bottom:6px; }
+  .snapshot-info{ flex:1; min-width:0; }
+  .snapshot-label{ font-size:13px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .snapshot-meta{ font-size:12px; color:var(--text-muted); }
+  .snapshot-actions{ display:flex; gap:6px; flex-shrink:0; }
+  .snapshot-empty{ padding:10px; font-size:12.5px; color:var(--text-muted); }
+  .diff-list{ list-style:none; margin:8px 0 4px; padding:10px 12px; max-height:260px; overflow-y:auto;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    font-size:13px; line-height:1.55; text-align:left; }
+  .diff-list li{ margin:3px 0; overflow-wrap:anywhere; }
+  .diff-list .diff-sub{ font-weight:600; margin-top:8px; }
+  .diff-list .diff-add{ color:var(--success); }
+  .diff-list .diff-del{ color:var(--danger); }
+  .diff-list .diff-more{ color:var(--text-muted); font-style:italic; }
+  @media (max-width:760px){
+    .snapshot-actions button{ min-height:44px; }
+    .snapshot-top-actions button{ min-height:44px; }
+  }
+
   /* Themed scrollbars are scoped to the main app scroll areas only.
   Styling ::-webkit-scrollbar globally forces permanently-visible
   scrollbars on macOS (instead of the native auto-hiding overlay kind),
@@ -915,6 +937,7 @@
         <button class="file-menu-item" id="btnNewFile">New file</button>
         <button class="file-menu-item" id="btnOpen">Open…</button>
         <button class="file-menu-item" id="btnSaveAs">Save as…<span class="file-menu-item-hint" id="saveShortcutHint"></span></button>
+        <button class="file-menu-item" id="btnSnapshots">Snapshots…</button>
         <div class="file-menu-group-label">Folders</div>
         <button class="file-menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="file-menu-item-hint"></span></button>
         <button class="file-menu-item" id="btnRevealFolder">Open enclosing folder…</button>
@@ -925,6 +948,7 @@
       </div>
     </div>
     <input type="file" id="fileInput" accept="application/json">
+    <input type="file" id="compareFileInput" accept="application/json" hidden>
     <button class="primary small pdf-trigger" id="btnPdf">Export PDF…<span class="pdf-shortcut-hint" id="pdfShortcutHint"></span></button>
   </div>
 </header>
@@ -1139,6 +1163,32 @@
 </div>
 
 
+<!-- Snapshots modal -->
+<div class="modal-overlay" id="snapshotModalOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Snapshots</h2>
+    <p class="modal-sub">A snapshot is saved automatically every time you open a file. Compare any snapshot with what's open now, or restore one.</p>
+    <div id="snapshotListView">
+      <div class="modal-actions snapshot-top-actions">
+        <button type="button" class="ghost small" id="snapshotTakeBtn">Take snapshot</button>
+        <button type="button" class="ghost small" id="snapshotCompareFileBtn">Compare with a file…</button>
+      </div>
+      <div id="snapshotList"></div>
+    </div>
+    <div id="snapshotDiffView" hidden>
+      <div class="modal-actions snapshot-top-actions">
+        <button type="button" class="ghost small" id="snapshotBackBtn">← Back to snapshots</button>
+      </div>
+      <div class="modal-label" id="snapshotDiffTitle"></div>
+      <ul id="snapshotDiffList" class="diff-list" aria-live="polite"></ul>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="primary small" id="snapshotCloseBtn">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Technical documentation / Help modal -->
 <div class="modal-overlay" id="helpModalOverlay">
   <div class="modal modal-help">
@@ -1237,7 +1287,8 @@
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh.</li>
-            <li>The File menu is grouped under small labels: File (New file, Open…, Save as…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, and +N/−N rows per section), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept.</li>
+            <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type and ready status are carried over, defaulting to Cover / Not Ready when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the tag slot), then any name matching a section-type name is converted to that picked type.</li>
           </ul>
         </section>
@@ -1257,6 +1308,7 @@
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
             <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
             <li>Mobile UX is a standing requirement on every change, not a separate pass: any UI addition or alteration must also be adapted and verified at phone width (≤760px). New header controls need ≥44px touch targets; new modals must pick up the compact mobile styling (94vw sheet, tightened type, enlarged action buttons); drawer interactions must hand the full screen to the editor (close the drawer when a section, search result, or "+ Add section" is chosen, keep it open while naming a new song). Verify with the mobile Playwright suite (<code>setbook-qa/mobile-drawer-test.js</code>) plus a 390px visual pass.</li>
+            <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. It is a pure function of two states; the Snapshots modal is the only caller.</li>
             <li>When adding, changing, or removing a feature, update this documentation to describe it and refresh the "Last updated" date above.</li>
           </ul>
         </section>
@@ -1282,9 +1334,10 @@
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
             <li><strong>Sidebar:</strong> search filters the song list; title and artist sorting reorder correctly; Cover/Original and Ready/Not ready filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
             <li><strong>Save:</strong> Save as produces a file download with no errors.</li>
+            <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), and <code>setbook-qa/mobile-drawer-test.js</code> (14 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), and <code>setbook-qa/snapshot-test.js</code> (24 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -2911,6 +2964,258 @@ syncConfigModal();
 const supportsFsApi = 'showOpenFilePicker' in window && 'showSaveFilePicker' in window;
 
 /* ---------------------------------------------------------
+   Snapshots & diff (local only, session-scoped)
+   A snapshot is a deep clone of `state` taken automatically every time a
+   file is loaded (plus the outgoing work, so nothing is silently
+   replaced), and manually via the Snapshots modal. From the modal the
+   user can diff any snapshot against what's currently open, diff the
+   open library against another file on disk, or restore a snapshot
+   (the pre-restore state is snapshotted first, so restore is undoable).
+--------------------------------------------------------- */
+let snapshots = [];
+const MAX_SNAPSHOTS = 12;
+
+function takeSnapshot(label){
+  snapshots.unshift({
+    id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    label: label || 'Snapshot',
+    savedAt: Date.now(),
+    state: JSON.parse(JSON.stringify(state)),
+  });
+  if (snapshots.length > MAX_SNAPSHOTS) snapshots.length = MAX_SNAPSHOTS;
+  if (document.getElementById('snapshotModalOverlay').classList.contains('open')) renderSnapshotList();
+}
+function snapshotSongCount(snap){
+  return ((snap.state || {}).sectionGroups || []).length;
+}
+function snapshotTime(snap){
+  return new Date(snap.savedAt).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+/* ---- state diff: describes `b` relative to `a` ----
+   Songs are matched by id, falling back to title+artist; sections the same
+   way within a song. Rows are compared as multisets of serialized lines, so
+   the summary reports honest "+N / -N rows" without pretending to track
+   individual edits. */
+function serializeDiffLine(line){
+  const syms = (line.symbols || []).map(s => s.pos + ':' + s.value).join(',');
+  return (line.text || '') + '\u0001' + syms;
+}
+function diffRowCounts(aLines, bLines){
+  const counts = new Map();
+  (aLines || []).forEach(l => {
+    const k = serializeDiffLine(l);
+    counts.set(k, (counts.get(k) || 0) - 1);
+  });
+  (bLines || []).forEach(l => {
+    const k = serializeDiffLine(l);
+    counts.set(k, (counts.get(k) || 0) + 1);
+  });
+  let added = 0, removed = 0;
+  counts.forEach(v => { if (v > 0) added += v; else removed -= v; });
+  return { added, removed };
+}
+function diffSongLabel(g){
+  return `\u201c${g.name || 'Untitled'}\u201d` + (g.artist ? ` \u2014 ${g.artist}` : '');
+}
+function diffSectionLabel(sec){
+  try{ return displaySectionName(sec) || sec.name || 'Untitled section'; }
+  catch(e){ return sec.name || 'Untitled section'; }
+}
+function diffOneSong(ag, bg, a, b){
+  const details = [];
+  if ((ag.name || '') !== (bg.name || '')) details.push(`renamed to \u201c${bg.name || 'Untitled'}\u201d`);
+  if ((ag.artist || '') !== (bg.artist || '')) details.push(`artist: ${bg.artist || '(none)'}`);
+  if ((ag.readyStatus || 'not-ready') !== (bg.readyStatus || 'not-ready'))
+    details.push(bg.readyStatus === 'ready' ? 'marked Ready' : 'marked not ready');
+  if ((ag.type || 'cover') !== (bg.type || 'cover'))
+    details.push(bg.type === 'original' ? 'marked as Original' : 'marked as Cover');
+  const aSecs = (a.sections || []).filter(s => s.groupId === ag.id);
+  const bSecs = (b.sections || []).filter(s => s.groupId === bg.id);
+  const aById = new Map(), bById = new Map();
+  aSecs.forEach(s => { if (s.id) aById.set(s.id, s); });
+  bSecs.forEach(s => { if (s.id) bById.set(s.id, s); });
+  const matchedA = new Set(), matchedB = new Set(), pairs = [];
+  aById.forEach((s, id) => {
+    if (bById.has(id)){ pairs.push([s, bById.get(id)]); matchedA.add(s); matchedB.add(bById.get(id)); }
+  });
+  const nameKey = s => diffSectionLabel(s).toLowerCase();
+  const bByName = new Map();
+  bSecs.filter(s => !matchedB.has(s)).forEach(s => {
+    const k = nameKey(s);
+    if (!bByName.has(k)) bByName.set(k, []);
+    bByName.get(k).push(s);
+  });
+  aSecs.filter(s => !matchedA.has(s)).forEach(s => {
+    const q = bByName.get(nameKey(s));
+    if (q && q.length){ const t = q.shift(); pairs.push([s, t]); matchedA.add(s); matchedB.add(t); }
+  });
+  aSecs.filter(s => !matchedA.has(s))
+    .forEach(s => details.push(`\u2212 [${diffSectionLabel(s)}] section`));
+  bSecs.filter(s => !matchedB.has(s))
+    .forEach(s => details.push(`+ [${diffSectionLabel(s)}] section`));
+  pairs.forEach(([as, bs]) => {
+    const { added, removed } = diffRowCounts(as.lines, bs.lines);
+    if (added || removed){
+      const bits = [];
+      if (added) bits.push(`+${added} row${added === 1 ? '' : 's'}`);
+      if (removed) bits.push(`\u2212${removed} row${removed === 1 ? '' : 's'}`);
+      details.push(`[${diffSectionLabel(bs)}]: ${bits.join(', ')}`);
+    }
+  });
+  return details;
+}
+function diffStates(a, b){
+  const res = { added: [], removed: [], changed: [] };
+  const aSongs = ((a || {}).sectionGroups || []).slice();
+  const bSongs = ((b || {}).sectionGroups || []).slice();
+  const aById = new Map(), bById = new Map();
+  aSongs.forEach(g => { if (g.id) aById.set(g.id, g); });
+  bSongs.forEach(g => { if (g.id) bById.set(g.id, g); });
+  const matchedA = new Set(), matchedB = new Set(), pairs = [];
+  aById.forEach((g, id) => {
+    if (bById.has(id)){ pairs.push([g, bById.get(id)]); matchedA.add(g); matchedB.add(bById.get(id)); }
+  });
+  const keyOf = g => ((g.artist || '') + '\u0001' + (g.name || '')).toLowerCase();
+  const bByKey = new Map();
+  bSongs.filter(g => !matchedB.has(g)).forEach(g => {
+    const k = keyOf(g);
+    if (!bByKey.has(k)) bByKey.set(k, []);
+    bByKey.get(k).push(g);
+  });
+  aSongs.filter(g => !matchedA.has(g)).forEach(g => {
+    const q = bByKey.get(keyOf(g));
+    if (q && q.length){ const t = q.shift(); pairs.push([g, t]); matchedA.add(g); matchedB.add(t); }
+  });
+  aSongs.filter(g => !matchedA.has(g)).forEach(g => res.removed.push(diffSongLabel(g)));
+  bSongs.filter(g => !matchedB.has(g)).forEach(g => res.added.push(diffSongLabel(g)));
+  pairs.forEach(([ag, bg]) => {
+    const details = diffOneSong(ag, bg, a, b);
+    if (details.length) res.changed.push({ label: diffSongLabel(bg), details });
+  });
+  return res;
+}
+const MAX_DIFF_ITEMS = 80;
+function renderDiffInto(listEl, a, b, labelA, labelB){
+  listEl.innerHTML = '';
+  const d = diffStates(a, b);
+  const items = [];
+  d.removed.forEach(l => items.push({ cls: 'diff-del', text: `\u2212 ${l} (only in ${labelA})` }));
+  d.added.forEach(l => items.push({ cls: 'diff-add', text: `+ ${l} (only in ${labelB})` }));
+  d.changed.forEach(c => {
+    items.push({ cls: 'diff-sub', text: c.label });
+    c.details.forEach(t => items.push({ cls: '', text: t }));
+  });
+  if (!items.length) items.push({ cls: 'diff-more', text: 'No differences.' });
+  const shown = items.slice(0, MAX_DIFF_ITEMS);
+  shown.forEach(it => {
+    const li = document.createElement('li');
+    if (it.cls) li.className = it.cls;
+    li.textContent = it.text;
+    listEl.appendChild(li);
+  });
+  if (items.length > shown.length){
+    const li = document.createElement('li');
+    li.className = 'diff-more';
+    li.textContent = `\u2026and ${items.length - shown.length} more change${items.length - shown.length === 1 ? '' : 's'}`;
+    listEl.appendChild(li);
+  }
+}
+
+/* ---- snapshots modal ---- */
+function renderSnapshotList(){
+  const box = document.getElementById('snapshotList');
+  box.innerHTML = '';
+  if (!snapshots.length){
+    const p = document.createElement('div');
+    p.className = 'snapshot-empty';
+    p.textContent = 'No snapshots yet. One is taken automatically every time you open a file — or take one manually above.';
+    box.appendChild(p);
+    return;
+  }
+  snapshots.forEach(snap => {
+    const row = document.createElement('div');
+    row.className = 'snapshot-row';
+    const info = document.createElement('div');
+    info.className = 'snapshot-info';
+    const label = document.createElement('div');
+    label.className = 'snapshot-label';
+    label.textContent = snap.label;
+    const meta = document.createElement('div');
+    meta.className = 'snapshot-meta';
+    const n = snapshotSongCount(snap);
+    meta.textContent = `${snapshotTime(snap)} \u00b7 ${n} song${n === 1 ? '' : 's'}`;
+    info.append(label, meta);
+    const actions = document.createElement('div');
+    actions.className = 'snapshot-actions';
+    const cmp = document.createElement('button');
+    cmp.type = 'button'; cmp.className = 'ghost small'; cmp.textContent = 'Compare';
+    cmp.addEventListener('click', () => showSnapshotDiff(snap.state, state, snap.label, 'Current'));
+    const res = document.createElement('button');
+    res.type = 'button'; res.className = 'ghost small'; res.textContent = 'Restore';
+    res.addEventListener('click', (e) => {
+      showConfirmPopover(e.currentTarget,
+        `Restore \u201c${snap.label}\u201d? Your current work is snapshotted first, so you can undo this.`,
+        'Restore', () => restoreSnapshot(snap.id));
+    });
+    actions.append(cmp, res);
+    row.append(info, actions);
+    box.appendChild(row);
+  });
+}
+function showSnapshotDiff(aState, bState, labelA, labelB){
+  document.getElementById('snapshotListView').hidden = true;
+  const dv = document.getElementById('snapshotDiffView');
+  dv.hidden = false;
+  document.getElementById('snapshotDiffTitle').textContent = `${labelA} \u2192 ${labelB}`;
+  renderDiffInto(document.getElementById('snapshotDiffList'), aState, bState, labelA, labelB);
+}
+function showSnapshotList(){
+  document.getElementById('snapshotDiffView').hidden = true;
+  document.getElementById('snapshotListView').hidden = false;
+  renderSnapshotList();
+}
+function restoreSnapshot(id){
+  const snap = snapshots.find(s => s.id === id);
+  if (!snap) return;
+  takeSnapshot(`Before restoring \u201c${snap.label}\u201d`);
+  state = JSON.parse(JSON.stringify(snap.state));
+  // The restored library keeps whatever file is currently linked; the next
+  // save writes the restored content there.
+  showSnapshotList();
+  renderAll();
+  updateFileLabel();
+  scheduleSave();
+  showToast(`Restored \u201c${snap.label}\u201d.`);
+}
+wireModal({ overlayId: 'snapshotModalOverlay', openBtnId: 'btnSnapshots', closeBtnId: 'snapshotCloseBtn',
+  onOpen: showSnapshotList });
+document.getElementById('snapshotTakeBtn').addEventListener('click', () => {
+  takeSnapshot('Manual snapshot');
+  showToast('Snapshot saved.');
+});
+document.getElementById('snapshotBackBtn').addEventListener('click', showSnapshotList);
+document.getElementById('snapshotCompareFileBtn').addEventListener('click', () => {
+  document.getElementById('compareFileInput').click();
+});
+document.getElementById('compareFileInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  e.target.value = '';
+  if (!file) return;
+  try{
+    const parsed = await parseJsonFile(file);
+    if (!Array.isArray(parsed.sectionGroups) || !Array.isArray(parsed.sections))
+      throw new Error('Missing sectionGroups or sections arrays');
+    // Apply the same load migrations so the comparison is apples-to-apples.
+    parsed.sections.forEach(migrateSectionName);
+    parsed.sections.forEach(migrateMultilineLyrics);
+    showSnapshotDiff(state, parsed, 'Current', file.name);
+  }catch(err){
+    showErrorToast('Could not compare that file: ' + err.message);
+  }
+});
+
+/* ---------------------------------------------------------
    File menu (consolidates New/Open/Save as/Set folder/
    Import songs into one dropdown)
 --------------------------------------------------------- */
@@ -3029,6 +3334,7 @@ function maybeOfferRecovery(){
   banner.querySelector('#recoveryRestoreBtn').addEventListener('click', () => {
     try{
       loadParsedState(JSON.parse(JSON.stringify(snap.state)));
+      takeSnapshot('Recovered session');
       recoveryRestoredThisBoot = true;
       document.getElementById('welcomeModalOverlay').classList.remove('open');
       updateFileLabel();
@@ -3131,7 +3437,10 @@ async function openFile(){
     else if (startInHandle) opts.startIn = startInHandle;
     const [handle] = await window.showOpenFilePicker(opts);
     const file = await handle.getFile();
-    loadParsedState(await parseJsonFile(file));
+    const parsed = await parseJsonFile(file);
+    if ((state.sectionGroups || []).length) takeSnapshot('Before opening ' + file.name);
+    loadParsedState(parsed);
+    takeSnapshot('Opened ' + file.name);
     fileHandle = handle;
     currentFileName = file.name;
     updateFileLabel();
@@ -4407,7 +4716,10 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
   const reader = new FileReader();
   reader.onload = (evt) => {
     try {
-      loadParsedState(parseJsonText(evt.target.result, file.name));
+      const parsed = parseJsonText(evt.target.result, file.name);
+      if ((state.sectionGroups || []).length) takeSnapshot('Before opening ' + file.name);
+      loadParsedState(parsed);
+      takeSnapshot('Opened ' + file.name);
       currentFileName = file.name;
       updateFileLabel();
       updateSaveStatus('nofile');
@@ -4422,6 +4734,7 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 });
 
 function resetToNewFile(){
+  if ((state.sectionGroups || []).length) takeSnapshot('Before new file');
   // a new file keeps whatever sidebar width is currently on screen, rather
   // than resetting back to some fixed default
   const currentSidebarWidth = state.sidebarWidth || Math.round(document.querySelector('nav.sidebar').getBoundingClientRect().width);
