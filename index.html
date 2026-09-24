@@ -887,6 +887,10 @@
   .snapshot-meta{ font-size:12px; color:var(--text-muted); }
   .snapshot-actions{ display:flex; gap:6px; flex-shrink:0; }
   .snapshot-empty{ padding:10px; font-size:12.5px; color:var(--text-muted); }
+  .backup-nudge{ font-size:12.5px; line-height:1.5; color:var(--text-muted);
+    background:var(--panel-2); border:1px solid var(--gold); border-radius:8px;
+    padding:8px 10px; margin:0 0 10px; text-align:left; }
+  .backup-nudge strong{ color:var(--text); }
   .diff-list{ list-style:none; margin:8px 0 4px; padding:10px 12px; max-height:260px; overflow-y:auto;
     background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
     font-size:13px; line-height:1.55; text-align:left; }
@@ -1169,6 +1173,7 @@
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>Snapshots</h2>
     <p class="modal-sub">A snapshot is saved automatically every time you open a file. Compare any snapshot with what's open now, or restore one.</p>
+    <div id="backupNudge" class="backup-nudge" hidden></div>
     <div id="snapshotListView">
       <div class="modal-actions snapshot-top-actions">
         <button type="button" class="ghost small" id="snapshotTakeBtn">Take snapshot</button>
@@ -1287,8 +1292,9 @@
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh.</li>
-            <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, and +N/−N rows per section), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept.</li>
+            <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff.</li>
             <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
             <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type and ready status are carried over, defaulting to Cover / Not Ready when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the tag slot), then any name matching a section-type name is converted to that picked type.</li>
           </ul>
         </section>
@@ -1308,7 +1314,7 @@
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
             <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
             <li>Mobile UX is a standing requirement on every change, not a separate pass: any UI addition or alteration must also be adapted and verified at phone width (≤760px). New header controls need ≥44px touch targets; new modals must pick up the compact mobile styling (94vw sheet, tightened type, enlarged action buttons); drawer interactions must hand the full screen to the editor (close the drawer when a section, search result, or "+ Add section" is chosen, keep it open while naming a new song). Verify with the mobile Playwright suite (<code>setbook-qa/mobile-drawer-test.js</code>) plus a 390px visual pass.</li>
-            <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. It is a pure function of two states; the Snapshots modal is the only caller.</li>
+            <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. Section renames are detected by comparing the <code>(nameType, customName, nameSuffix)</code> triple rather than the display name, so auto-numbering shifts ("Chorus" → "Chorus 1") don't read as renames; <code>songIsEmpty()</code> keeps contentless placeholder songs out of the diff. It is a pure function of two states; the Snapshots modal is the only caller.</li>
             <li>When adding, changing, or removing a feature, update this documentation to describe it and refresh the "Last updated" date above.</li>
           </ul>
         </section>
@@ -1337,7 +1343,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), and <code>setbook-qa/snapshot-test.js</code> (24 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), and <code>setbook-qa/snapshot-test.js</code> (33 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -3022,6 +3028,23 @@ function diffSectionLabel(sec){
   try{ return displaySectionName(sec) || sec.name || 'Untitled section'; }
   catch(e){ return sec.name || 'Untitled section'; }
 }
+// A song counts as empty when it has no row with any lyric text or chords
+// AND no real name — e.g. the placeholder "Untitled song" of a fresh
+// session. A named song with no rows yet ("Beta") is still listed, so the
+// diff never hides a song the user actually added.
+function songIsEmpty(song, st){
+  const secs = (st.sections || []).filter(x => x.groupId === song.id);
+  const hasContent = secs.some(sec => (sec.lines || []).some(l => (l.text || '').trim() || (l.symbols || []).length));
+  if (hasContent) return false;
+  const n = (song.name || '').trim();
+  return !n || /^untitled( song)?$/i.test(n);
+}
+// The user-controlled part of a section's name. Compared directly (rather
+// than the display name) so auto-numbering shifts ("Chorus" -> "Chorus 1"
+// when a second chorus appears) don't read as renames.
+function sectionNameKey(sec){
+  return [(sec.nameType || ''), (sec.customName || ''), (sec.nameSuffix || '')].join('\u0001');
+}
 function diffOneSong(ag, bg, a, b){
   const details = [];
   if ((ag.name || '') !== (bg.name || '')) details.push(`renamed to \u201c${bg.name || 'Untitled'}\u201d`);
@@ -3055,6 +3078,8 @@ function diffOneSong(ag, bg, a, b){
   bSecs.filter(s => !matchedB.has(s))
     .forEach(s => details.push(`+ [${diffSectionLabel(s)}] section`));
   pairs.forEach(([as, bs]) => {
+    if (sectionNameKey(as) !== sectionNameKey(bs))
+      details.push(`[${diffSectionLabel(as)}] renamed to [${diffSectionLabel(bs)}]`);
     const { added, removed } = diffRowCounts(as.lines, bs.lines);
     if (added || removed){
       const bits = [];
@@ -3087,9 +3112,13 @@ function diffStates(a, b){
     const q = bByKey.get(keyOf(g));
     if (q && q.length){ const t = q.shift(); pairs.push([g, t]); matchedA.add(g); matchedB.add(t); }
   });
-  aSongs.filter(g => !matchedA.has(g)).forEach(g => res.removed.push(diffSongLabel(g)));
-  bSongs.filter(g => !matchedB.has(g)).forEach(g => res.added.push(diffSongLabel(g)));
+  // Empty songs are never listed: a song only appears if it has content in
+  // at least one of the two states, so placeholder songs (a fresh session's
+  // "Untitled song") don't pollute the diff.
+  aSongs.filter(g => !matchedA.has(g) && !songIsEmpty(g, a)).forEach(g => res.removed.push(diffSongLabel(g)));
+  bSongs.filter(g => !matchedB.has(g) && !songIsEmpty(g, b)).forEach(g => res.added.push(diffSongLabel(g)));
   pairs.forEach(([ag, bg]) => {
+    if (songIsEmpty(ag, a) && songIsEmpty(bg, b)) return;
     const details = diffOneSong(ag, bg, a, b);
     if (details.length) res.changed.push({ label: diffSongLabel(bg), details });
   });
@@ -3170,9 +3199,34 @@ function showSnapshotDiff(aState, bState, labelA, labelB){
   document.getElementById('snapshotDiffTitle').textContent = `${labelA} \u2192 ${labelB}`;
   renderDiffInto(document.getElementById('snapshotDiffList'), aState, bState, labelA, labelB);
 }
+function relativeBackupTime(ts){
+  const days = Math.floor((Date.now() - ts) / 86400000);
+  if (days <= 0) return 'today';
+  if (days === 1) return 'yesterday';
+  if (days < 14) return days + ' days ago';
+  const weeks = Math.floor(days / 7);
+  if (weeks < 9) return weeks + ' weeks ago';
+  const months = Math.floor(days / 30);
+  return months <= 1 ? 'about a month ago' : months + ' months ago';
+}
+// Gentle, non-nagging backup reminder: snapshots are session-only, so the
+// modal — the backup-themed surface — notes when the JSON itself hasn't
+// been copied somewhere safe in a while. Shown only when stale (>14 days)
+// or never; a fresh backup hides it.
+const BACKUP_NUDGE_DAYS = 14;
+function renderBackupNudge(){
+  const el = document.getElementById('backupNudge');
+  const ts = state.lastBackupAt || 0;
+  if (ts && Date.now() - ts < BACKUP_NUDGE_DAYS * 86400000){ el.hidden = true; return; }
+  el.hidden = false;
+  el.textContent = ts
+    ? `Heads up: your last backup copy was saved ${relativeBackupTime(ts)}. Snapshots only live in this tab — keep a fresh JSON copy somewhere safe via File \u2192 Save as….`
+    : `Heads up: you've never saved a backup copy of this library. Snapshots only live in this tab — keep a JSON copy somewhere safe via File \u2192 Save as….`;
+}
 function showSnapshotList(){
   document.getElementById('snapshotDiffView').hidden = true;
   document.getElementById('snapshotListView').hidden = false;
+  renderBackupNudge();
   renderSnapshotList();
 }
 function restoreSnapshot(id){
@@ -3362,6 +3416,7 @@ function loadParsedState(parsed){
   if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
   if (typeof state.lastFolderName !== 'string') state.lastFolderName = '';
   if (typeof state.numberSingleSections !== 'boolean') state.numberSingleSections = false;
+  if (typeof state.lastBackupAt !== 'number' || !isFinite(state.lastBackupAt)) state.lastBackupAt = 0;
   if (!state.sectionGroups.some(g => g.id === state.focusedGroupId)) state.focusedGroupId = null;
   updateLastFolderHint();
   if (typeof state.sidebarWidth !== 'number' || !isFinite(state.sidebarWidth)) state.sidebarWidth = 270;
@@ -3468,6 +3523,7 @@ async function saveAs(){
     fileHandle = handle;
     currentFileName = handle.name;
     updateFileLabel();
+    state.lastBackupAt = Date.now(); // Save-as writes a separate copy: that's a backup
     await doSave();
   } catch(err){
     if (err.name !== 'AbortError') showErrorToast('Could not create that file: ' + err.message);
@@ -3476,6 +3532,7 @@ async function saveAs(){
 
 function downloadCopy(){
   stampSectionDisplayNames();
+  state.lastBackupAt = Date.now(); // an explicit download is a backup copy
   const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
