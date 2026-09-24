@@ -721,12 +721,16 @@
   }
   .chord-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
   .chord-input-wrap input::placeholder{ color: var(--placeholder); font-weight:400; }
-  .text-input-wrap input{
+  /* The lyric field is a textarea so Enter can add another lyric line under
+     the same chord row (stacked for display by groupLinesForDisplay). It
+     auto-grows to fit however many lines it holds. */
+  .text-input-wrap textarea{
     width:100%; background: var(--panel-2); border:1px solid var(--border);
     color:var(--text); border-radius:0 0 5px 5px; padding: 6px 8px;
-    font-size:14.5px; box-sizing:border-box;
+    font-size:14.5px; box-sizing:border-box; display:block;
+    resize:none; overflow-y:hidden; line-height:1.35;
   }
-  .text-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
+  .text-input-wrap textarea:focus{ outline:none; border-color: var(--focus-border); }
   .line-controls{ display:flex; flex-direction:column; gap:3px; padding-top:20px; flex-shrink:0; }
 
   .add-line-btn{ margin: 6px 0 10px 30px; }
@@ -1968,11 +1972,28 @@ function duplicateSection(sec){
 /* ---------------------------------------------------------
    Main editor rendering
 --------------------------------------------------------- */
+// The lyric field is a textarea that grows with its content: Enter adds
+// another lyric line under the same chord row (rendered stacked by
+// groupLinesForDisplay), so the field must fit however many lines it holds.
+function autosizeLyricField(el){
+  el.style.height = 'auto';
+  el.style.height = el.scrollHeight + 'px';
+}
+
 function attachVerticalLineNav(input, row, isChordField, sec){
   input.addEventListener('keydown', (e) => {
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
     // only take over plain up/down — leave selection-extend etc. to the browser
     if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    // A lyric field holding several lines (Enter adds more under the same
+    // chords) keeps native up/down while the caret isn't on its first or
+    // last line, so you can move between the lyric lines themselves.
+    if (!isChordField && input.value.includes('\n')){
+      const before = input.value.slice(0, input.selectionStart);
+      const after = input.value.slice(input.selectionEnd);
+      if (e.key === 'ArrowUp' && before.includes('\n')) return;
+      if (e.key === 'ArrowDown' && after.includes('\n')) return;
+    }
 
     const pos = input.selectionStart;
     let targetField = null;
@@ -2121,7 +2142,7 @@ function renderMain(){
           <input class="chord-entry mono-edit" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="chords, e.g. G          D/F#   Em" value="${escapeAttr(buildSymbolsLine(line.symbols))}">
         </div>
         <div class="text-input-wrap">
-          <input class="text mono-edit" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="lyric or text line (optional — leave blank for a chords-only line)" value="${escapeAttr(line.text)}">
+          <textarea class="text mono-edit" rows="1" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" placeholder="lyric line — Enter adds another under the same chords (blank = chords-only line)">${escapeHtml(line.text || '')}</textarea>
         </div>
       </div>
       <div class="line-controls">
@@ -2155,32 +2176,38 @@ function renderMain(){
       renderPreview(sec);
     });
 
+    const textEl = row.querySelector('.text');
     row.querySelector('.clear-text-btn').addEventListener('click', () => {
       if (!line.text) return;
       line.text = '';
-      row.querySelector('.text').value = '';
+      textEl.value = '';
+      autosizeLyricField(textEl);
       scheduleSave();
       renderPreview(sec);
     });
 
-    row.querySelector('.text').addEventListener('input', e => {
+    textEl.addEventListener('input', e => {
       line.text = e.target.value;
+      autosizeLyricField(textEl);
       scheduleSave();
       renderPreview(sec);
     });
     // Trailing whitespace on a lyric line is invisible cruft: discard it
-    // when leaving the field.
-    row.querySelector('.text').addEventListener('blur', e => {
-      const trimmed = e.target.value.replace(/\s+$/, '');
+    // when leaving the field — per line, and drop blank lines left
+    // trailing at the end by an Enter that never got any text.
+    textEl.addEventListener('blur', e => {
+      const trimmed = e.target.value.split('\n').map(l => l.replace(/\s+$/, '')).join('\n').replace(/\n+$/, '');
       if (trimmed !== e.target.value){
         e.target.value = trimmed;
         line.text = trimmed;
+        autosizeLyricField(textEl);
         scheduleSave();
         renderPreview(sec);
       }
     });
-    preventAutoReplace(row.querySelector('.text'));
-    attachVerticalLineNav(row.querySelector('.text'), row, false, sec);
+    autosizeLyricField(textEl);
+    preventAutoReplace(textEl);
+    attachVerticalLineNav(textEl, row, false, sec);
     row.querySelector('[data-action="up"]')?.addEventListener('click', () => {
       [sec.lines[idx-1], sec.lines[idx]] = [sec.lines[idx], sec.lines[idx-1]];
       scheduleSave();
@@ -2400,7 +2427,22 @@ function detectRepeatMarker(symbols, lyricText){
 // rendering changes — the editor keeps one row per line.
 function groupLinesForDisplay(lines){
   const blocks = [];
+  // A lyric field can hold several lines (Enter in the field adds another
+  // under the same chord row): explode them into virtual lines up front so
+  // every renderer — the preview and both PDF pipelines — stacks them under
+  // the one chord row. Only the first keeps the chord symbols, so chords
+  // align over that first line. Trailing blank lines are dropped (the blur
+  // handler trims them from stored data anyway). The editor's source lines
+  // are never mutated — virtual lines are shallow copies.
+  const displayLines = [];
   (lines || []).forEach(line => {
+    const parts = String(line.text || '').split('\n');
+    while (parts.length > 1 && parts[parts.length - 1] === '') parts.pop();
+    parts.forEach((p, i) => {
+      displayLines.push(i === 0 ? { ...line, text: p } : { ...line, text: p, symbols: [] });
+    });
+  });
+  displayLines.forEach(line => {
     const symbols = Array.isArray(line.symbols) ? line.symbols : [];
     const text = line.text || '';
     const last = blocks[blocks.length - 1];
