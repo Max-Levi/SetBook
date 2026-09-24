@@ -209,10 +209,17 @@
   }
   .file-menu-item:hover{ background: var(--hover-bg); border-color:transparent; }
   .file-menu-item-hint{ margin-left:auto; padding-left:10px; font-size:11px; color: var(--text-muted); }
+  .file-menu-group-label{
+    font-size:10px; text-transform:uppercase; letter-spacing:.08em;
+    color:var(--text-muted); padding:8px 9px 3px; user-select:none;
+  }
+  .file-menu-group-label:first-child{ padding-top:2px; }
+  /* keyboard-shortcut hint on the Export PDF button (hidden on phones,
+     where the button truncates to its label) */
+  .pdf-shortcut-hint{ margin-left:8px; font-size:11px; font-weight:400; opacity:.7; }
   .sidebar.focus-mode .sidebar-tools{ display:none; }
   .focus-exit-bar{ display:flex; align-items:center; gap:8px; padding:10px 10px 4px; }
   .focus-exit-bar .focus-label{ font-size:11px; color: var(--text-muted); }
-  .file-menu-divider{ height:1px; background: var(--border); margin:4px 6px; }
 
   /* ---------- toasts ---------- */
   .toast-container{
@@ -436,6 +443,15 @@
     .modal-actions .ghost.small, .modal-actions .primary.small{
       padding:10px 16px; font-size:14px;
     }
+    /* In the PDF exporter the Generate button can scroll far out of sight
+       on phones: pin the action footer to the bottom of the visible modal.
+       Solid panel background (plus a divider) so content slides under it. */
+    #pdfModalOverlay .modal-actions{
+      position:sticky; bottom:0; z-index:4;
+      background:var(--panel);
+      border-top:1px solid var(--border);
+      margin:14px -16px -18px; padding:12px 16px;
+    }
   }
   .pdf-download-link{
     display:block; text-align:center; text-decoration:none;
@@ -488,6 +504,7 @@
     }
     header{ padding:10px 6px; }
     header .actions{ gap:2px; }
+    .pdf-shortcut-hint{ display:none; }
     .brand .file-status{ display:none; }
     /* The wordmark is decorative; on phones the hamburger and the view
        itself identify the app, and the room goes to the controls. */
@@ -701,9 +718,34 @@
   }
   .line-row:hover{ border-color: var(--border); background: var(--hover-bg); }
   .line-num{
-    color: var(--text-muted); font-size:11px; width:20px; text-align:right;
-    padding-top:26px; flex-shrink:0; user-select:none;
+    color: var(--text-muted); font-size:11px; width:22px;
+    padding-top:24px; flex-shrink:0; user-select:none; -webkit-user-select:none;
+    display:flex; flex-direction:column; align-items:center; gap:3px;
+    cursor:grab; touch-action:none;
   }
+  .line-num:active{ cursor:grabbing; }
+  .drag-grip{ width:12px; height:12px; fill:var(--text-muted); opacity:.4; flex-shrink:0; }
+  .line-row:hover .drag-grip{ opacity:.85; }
+  .line-row.is-dragging{ opacity:.45; }
+  .line-row.is-dragging .drag-grip{ opacity:1; }
+  body.row-dragging{ user-select:none; -webkit-user-select:none; cursor:grabbing; }
+  body.row-dragging *{ cursor:grabbing !important; }
+  /* overflow menu (⋯) replaces the four icon buttons on narrow screens */
+  .row-menu-btn{ display:none; }
+  .popover-menu{
+    position:absolute; z-index:420; min-width:170px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    box-shadow:0 8px 24px rgba(0,0,0,.35); padding:4px;
+  }
+  .popover-menu button{
+    display:flex; width:100%; align-items:center; gap:8px;
+    background:transparent; border:none; border-radius:5px;
+    color:var(--text); font-size:13px; padding:10px 10px; cursor:pointer;
+    min-height:44px; text-align:left;
+  }
+  .popover-menu button:hover:not(:disabled){ background:var(--hover-bg); }
+  .popover-menu button:disabled{ opacity:.4; cursor:default; }
+  .popover-menu button.danger{ color:var(--danger); }
   .line-editor{ flex:1; min-width:0; }
   .hint-row{
     display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
@@ -732,6 +774,20 @@
   }
   .text-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
   .line-controls{ display:flex; flex-direction:column; gap:3px; padding-top:20px; flex-shrink:0; }
+  @media (max-width: 760px){
+    /* drag handle gets a proper touch target; the four icon buttons
+       collapse into the ⋯ overflow menu */
+    .line-num{ width:40px; padding-top:22px; }
+    .drag-grip{ width:16px; height:16px; opacity:.6; }
+    .line-controls{ padding-top:16px; }
+    .line-controls .icon[data-action]{ display:none; }
+    .row-menu-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      width:44px; height:44px; background:transparent;
+      border:1px solid var(--border); border-radius:8px;
+      color:var(--text-muted); font-size:18px; cursor:pointer;
+    }
+  }
 
   .add-line-btn{ margin: 6px 0 10px 30px; }
   .bulk-paste-btn{ margin: 0 0 30px 30px; }
@@ -847,19 +903,21 @@
     <div class="file-menu-wrap">
       <button class="ghost small" id="btnFileMenu">File <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
       <div class="file-menu-dropdown" id="fileMenuDropdown">
+        <div class="file-menu-group-label">File</div>
         <button class="file-menu-item" id="btnNewFile">New file</button>
         <button class="file-menu-item" id="btnOpen">Open…</button>
-        <button class="file-menu-item" id="btnSaveAs">Save as…</button>
+        <button class="file-menu-item" id="btnSaveAs">Save as…<span class="file-menu-item-hint" id="saveShortcutHint"></span></button>
+        <div class="file-menu-group-label">Folders</div>
         <button class="file-menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="file-menu-item-hint"></span></button>
         <button class="file-menu-item" id="btnRevealFolder">Open enclosing folder…</button>
-        <div class="file-menu-divider"></div>
+        <div class="file-menu-group-label">Songs</div>
         <button class="file-menu-item" id="btnCopySongs">Import songs</button>
-        <div class="file-menu-divider"></div>
+        <div class="file-menu-group-label">Settings</div>
         <button class="file-menu-item" id="btnConfigureLayout">Configuration…</button>
       </div>
     </div>
     <input type="file" id="fileInput" accept="application/json">
-    <button class="primary small pdf-trigger" id="btnPdf">Export PDF…</button>
+    <button class="primary small pdf-trigger" id="btnPdf">Export PDF…<span class="pdf-shortcut-hint" id="pdfShortcutHint"></span></button>
   </div>
 </header>
 
@@ -1239,10 +1297,12 @@
         <div class="tools-buttons">
           <button class="ghost small sort-btn active" id="filterCoverBtn">Covers</button>
           <button class="ghost small sort-btn active" id="filterOriginalBtn">Originals</button>
+          <button class="ghost small sort-btn active" id="filterAllTypesBtn" title="Show covers and originals">All</button>
         </div>
         <div class="tools-buttons">
           <button class="ghost small sort-btn active" id="filterReadyBtn">Ready</button>
           <button class="ghost small sort-btn active" id="filterNotReadyBtn">Not ready</button>
+          <button class="ghost small sort-btn active" id="filterAllReadyBtn" title="Show ready and not-ready songs">All</button>
         </div>
       </div>
 
@@ -1379,6 +1439,7 @@ function updateSongTypeFilterButtons(){
   const filter = state.songTypeFilter || { cover:true, original:true };
   document.getElementById('filterCoverBtn').classList.toggle('active', !!filter.cover);
   document.getElementById('filterOriginalBtn').classList.toggle('active', !!filter.original);
+  document.getElementById('filterAllTypesBtn').classList.toggle('active', !!filter.cover && !!filter.original);
 }
 
 document.getElementById('filterCoverBtn').addEventListener('click', () => {
@@ -1395,11 +1456,21 @@ document.getElementById('filterOriginalBtn').addEventListener('click', () => {
   scheduleSave();
   renderAll();
 });
+/* "All" is the escape hatch when both pills in a group are off: one tap
+   turns the pair back on. Its active state mirrors "both on". */
+document.getElementById('filterAllTypesBtn').addEventListener('click', () => {
+  state.songTypeFilter.cover = true;
+  state.songTypeFilter.original = true;
+  updateSongTypeFilterButtons();
+  scheduleSave();
+  renderAll();
+});
 
 function updateReadyFilterButtons(){
   const filter = state.readyFilter || { ready:true, notReady:true };
   document.getElementById('filterReadyBtn').classList.toggle('active', !!filter.ready);
   document.getElementById('filterNotReadyBtn').classList.toggle('active', !!filter.notReady);
+  document.getElementById('filterAllReadyBtn').classList.toggle('active', !!filter.ready && !!filter.notReady);
 }
 
 document.getElementById('filterReadyBtn').addEventListener('click', () => {
@@ -1413,6 +1484,13 @@ document.getElementById('filterNotReadyBtn').addEventListener('click', () => {
   state.readyFilter.notReady = !state.readyFilter.notReady;
   updateReadyFilterButtons();
   closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+document.getElementById('filterAllReadyBtn').addEventListener('click', () => {
+  state.readyFilter.ready = true;
+  state.readyFilter.notReady = true;
+  updateReadyFilterButtons();
   scheduleSave();
   renderAll();
 });
@@ -2121,6 +2199,143 @@ function buildCoachCard(){
   return card;
 }
 
+/* ---------- row drag-reorder ----------
+   Pointer-Events based (not HTML5 drag-and-drop) so the same code works
+   with a mouse and a finger. The grip in .line-num is the handle; while
+   dragging, the row is live-reordered in the DOM, and on drop the
+   resulting order is written back to sec.lines. Escape / pointercancel
+   aborts and re-renders the original order (sec.lines is untouched until
+   drop, so renderMain() alone restores it). */
+let rowDragState = null;
+function findScroller(el){
+  let n = el.parentElement;
+  while (n){
+    if (n.scrollHeight > n.clientHeight + 4) return n;
+    n = n.parentElement;
+  }
+  return document.scrollingElement;
+}
+function rowDragAutoScroll(){
+  const st = rowDragState;
+  if (!st || !st.active) return;
+  const sc = st.scroller;
+  if (sc){
+    const r = sc.getBoundingClientRect();
+    if (st.clientY < r.top + 64) sc.scrollTop -= 12;
+    else if (st.clientY > r.bottom - 64) sc.scrollTop += 12;
+  }
+  requestAnimationFrame(rowDragAutoScroll);
+}
+function cancelRowDrag(){
+  if (!rowDragState) return false;
+  if (rowDragState.detach) rowDragState.detach();
+  rowDragState = null;
+  document.body.classList.remove('row-dragging');
+  renderMain();
+  return true;
+}
+function attachRowDrag(handle, row, sec, linesWrap){
+  handle.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    e.preventDefault();
+    const startX = e.clientX, startY = e.clientY;
+    let started = false;
+    // Move/up listeners go on window (not the handle): if the pointer is
+    // captured to the handle they still arrive via bubbling, and if capture
+    // is ever released they keep arriving anyway.
+    const detach = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onCancel);
+    };
+    const onMove = (ev) => {
+      if (!started){
+        if (Math.hypot(ev.clientX - startX, ev.clientY - startY) < 8) return;
+        started = true;
+        rowDragState = { active:true, row, sec, linesWrap, scroller:findScroller(linesWrap), clientY:ev.clientY, detach };
+        row.classList.add('is-dragging');
+        document.body.classList.add('row-dragging');
+        requestAnimationFrame(rowDragAutoScroll);
+      }
+      rowDragState.clientY = ev.clientY;
+      const rows = [...linesWrap.querySelectorAll('.line-row')];
+      for (const other of rows){
+        if (other === row) continue;
+        const r = other.getBoundingClientRect();
+        if (ev.clientY >= r.top && ev.clientY <= r.bottom){
+          if (ev.clientY < r.top + r.height / 2) linesWrap.insertBefore(row, other);
+          else linesWrap.insertBefore(row, other.nextSibling);
+          break;
+        }
+      }
+    };
+    const onUp = () => {
+      detach();
+      if (!started) return; // a tap, not a drag
+      const st = rowDragState;
+      rowDragState = null;
+      document.body.classList.remove('row-dragging');
+      if (st){
+        const newOrder = [...st.linesWrap.querySelectorAll('.line-row')].map(el => +el.dataset.lineIdx);
+        const before = st.sec.lines.slice();
+        const reordered = newOrder.map(i => st.sec.lines[i]);
+        const changed = reordered.some((l, i) => l !== st.sec.lines[i]);
+        st.sec.lines = reordered;
+        if (changed){
+          scheduleSave();
+          const entry = pushUndo('Moved row', () => {
+            st.sec.lines = before;
+            scheduleSave();
+            renderMain();
+          });
+          showUndoToastFor(entry);
+        }
+      }
+      renderMain();
+    };
+    const onCancel = () => {
+      detach();
+      if (started) cancelRowDrag();
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onCancel);
+  });
+}
+
+/* ---------- row overflow menu (⋯) ----------
+   On narrow screens the four icon buttons collapse into one menu; each
+   item just triggers the corresponding (possibly hidden) button, so the
+   disabled states stay in sync for free. */
+function showRowMenu(anchorBtn, row){
+  closeActivePopover();
+  const pop = document.createElement('div');
+  pop.className = 'popover-menu';
+  [['up', 'Move up', '↑', ''], ['down', 'Move down', '↓', ''],
+   ['copy', 'Copy row to bottom', '⧉', ''], ['del', 'Delete row', '✕', 'danger']
+  ].forEach(([action, label, glyph, cls]) => {
+    const src = row.querySelector(`[data-action="${action}"]`);
+    const b = document.createElement('button');
+    if (cls) b.className = cls;
+    b.disabled = src.disabled;
+    const g = document.createElement('span');
+    g.setAttribute('aria-hidden', 'true');
+    g.textContent = glyph;
+    const t = document.createElement('span');
+    t.textContent = label;
+    b.appendChild(g); b.appendChild(t);
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeActivePopover();
+      src.click();
+    });
+    pop.appendChild(b);
+  });
+  positionPopover(pop, anchorBtn);
+  activePopover = pop;
+  setTimeout(() => document.addEventListener('click', closeActivePopover, { once:true }), 0);
+}
+
 function renderMain(){
   const main = document.getElementById('main');
   main.innerHTML = '';
@@ -2211,8 +2426,9 @@ function renderMain(){
 
     const row = document.createElement('div');
     row.className = 'line-row';
+    row.dataset.lineIdx = idx;
     row.innerHTML = `
-      <div class="line-num">${idx+1}</div>
+      <div class="line-num" data-drag-handle title="Drag to reorder row"><svg class="drag-grip" viewBox="0 0 16 16" aria-hidden="true"><circle cx="5" cy="3.5" r="1.5"/><circle cx="11" cy="3.5" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="12.5" r="1.5"/><circle cx="11" cy="12.5" r="1.5"/></svg><span>${idx+1}</span></div>
       <div class="line-editor">
         <div class="hint-row">
           <span class="hint">type chords with spaces to line them up above the words below</span>
@@ -2233,6 +2449,7 @@ function renderMain(){
         <button class="icon" data-action="down" ${idx===sec.lines.length-1?'disabled':''} title="Move down">↓</button>
         <button class="icon" data-action="copy" title="Copy this row to the bottom of the section"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M352 96 H160 a32 32 0 0 0 -32 32 V288 a32 32 0 0 0 32 32 H352 a32 32 0 0 0 32-32 V128 a32 32 0 0 0 -32-32z" fill="none" stroke="currentColor" stroke-width="36"/><path d="M176 192 H368 a24 24 0 0 1 24 24 V392 a24 24 0 0 1 -24 24 H176 a24 24 0 0 1 -24-24 V216 a24 24 0 0 1 24-24z"/></svg></button>
         <button class="icon danger" data-action="del" title="Delete line">✕</button>
+        <button class="row-menu-btn" title="Row actions" aria-label="Row actions">⋯</button>
       </div>
     `;
 
@@ -2331,6 +2548,11 @@ function renderMain(){
       });
       showUndoToastFor(entry);
     });
+    row.querySelector('.row-menu-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      showRowMenu(e.currentTarget, row);
+    });
+    attachRowDrag(row.querySelector('[data-drag-handle]'), row, sec, linesWrap);
     linesWrap.appendChild(row);
   });
 
@@ -3033,6 +3255,7 @@ document.getElementById('btnSidebarToggle').addEventListener('click', () => setS
 document.getElementById('sidebarScrim').addEventListener('click', () => setSidebarOpen(false));
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape'){
+    if (rowDragState){ cancelRowDrag(); return; }
     if (activePopover){ closeActivePopover(); return; }
     const openOverlays = document.querySelectorAll('.modal-overlay.open');
     if (openOverlays.length){ openOverlays[openOverlays.length - 1].classList.remove('open'); return; }
@@ -4375,6 +4598,34 @@ document.querySelectorAll('.modal-overlay').forEach((overlay) => {
   const btn = overlay.querySelector('.modal-close');
   if (btn) btn.addEventListener('click', () => overlay.classList.remove('open'));
 });
+/* Modal focus management: whenever any modal opens (by any path), remember
+   the opener and move focus inside the modal; when it closes (✕ button,
+   Escape, click-outside, or a footer button), return focus to the opener.
+   Watching the class attribute covers every open/close path at once. */
+const modalOpenerMap = new WeakMap();
+function firstFocusableIn(modal){
+  return [...modal.querySelectorAll('button, input, select, textarea, [href], [tabindex]:not([tabindex="-1"])')]
+    .find(el => !el.disabled && el.getClientRects().length > 0);
+}
+const modalFocusObserver = new MutationObserver((mutations) => {
+  for (const m of mutations){
+    const overlay = m.target;
+    const modal = overlay.querySelector('.modal') || overlay;
+    if (overlay.classList.contains('open')){
+      if (!modalOpenerMap.has(overlay)) modalOpenerMap.set(overlay, document.activeElement);
+      const first = firstFocusableIn(modal);
+      if (first) first.focus();
+      else { modal.setAttribute('tabindex', '-1'); modal.focus(); }
+    } else {
+      const opener = modalOpenerMap.get(overlay);
+      modalOpenerMap.delete(overlay);
+      if (opener && document.contains(opener) && typeof opener.focus === 'function') opener.focus();
+    }
+  }
+});
+document.querySelectorAll('.modal-overlay').forEach((overlay) => {
+  modalFocusObserver.observe(overlay, { attributes: true, attributeFilter: ['class'] });
+});
 /* ---------- undo ----------
    Discrete destructive actions (clear/delete at row level, deletes at
    section and song level) push an entry here. The header ↩ button,
@@ -4420,6 +4671,35 @@ document.addEventListener('keydown', (e) => {
     doUndo();
   }
 });
+
+/* ---------- global shortcuts ----------
+   Cmd/Ctrl+S saves (straight to disk when a file handle is linked,
+   otherwise the Save-as flow); Cmd/Ctrl+E opens the PDF exporter.
+   Skipped inside text fields/selects so native behavior wins. */
+function isTypingTarget(t){
+  return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+}
+document.addEventListener('keydown', (e) => {
+  if (!(e.ctrlKey || e.metaKey) || e.altKey || e.shiftKey) return;
+  const key = (e.key || '').toLowerCase();
+  if (key !== 's' && key !== 'e') return;
+  if (isTypingTarget(e.target)) return;
+  e.preventDefault();
+  if (key === 's'){
+    if (fileHandle && supportsFsApi) doSave();
+    else saveAs();
+  } else {
+    document.getElementById('btnPdf').click();
+  }
+});
+// Show the platform-correct shortcut glyphs next to their actions.
+(function initShortcutHints(){
+  const isMac = /mac/i.test(navigator.platform || '');
+  const saveHint = document.getElementById('saveShortcutHint');
+  const pdfHint = document.getElementById('pdfShortcutHint');
+  if (saveHint) saveHint.textContent = isMac ? '⌘S' : 'Ctrl+S';
+  if (pdfHint) pdfHint.textContent = isMac ? '⌘E' : 'Ctrl+E';
+})();
 
 let activePopover = null;
 function closeActivePopover(){
