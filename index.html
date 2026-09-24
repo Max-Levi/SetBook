@@ -1817,6 +1817,17 @@ const SECTION_TYPES = [
   { id:'outro', label:'Outro' },
   { id:'custom', label:'Custom' },
 ];
+// A custom name that is really a section-type name, optionally with a
+// trailing number ("Chorus", "chorus 2", "PRE-CHORUS"). Returns the type id,
+// or null. Matching is case-insensitive and ignores extra whitespace; the
+// typed number is discarded because the app owns numbering.
+function sectionTypeFromCustomName(text){
+  const norm = (text || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  if (!norm) return null;
+  const m = norm.match(/^(intro|verse|chorus|pre[-\s]?chorus|bridge|instrumental|outro)(\s*\d+)?$/);
+  if (!m) return null;
+  return m[1].replace(/\s+/, '-');
+}
 function sectionBaseName(sec){
   if (!sec) return '';
   if (sec.nameType && sec.nameType !== 'custom'){
@@ -1871,14 +1882,23 @@ function defaultNewSectionType(sourceSection){
 // Forwards compatibility: files saved before the picker existed only have
 // `name`. The whole old title becomes a custom name; a trailing
 // parenthetical aside (e.g. "Interlude (guitar solo)") moves into the
-// suffix slot so it keeps rendering exactly as before.
+// suffix slot so it keeps rendering exactly as before. Then, any custom name
+// that is really a section-type name (optionally with a trailing number,
+// e.g. "Verse 1") is converted to that picked type — the number is discarded
+// and the app's own numbering takes over.
 function migrateSectionName(sec){
-  if (!sec || sec.nameType) return sec;
-  const oldName = (sec.name || '').trim();
-  const m = oldName.match(/^(.*?)\s*(\([^)]*\))\s*$/);
-  sec.nameType = 'custom';
-  sec.customName = m ? m[1].trim() : oldName;
-  sec.nameSuffix = m ? m[2] : '';
+  if (!sec) return sec;
+  if (!sec.nameType){
+    const oldName = (sec.name || '').trim();
+    const m = oldName.match(/^(.*?)\s*(\([^)]*\))\s*$/);
+    sec.nameType = 'custom';
+    sec.customName = m ? m[1].trim() : oldName;
+    sec.nameSuffix = m ? m[2] : '';
+  }
+  if (sec.nameType === 'custom'){
+    const t = sectionTypeFromCustomName(sec.customName);
+    if (t){ sec.nameType = t; sec.customName = ''; }
+  }
   return sec;
 }
 // Stamp the derived display name onto sec.name before saving, so the raw
@@ -2029,6 +2049,19 @@ function renderMain(){
   };
   typeSel.addEventListener('change', e => { sec.nameType = e.target.value; refreshNameUI(); });
   customInput.addEventListener('input', e => { sec.customName = e.target.value; refreshNameUI(); });
+  // If the custom field holds a section-type name when the user leaves it
+  // ("Chorus", "verse 2"), convert to that picked type and discard the
+  // number — the app owns numbering from here on.
+  customInput.addEventListener('blur', () => {
+    const t = sectionTypeFromCustomName(customInput.value);
+    if (t && sec.nameType === 'custom'){
+      sec.nameType = t;
+      sec.customName = '';
+      customInput.value = '';
+      typeSel.value = t;
+      refreshNameUI();
+    }
+  });
   suffixInput.addEventListener('input', e => { sec.nameSuffix = e.target.value; refreshNameUI(); });
   main.appendChild(head);
 
