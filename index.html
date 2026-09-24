@@ -475,20 +475,23 @@
   @media (max-width: 760px){
     /* 44px minimum touch targets (Apple HIG) — the 12px icons in
        .small buttons were only ~24px tall and hard to tap. */
-    #btnSidebarToggle, #btnShareHelp, #btnHelp{
+    #btnSidebarToggle, #btnShareHelp, #btnHelp, #btnUndo{
       display:inline-flex; align-items:center; justify-content:center;
       min-width:44px; min-height:44px; padding:6px;
     }
-    #btnSidebarToggle svg, #btnShareHelp svg, #btnHelp svg{ width:22px; height:22px; }
+    #btnSidebarToggle svg, #btnShareHelp svg, #btnHelp svg, #btnUndo svg{ width:22px; height:22px; }
     /* the File / Export PDF text buttons get the same 44px target;
        tighter padding and gap keep the header fitting at 390px */
     #btnFileMenu, #btnPdf{
       min-height:44px;
-      padding:10px 10px;
+      padding:10px 9px;
     }
-    header{ padding:10px 8px; }
-    header .actions{ gap:3px; }
+    header{ padding:10px 6px; }
+    header .actions{ gap:2px; }
     .brand .file-status{ display:none; }
+    /* The wordmark is decorative; on phones the hamburger and the view
+       itself identify the app, and the room goes to the controls. */
+    .brand h1{ display:none; }
     #btnPdf{ white-space:nowrap; }
     nav.sidebar{
       position:fixed; top:0; left:0; bottom:0; height:100dvh;
@@ -703,10 +706,11 @@
   }
   .line-editor{ flex:1; min-width:0; }
   .hint-row{
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:3px; height:16px;
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;
+    margin-bottom:3px; min-height:16px; row-gap:4px;
   }
-  .hint-row .hint{ font-size:10.5px; color: var(--text-muted); }
+  .hint-row .hint{ font-size:10.5px; color: var(--text-muted); flex:1 1 200px; min-width:0; }
+  .hint-row .line-tools{ margin-left:auto; flex-shrink:0; }
   .line-tools{ display:flex; gap:5px; }
   .clear-btn{
     font-size:10.5px; padding:1px 8px; border-radius:4px;
@@ -764,6 +768,7 @@
   .paper{
     background: var(--paper); color:#2a2620; border-radius:10px;
     padding: 22px 26px; box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
   .paper .p-section-title{
     font-size:17px; font-weight:700; margin-bottom:12px; letter-spacing:.3px;
@@ -778,6 +783,36 @@
   .paper .p-text{ font-size:15.5px; white-space:pre; line-height:1.5; }
   .paper .p-line:last-child{ margin-bottom:0; }
   .paper .p-empty{ color:#a89f88; font-style:italic; font-size:13px; }
+
+  /* ---------- empty-state coaching card ----------
+     Shown at the top of the editor when the selected song has no
+     content yet. Dismissing is per-device; the card also disappears
+     on its own once the song has any rows. */
+  .coach-card{
+    position:relative; max-width:640px; margin:0 0 18px;
+    background:var(--panel-2); border:1px solid var(--gold); border-radius:10px;
+    padding:16px 40px 14px 16px;
+  }
+  .coach-card h3{ margin:0 0 8px; font-size:14.5px; }
+  .coach-card ol{ margin:0; padding-left:20px; font-size:13px; line-height:1.65; color:var(--text); }
+  .coach-card ol strong{ color:var(--gold); }
+  .coach-dismiss{
+    position:absolute; top:8px; right:8px; width:30px; height:30px;
+    display:inline-flex; align-items:center; justify-content:center;
+    background:transparent; border:1px solid var(--border); border-radius:50%;
+    color:var(--text-muted); font-size:13px; cursor:pointer;
+  }
+  .coach-dismiss:hover{ color:var(--text); border-color:var(--focus-border); }
+
+  /* ---------- crash-recovery banner (inside the welcome modal) ---------- */
+  .recovery-banner{
+    border:1px solid var(--gold); border-radius:10px; background:var(--panel-2);
+    padding:12px 14px; margin:0 0 14px; text-align:left;
+  }
+  .recovery-banner-text{ font-size:13px; line-height:1.5; margin-bottom:10px; }
+  .recovery-banner-text strong{ display:block; font-size:13.5px; margin-bottom:2px; }
+  .recovery-banner-text span{ color:var(--text-muted); }
+  .recovery-banner-actions{ display:flex; gap:8px; }
 
   /* Themed scrollbars are scoped to the main app scroll areas only.
   Styling ::-webkit-scrollbar globally forces permanently-visible
@@ -806,6 +841,7 @@
     </div>
   </div>
   <div class="actions">
+    <button class="ghost small" id="btnUndo" title="Undo" aria-label="Undo" disabled><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M176 144 L64 256 L176 368" fill="none" stroke="currentColor" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/><path d="M88 256 H336 c88 0 88 120 0 120 H208" fill="none" stroke="currentColor" stroke-width="52" stroke-linecap="round"/></svg></button>
     <button class="ghost small" id="btnShareHelp" title="Help: getting PDFs onto your devices"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M176 168 L336 226 M176 344 L336 286" stroke="currentColor" stroke-width="44" fill="none" stroke-linecap="round"/><circle cx="128" cy="128" r="72"/><circle cx="384" cy="256" r="72"/><circle cx="128" cy="384" r="72"/></svg></button>
     <button class="ghost small" id="btnHelp" title="Help & technical documentation"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M256 32 C132.3 32 32 132.3 32 256 s100.3 224 224 224 224-100.3 224-224 S379.7 32 256 32 z M256 448 c-106 0-192-86-192-192 S150 64 256 64 s192 86 192 192-86 192-192 192 z"/><text x="256" y="352" text-anchor="middle" font-size="280" font-weight="700" fill="currentColor">?</text></svg></button>
     <div class="file-menu-wrap">
@@ -1629,18 +1665,25 @@ function renderSidebar(){
       showConfirmPopover(e.currentTarget, `Delete "${group.name || 'this song'}" and all its sections?`, 'Delete', () => {
         const removedGroup = group;
         const removedSections = state.sections.filter(s => s.groupId === group.id);
+        const groupIdx = state.sectionGroups.indexOf(group);
+        const wasSelected = selectedGroupId === group.id;
+        const wasFocused = state.focusedGroupId === group.id;
+        const prevSelGroup = selectedGroupId, prevSelSec = selectedSectionId;
         state.sections = state.sections.filter(s => s.groupId !== group.id);
         state.sectionGroups = state.sectionGroups.filter(g => g.id !== group.id);
         if (selectedGroupId === group.id){ selectedGroupId = null; selectedSectionId = null; }
         if (state.focusedGroupId === group.id) state.focusedGroupId = null;
         scheduleSave();
         renderAll();
-        showUndoToast(`Deleted "${removedGroup.name || 'Untitled song'}"`, () => {
-          state.sectionGroups.push(removedGroup);
+        const entry = pushUndo(`Deleted "${removedGroup.name || 'Untitled song'}"`, () => {
+          state.sectionGroups.splice(Math.min(groupIdx, state.sectionGroups.length), 0, removedGroup);
           state.sections.push(...removedSections);
+          if (wasSelected){ selectedGroupId = prevSelGroup; selectedSectionId = prevSelSec; }
+          if (wasFocused) state.focusedGroupId = removedGroup.id;
           scheduleSave();
           renderAll();
         });
+        showUndoToastFor(entry);
       });
     });
     gDiv.appendChild(head);
@@ -1672,15 +1715,19 @@ function renderSidebar(){
           showConfirmPopover(e.currentTarget, `Delete section "${displaySectionName(sec)}"?`, 'Delete', () => {
             const removedName = displaySectionName(sec);
             const removedSec = sec;
+            const secIdx = state.sections.indexOf(sec);
+            const wasSelSec = selectedSectionId === sec.id;
             state.sections = state.sections.filter(s => s.id !== sec.id);
             if (selectedSectionId === sec.id) selectedSectionId = null;
             scheduleSave();
             renderAll();
-            showUndoToast(`Deleted "${removedName}"`, () => {
-              state.sections.push(removedSec);
+            const entry = pushUndo(`Deleted "${removedName}"`, () => {
+              state.sections.splice(Math.min(secIdx, state.sections.length), 0, removedSec);
+              if (wasSelSec){ selectedGroupId = group.id; selectedSectionId = sec.id; }
               scheduleSave();
               renderAll();
             });
+            showUndoToastFor(entry);
           });
         });
         list.appendChild(row);
@@ -2043,6 +2090,37 @@ function attachVerticalLineNav(input, row, isChordField, sec){
   });
 }
 
+/* ---------- empty-state coaching ----------
+   When the selected song has no content yet, the editor shows a short
+   getting-started card instead of just an empty section. It dismisses
+   itself once the song has any rows, and the ✕ hides it per-device. */
+const COACH_DISMISS_KEY = 'setbook-coach-dismissed';
+function isCoachDismissed(){
+  try{ return localStorage.getItem(COACH_DISMISS_KEY) === '1'; }catch(e){ return false; }
+}
+function isSongEmpty(group){
+  const secs = state.sections.filter(s => s.groupId === group.id);
+  if (!secs.length) return true;
+  return !secs.some(sec => (sec.lines || []).some(l => (l.text || '').trim() || (l.symbols || []).length));
+}
+function buildCoachCard(){
+  const card = document.createElement('div');
+  card.className = 'coach-card';
+  card.innerHTML = `
+    <button type="button" class="coach-dismiss" aria-label="Dismiss">✕</button>
+    <h3>Start your first song</h3>
+    <ol>
+      <li><strong>Name it</strong> — click the song title in the library list and type a title and artist.</li>
+      <li><strong>Add sections</strong> — a song is its sections in playing order; add them with <strong>+ Add section</strong> under the song in the library.</li>
+      <li><strong>Write rows</strong> — pick a section, then type chords on each row's top line and lyrics underneath. The preview below keeps them lined up.</li>
+    </ol>`;
+  card.querySelector('.coach-dismiss').addEventListener('click', () => {
+    try{ localStorage.setItem(COACH_DISMISS_KEY, '1'); }catch(e){}
+    card.remove();
+  });
+  return card;
+}
+
 function renderMain(){
   const main = document.getElementById('main');
   main.innerHTML = '';
@@ -2050,8 +2128,14 @@ function renderMain(){
   const sec = state.sections.find(s => s.id === selectedSectionId);
   const group = state.sectionGroups.find(g => g.id === selectedGroupId);
 
+  const showCoach = group && isSongEmpty(group) && !isCoachDismissed();
+
   if (!sec || !group){
-    main.innerHTML = `<div class="empty-state">Select or create a section to start entering lines.<br>Chords/symbols sit above each lyric line.</div>`;
+    if (showCoach){
+      main.appendChild(buildCoachCard());
+    } else {
+      main.innerHTML = `<div class="empty-state">Select or create a section to start entering lines.<br>Chords/symbols sit above each lyric line.</div>`;
+    }
     return;
   }
 
@@ -2113,6 +2197,7 @@ function renderMain(){
     }
   });
   suffixInput.addEventListener('input', e => { sec.nameSuffix = e.target.value; refreshNameUI(); });
+  if (showCoach) main.appendChild(buildCoachCard());
   main.appendChild(head);
 
   const linesWrap = document.createElement('div');
@@ -2168,18 +2253,32 @@ function renderMain(){
 
     row.querySelector('.clear-chords-btn').addEventListener('click', () => {
       if (!line.symbols.length) return;
+      const prevSymbols = line.symbols;
       line.symbols = [];
       row.querySelector('.chord-entry').value = '';
       scheduleSave();
       renderPreview(sec);
+      const entry = pushUndo('Cleared chords', () => {
+        line.symbols = prevSymbols;
+        scheduleSave();
+        renderMain();
+      });
+      showUndoToastFor(entry);
     });
 
     row.querySelector('.clear-text-btn').addEventListener('click', () => {
       if (!line.text) return;
+      const prevText = line.text;
       line.text = '';
       row.querySelector('.text').value = '';
       scheduleSave();
       renderPreview(sec);
+      const entry = pushUndo('Cleared lyrics', () => {
+        line.text = prevText;
+        scheduleSave();
+        renderMain();
+      });
+      showUndoToastFor(entry);
     });
 
     row.querySelector('.text').addEventListener('input', e => {
@@ -2220,9 +2319,17 @@ function renderMain(){
       document.querySelector('.lines-wrap .line-row:last-child')?.scrollIntoView({ block:'nearest' });
     });
     row.querySelector('[data-action="del"]').addEventListener('click', () => {
+      const removedLine = line;
+      const removedIdx = idx;
       sec.lines.splice(idx, 1);
       scheduleSave();
       renderMain();
+      const entry = pushUndo('Deleted line', () => {
+        sec.lines.splice(Math.min(removedIdx, sec.lines.length), 0, removedLine);
+        scheduleSave();
+        renderMain();
+      });
+      showUndoToastFor(entry);
     });
     linesWrap.appendChild(row);
   });
@@ -2606,6 +2713,7 @@ function updateSaveStatus(status){
 }
 
 function scheduleSave(){
+  scheduleRecoverySave();
   if (!supportsFsApi || !fileHandle){ updateSaveStatus('nofile'); return; }
   updateSaveStatus('pending');
   if (saveTimer) clearTimeout(saveTimer);
@@ -2625,6 +2733,79 @@ async function doSave(){
     console.error(err);
     updateSaveStatus('error');
   }
+}
+
+/* ---------------------------------------------------------
+   Crash recovery: a debounced snapshot of the whole library in
+   localStorage, so closing the tab without saving (or a crash)
+   never loses work. This matters most on browsers without the
+   File System Access API, where there is no disk autosave — but
+   it also lets any browser pick up where the last session left
+   off. The snapshot is only ever written from the current state
+   and only ever read back at boot with the person's approval.
+--------------------------------------------------------- */
+const RECOVERY_KEY = 'setbook-recovery-v1';
+let recoveryTimer = null;
+function scheduleRecoverySave(){
+  if (recoveryTimer) clearTimeout(recoveryTimer);
+  recoveryTimer = setTimeout(writeRecoverySnapshot, 1500);
+}
+function writeRecoverySnapshot(){
+  try{
+    localStorage.setItem(RECOVERY_KEY, JSON.stringify({ savedAt: Date.now(), state }));
+  }catch(err){ /* quota etc. — the disk save remains the source of truth */ }
+}
+function readRecoverySnapshot(){
+  try{
+    const raw = localStorage.getItem(RECOVERY_KEY);
+    if (!raw) return null;
+    const snap = JSON.parse(raw);
+    if (!snap || !snap.state || !Array.isArray(snap.state.sectionGroups) || !Array.isArray(snap.state.sections)) return null;
+    return snap;
+  }catch(err){ return null; }
+}
+function clearRecoverySnapshot(){
+  try{ localStorage.removeItem(RECOVERY_KEY); }catch(err){}
+}
+// A snapshot is only worth offering when it holds real work — not the
+// default fresh file (one untitled song, one empty section).
+function recoveryHasContent(s){
+  return (s.sectionGroups || []).some(g => (g.name || '').trim() || (g.artist || '').trim()) ||
+         (s.sections || []).some(sec => (sec.lines || []).some(l => (l.text || '').trim() || (l.symbols || []).length));
+}
+// At boot, offer to restore the last session's work inside the welcome
+// modal — the one gate every launch passes through.
+function maybeOfferRecovery(){
+  const snap = readRecoverySnapshot();
+  if (!snap || !recoveryHasContent(snap.state)) return;
+  const when = new Date(snap.savedAt).toLocaleString(undefined, { weekday:'short', hour:'numeric', minute:'2-digit' });
+  const ctaLabel = document.querySelector('#welcomeModalOverlay .welcome-cta-label');
+  if (!ctaLabel) return;
+  const banner = document.createElement('div');
+  banner.className = 'recovery-banner';
+  banner.innerHTML = `
+    <div class="recovery-banner-text"><strong>Pick up where you left off?</strong><span>Your songbook from ${escapeHtml(when)} was saved automatically on this device.</span></div>
+    <div class="recovery-banner-actions">
+      <button type="button" class="primary small" id="recoveryRestoreBtn">Restore my work</button>
+      <button type="button" class="ghost small" id="recoveryDiscardBtn">Start fresh</button>
+    </div>`;
+  ctaLabel.before(banner);
+  banner.querySelector('#recoveryRestoreBtn').addEventListener('click', () => {
+    try{
+      loadParsedState(JSON.parse(JSON.stringify(snap.state)));
+      document.getElementById('welcomeModalOverlay').classList.remove('open');
+      updateFileLabel();
+      renderAll();
+      showToast('Work restored from your last session.');
+    }catch(err){
+      showErrorToast('Could not restore the saved work — starting fresh.');
+      clearRecoverySnapshot();
+    }
+  });
+  banner.querySelector('#recoveryDiscardBtn').addEventListener('click', () => {
+    clearRecoverySnapshot();
+    banner.remove();
+  });
 }
 
 function loadParsedState(parsed){
@@ -2851,10 +3032,11 @@ function closeSidebarAfterNavigate(){
 document.getElementById('btnSidebarToggle').addEventListener('click', () => setSidebarOpen(true));
 document.getElementById('sidebarScrim').addEventListener('click', () => setSidebarOpen(false));
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape'
-      && document.body.classList.contains('sidebar-open')
-      && !document.querySelector('.modal-overlay.open')){
-    setSidebarOpen(false);
+  if (e.key === 'Escape'){
+    if (activePopover){ closeActivePopover(); return; }
+    const openOverlays = document.querySelectorAll('.modal-overlay.open');
+    if (openOverlays.length){ openOverlays[openOverlays.length - 1].classList.remove('open'); return; }
+    if (document.body.classList.contains('sidebar-open')) setSidebarOpen(false);
   }
 });
 // If the viewport grows out of the mobile range with the drawer open,
@@ -4193,7 +4375,51 @@ document.querySelectorAll('.modal-overlay').forEach((overlay) => {
   const btn = overlay.querySelector('.modal-close');
   if (btn) btn.addEventListener('click', () => overlay.classList.remove('open'));
 });
-function showUndoToast(message, onUndo){ showToast(message, { actionLabel:'Undo', onAction: onUndo, duration: 8000 }); }
+/* ---------- undo ----------
+   Discrete destructive actions (clear/delete at row level, deletes at
+   section and song level) push an entry here. The header ↩ button,
+   Ctrl/Cmd+Z, and each toast's Undo button all consume the same entry
+   exactly once, so they can never double-apply. */
+const undoStack = [];
+function pushUndo(label, restore){
+  const entry = { label, restore, undone:false };
+  undoStack.push(entry);
+  if (undoStack.length > 30) undoStack.shift();
+  updateUndoButton();
+  return entry;
+}
+function updateUndoButton(){
+  const btn = document.getElementById('btnUndo');
+  if (!btn) return;
+  const top = [...undoStack].reverse().find(e => !e.undone);
+  btn.disabled = !top;
+  btn.title = top ? `Undo: ${top.label} (Ctrl+Z)` : 'Nothing to undo';
+}
+function undoEntry(entry){
+  if (!entry || entry.undone) return;
+  entry.undone = true;
+  const i = undoStack.indexOf(entry);
+  if (i >= 0) undoStack.splice(i, 1);
+  try{ entry.restore(); } finally { updateUndoButton(); }
+}
+function doUndo(){
+  for (let i = undoStack.length - 1; i >= 0; i--){
+    if (!undoStack[i].undone){ undoEntry(undoStack[i]); return; }
+  }
+}
+function showUndoToastFor(entry){
+  showToast(entry.label, { actionLabel:'Undo', onAction:() => undoEntry(entry), duration: 8000 });
+}
+document.getElementById('btnUndo').addEventListener('click', doUndo);
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
+    const t = e.target;
+    // Inside a text field the browser's own text undo wins.
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    e.preventDefault();
+    doUndo();
+  }
+});
 
 let activePopover = null;
 function closeActivePopover(){
@@ -4283,6 +4509,7 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
 
   const welcomeModal = wireModal({ overlayId:'welcomeModalOverlay' }).overlay;
   welcomeModal.classList.add('open');
+  maybeOfferRecovery();
   document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
     welcomeModal.classList.remove('open');
   });
