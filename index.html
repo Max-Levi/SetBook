@@ -161,6 +161,26 @@
   button.primary:hover{ background: var(--gold-hover); }
   button.ghost{ background:transparent; }
   button.small{ padding:4px 9px; font-size:12px; }
+  /* Roomier header controls: the share/help icons, File menu, and
+     Export PDF buttons were all `small` (12px) and felt lost next to
+     the 17px brand. The header gets its own comfortable control size;
+     `button.small` elsewhere (modals, rows) is untouched. */
+  header .actions .ghost.small,
+  header .actions .primary.small{
+    font-size:14px;
+    padding:10px 16px;
+    min-height:42px;
+  }
+  /* NOTE: plain-ID selectors here (not `header .actions #id`) so the
+     later mobile rules below win by source order at equal specificity. */
+  #btnShareHelp,
+  #btnHelp{
+    min-width:42px;
+    min-height:42px;
+    padding:8px;
+  }
+  #btnShareHelp svg,
+  #btnHelp svg{ width:20px; height:20px; }
   button.icon{ padding:4px 8px; font-size:12px; line-height:1; }
   button.icon svg{ vertical-align:-1px; }
   button.danger:hover{ border-color: var(--danger); color: var(--danger-hover-text); }
@@ -168,7 +188,12 @@
 
   /* ---------- file menu ---------- */
   .file-menu-wrap{ position:relative; }
-  .menu-chev{ font-size:9px; margin-left:2px; }
+  /* inline-SVG chevron (not the ▾ text glyph, whose line box varies by
+     platform font and inflated the button height unpredictably) */
+  #btnFileMenu{ display:inline-flex; align-items:center; }
+  .menu-chev{ display:inline-flex; margin-left:4px; }
+  .menu-chev svg{ width:10px; height:6px; stroke:currentColor; stroke-width:1.8;
+    fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .file-menu-dropdown{
     display:none; position:absolute; top:calc(100% + 6px); right:0;
     background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
@@ -455,8 +480,14 @@
       min-width:44px; min-height:44px; padding:6px;
     }
     #btnSidebarToggle svg, #btnShareHelp svg, #btnHelp svg{ width:22px; height:22px; }
-    header{ padding:10px 12px; }
-    header .actions{ gap:6px; }
+    /* the File / Export PDF text buttons get the same 44px target;
+       tighter padding and gap keep the header fitting at 390px */
+    #btnFileMenu, #btnPdf{
+      min-height:44px;
+      padding:10px 10px;
+    }
+    header{ padding:10px 8px; }
+    header .actions{ gap:3px; }
     .brand .file-status{ display:none; }
     #btnPdf{ white-space:nowrap; }
     nav.sidebar{
@@ -778,7 +809,7 @@
     <button class="ghost small" id="btnShareHelp" title="Help: getting PDFs onto your devices"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M176 168 L336 226 M176 344 L336 286" stroke="currentColor" stroke-width="44" fill="none" stroke-linecap="round"/><circle cx="128" cy="128" r="72"/><circle cx="384" cy="256" r="72"/><circle cx="128" cy="384" r="72"/></svg></button>
     <button class="ghost small" id="btnHelp" title="Help & technical documentation"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M256 32 C132.3 32 32 132.3 32 256 s100.3 224 224 224 224-100.3 224-224 S379.7 32 256 32 z M256 448 c-106 0-192-86-192-192 S150 64 256 64 s192 86 192 192-86 192-192 192 z"/><text x="256" y="352" text-anchor="middle" font-size="280" font-weight="700" fill="currentColor">?</text></svg></button>
     <div class="file-menu-wrap">
-      <button class="ghost small" id="btnFileMenu">File <span class="menu-chev">▾</span></button>
+      <button class="ghost small" id="btnFileMenu">File <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
       <div class="file-menu-dropdown" id="fileMenuDropdown">
         <button class="file-menu-item" id="btnNewFile">New file</button>
         <button class="file-menu-item" id="btnOpen">Open…</button>
