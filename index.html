@@ -342,31 +342,6 @@
   .config-row:has(+ .modal-actions){ border-bottom:0; } /* last row sits right above the actions: no divider */
   #configModalOverlay .modal-actions{ margin-top:14px; }
 
-  /* ---------- cloud sync (Configuration → Storage) ---------- */
-  .config-section-label{
-    font-size:11px; letter-spacing:1.2px; text-transform:uppercase;
-    color:var(--text-muted); margin:20px 0 10px;
-  }
-  #cloudSettings .modal-input{ margin-bottom:10px; }
-  .cloud-auth-row{ display:flex; gap:8px; margin:2px 0 10px; flex-wrap:wrap; }
-  .cloud-book-list{ border:1px solid var(--border); border-radius:6px; margin-bottom:6px; }
-  .cloud-book-row{
-    display:flex; align-items:center; gap:8px; padding:8px 10px; font-size:13px;
-    border-bottom:1px solid var(--border);
-  }
-  .cloud-book-row:last-child{ border-bottom:none; }
-  .cloud-book-row .name{
-    flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
-  }
-  .cloud-book-row.current .name{ color:var(--gold); font-weight:600; }
-  .cloud-book-row .meta{ color:var(--text-muted); font-size:12px; white-space:nowrap; }
-  .cloud-book-empty{ padding:10px; font-size:12.5px; color:var(--text-muted); }
-  .cloud-status{ font-size:12px; color:var(--text-muted); margin:10px 0 0; line-height:1.5; }
-  .cloud-status strong{ color:var(--text); font-weight:600; }
-  @media (max-width:760px){
-    #configStorageToggle .mode-btn, .cloud-auth-row button{ min-height:44px; }
-    .cloud-book-row button{ min-height:44px; }
-  }
   .config-text{ flex:1; min-width:0; }
   .config-name{ font-size:13.5px; font-weight:600; }
   .config-desc{ font-size:12px; color:var(--text-muted); margin-top:2px; }
@@ -1157,67 +1132,12 @@
         <button type="button" class="mode-btn" data-watch-target="self">Same tab</button>
       </div>
     </div>
-    <div class="config-section-label">Storage</div>
-    <div class="config-row">
-      <div class="config-text">
-        <div class="config-name">Songbook storage</div>
-        <div class="config-desc">Local files are the default and always work offline. Cloud sync keeps a copy in your own MongoDB database — it needs an account on your sync server.</div>
-      </div>
-      <div class="mode-toggle" id="configStorageToggle" style="margin-bottom:0">
-        <button type="button" class="mode-btn" data-storage-mode="local">Local file</button>
-        <button type="button" class="mode-btn" data-storage-mode="cloud">Cloud sync</button>
-      </div>
-    </div>
-    <div id="cloudSettings" hidden>
-      <label class="modal-label" for="cloudWorkerUrl">Sync server URL</label>
-      <input class="modal-input" id="cloudWorkerUrl" type="url" placeholder="https://setbook-sync.example.workers.dev" autocomplete="off" autocapitalize="off" spellcheck="false">
-      <div id="cloudAuthSignedOut">
-        <label class="modal-label" for="cloudEmail">Account</label>
-        <input class="modal-input" id="cloudEmail" type="email" placeholder="you@example.com" autocomplete="email" autocapitalize="off" spellcheck="false">
-        <input class="modal-input" id="cloudPassword" type="password" placeholder="Password" autocomplete="current-password">
-        <div class="cloud-auth-row">
-          <button type="button" class="primary small" id="cloudSignInBtn">Sign in</button>
-          <button type="button" class="ghost small" id="cloudRegisterBtn">Create account</button>
-        </div>
-        <div class="cloud-auth-row">
-          <button type="button" class="ghost small" id="cloudGoogleBtn">Sign in with Google</button>
-        </div>
-        <p class="cloud-status">Your password is checked by your own sync server — it is never stored in SetBook.</p>
-      </div>
-      <div id="cloudAuthSignedIn" hidden>
-        <p class="cloud-status" id="cloudAccountLine"></p>
-        <div class="cloud-auth-row">
-          <button type="button" class="ghost small" id="cloudPullBtn">Check for updates</button>
-          <button type="button" class="ghost small" id="cloudSignOutBtn">Sign out</button>
-        </div>
-        <label class="modal-label">Cloud songbooks</label>
-        <div class="cloud-book-list" id="cloudBookList"></div>
-        <label class="modal-label" for="cloudNewBookName">Upload this library as a new cloud songbook</label>
-        <input class="modal-input" id="cloudNewBookName" type="text" placeholder="e.g. Gig book 2026" autocomplete="off" spellcheck="false">
-        <div class="cloud-auth-row">
-          <button type="button" class="primary small" id="cloudUploadBtn">Upload current library</button>
-        </div>
-      </div>
-      <p class="cloud-status" id="cloudStatusLine"></p>
-    </div>
     <div class="modal-actions">
       <button type="button" class="primary small" id="configCloseBtn">Done</button>
     </div>
   </div>
 </div>
 
-<!-- Sync conflict modal -->
-<div class="modal-overlay" id="conflictModalOverlay">
-  <div class="modal">
-    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
-    <h2>Sync conflict</h2>
-    <p class="modal-sub" id="conflictMsg">This songbook changed on another device.</p>
-    <div class="modal-actions">
-      <button type="button" class="ghost small" id="conflictLoadCloudBtn">Load cloud version</button>
-      <button type="button" class="primary small" id="conflictKeepMineBtn">Keep my version</button>
-    </div>
-  </div>
-</div>
 
 <!-- Technical documentation / Help modal -->
 <div class="modal-overlay" id="helpModalOverlay">
@@ -2428,7 +2348,7 @@ function showRowMenu(anchorBtn, row){
   });
   positionPopover(pop, anchorBtn);
   activePopover = pop;
-  setTimeout(() => document.addEventListener('click', closeActivePopover, { once:true }), 0);
+  armPopoverDocCloser();
 }
 
 function renderMain(){
@@ -2970,90 +2890,6 @@ function syncConfigModal(){
     b.classList.toggle('active', b.dataset.watchTarget === watchTarget()));
   const cb = document.getElementById('configNumberSingles');
   if (cb) cb.checked = !!state.numberSingleSections;
-  document.querySelectorAll('#configStorageToggle .mode-btn').forEach(b =>
-    b.classList.toggle('active', b.dataset.storageMode === cloudMode()));
-  const cs = document.getElementById('cloudSettings');
-  if (cs) cs.hidden = cloudMode() !== 'cloud';
-  const urlInput = document.getElementById('cloudWorkerUrl');
-  if (urlInput && document.activeElement !== urlInput) urlInput.value = cloudWorkerUrl();
-  const user = cloudUser();
-  const signedOut = document.getElementById('cloudAuthSignedOut');
-  const signedIn = document.getElementById('cloudAuthSignedIn');
-  if (signedOut) signedOut.hidden = !!user;
-  if (signedIn) signedIn.hidden = !user;
-  const acct = document.getElementById('cloudAccountLine');
-  if (acct && user){
-    acct.textContent = '';
-    acct.append('Signed in as ');
-    const strong = document.createElement('strong');
-    strong.textContent = user.email;
-    acct.appendChild(strong);
-  }
-  updateCloudStatusLine();
-}
-function updateCloudStatusLine(){
-  const el = document.getElementById('cloudStatusLine');
-  if (!el) return;
-  const book = cloudBook();
-  const last = cloudLastSync();
-  let txt = '';
-  if (cloudMode() === 'cloud'){
-    if (!cloudToken()) txt = 'Not signed in.';
-    else if (!book) txt = 'Signed in \u2014 open a songbook above, or upload this library.';
-    else{
-      txt = `Syncing \u201c${book.name}\u201d`;
-      if (last) txt += ` \u00b7 last synced ${new Date(last).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })}`;
-      if (cloudPushPending) txt += ' \u00b7 unsynced changes waiting';
-    }
-  }
-  el.textContent = txt;
-}
-let cloudBookListFetchedAt = 0;
-async function refreshCloudBookList({ force } = {}){
-  const listEl = document.getElementById('cloudBookList');
-  if (!listEl || !cloudUser() || cloudMode() !== 'cloud') return;
-  // The list refreshes when the modal opens and after upload/open actions —
-  // not on every background sync, so typing never triggers a refetch.
-  if (!force && Date.now() - cloudBookListFetchedAt < 10000) return;
-  listEl.innerHTML = '<div class="cloud-book-empty">Loading\u2026</div>';
-  try{
-    const books = await cloudListBooks();
-    cloudBookListFetchedAt = Date.now();
-    const current = cloudBook();
-    if (!books.length){
-      listEl.innerHTML = '<div class="cloud-book-empty">No cloud songbooks yet \u2014 upload this library below.</div>';
-      return;
-    }
-    listEl.innerHTML = '';
-    books.forEach(b => {
-      const isCurrent = !!(current && current.id === b.id);
-      const row = document.createElement('div');
-      row.className = 'cloud-book-row' + (isCurrent ? ' current' : '');
-      const nameEl = document.createElement('span');
-      nameEl.className = 'name';
-      nameEl.textContent = b.name || 'Untitled';
-      const metaEl = document.createElement('span');
-      metaEl.className = 'meta';
-      metaEl.textContent = b.updatedAt
-        ? new Date(b.updatedAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-        : '';
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'ghost small';
-      btn.textContent = isCurrent ? 'Current' : 'Open';
-      btn.disabled = isCurrent;
-      if (!isCurrent) btn.addEventListener('click', () =>
-        cloudOpenBook(b.id).catch(err => showErrorToast(err.message || 'Could not open that songbook.')));
-      row.append(nameEl, metaEl, btn);
-      listEl.appendChild(row);
-    });
-  }catch(err){
-    const safe = document.createElement('div');
-    safe.className = 'cloud-book-empty';
-    safe.textContent = `Could not load songbooks: ${err.message || 'network error'}`;
-    listEl.innerHTML = '';
-    listEl.appendChild(safe);
-  }
 }
 function setWatchTarget(mode){
   try{ localStorage.setItem('setbook-watch-target', mode === 'self' ? 'self' : 'blank'); }catch(e){}
@@ -3069,33 +2905,8 @@ document.getElementById('configNumberSingles').addEventListener('change', (e) =>
   scheduleSave();
   renderAll();
 });
-wireModal({ overlayId:'configModalOverlay', openBtnId:'btnConfigureLayout', closeBtnId:'configCloseBtn', onOpen: () => { syncConfigModal(); refreshCloudBookList({ force: true }); } });
-wireModal({ overlayId:'conflictModalOverlay' }); // ✕, click-outside, and Escape are handled globally
+wireModal({ overlayId:'configModalOverlay', openBtnId:'btnConfigureLayout', closeBtnId:'configCloseBtn', onOpen: syncConfigModal });
 syncConfigModal();
-
-document.querySelectorAll('#configStorageToggle .mode-btn').forEach(b =>
-  b.addEventListener('click', () => {
-    const toCloud = b.dataset.storageMode === 'cloud';
-    setCloudMode(toCloud ? 'cloud' : 'local');
-    if (cloudPushTimer){ clearTimeout(cloudPushTimer); cloudPushTimer = null; }
-    cloudPushPending = false;
-    syncConfigModal(); refreshCloudBookList({ force: true });
-    updateSaveStatus(); updateFileLabel();
-    if (toCloud && !cloudToken()) showToast('Enter your sync server URL and sign in below.');
-  }));
-document.getElementById('cloudWorkerUrl').addEventListener('change', (e) => {
-  setCloudWorkerUrl(e.target.value);
-  syncConfigModal();
-});
-document.getElementById('cloudSignInBtn').addEventListener('click', cloudLogin);
-document.getElementById('cloudRegisterBtn').addEventListener('click', cloudRegister);
-document.getElementById('cloudPassword').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter'){ e.preventDefault(); cloudLogin(); }
-});
-document.getElementById('cloudGoogleBtn').addEventListener('click', cloudGoogleStart);
-document.getElementById('cloudSignOutBtn').addEventListener('click', () => cloudSignOut());
-document.getElementById('cloudPullBtn').addEventListener('click', () => cloudPullNow());
-document.getElementById('cloudUploadBtn').addEventListener('click', cloudUploadNewBook);
 
 const supportsFsApi = 'showOpenFilePicker' in window && 'showSaveFilePicker' in window;
 
@@ -3121,48 +2932,36 @@ let startInHandle = null; // folder to open Open/Save-As dialogs in, until a rea
 let saveTimer = null;
 
 function updateFileLabel(){
-  const book = cloudBook();
-  document.getElementById('fileNameLabel').textContent =
-    cloudMode() === 'cloud'
-      ? (book ? `\u2601 ${book.name}` : 'Cloud sync \u2014 no songbook open')
-      : (currentFileName || 'No file open');
+  document.getElementById('fileNameLabel').textContent = currentFileName || 'No file open';
 }
 
 function updateSaveStatus(status){
   const dot = document.getElementById('saveDot');
   const text = document.getElementById('saveText');
   dot.className = 'save-dot' + (status ? ' ' + status : '');
-  const messages = cloudMode() === 'cloud' ? {
-    saved: 'synced to cloud',
-    saving: 'syncing\u2026',
-    pending: 'unsynced changes',
-    error: 'sync failed \u2014 will retry',
-    nofile: cloudToken()
-      ? 'open a cloud songbook (Configuration \u2192 Storage)'
-      : 'sign in to sync (Configuration \u2192 Storage)'
-  } : {
-    saved: 'saved to disk',
+  const toFile = !!(supportsFsApi && fileHandle);
+  const messages = {
+    saved: toFile ? 'saved to disk' : 'not linked to a file yet',
     saving: 'saving\u2026',
-    pending: 'unsaved changes',
-    error: 'save failed \u2014 check file permissions',
-    nofile: fileHandle ? 'unsaved changes' : (supportsFsApi ? 'not linked to a file yet' : 'download to save (browser has no file access)')
+    pending: 'unsynced changes',
+    error: 'save failed \u2014 will retry',
+    nofile: supportsFsApi ? 'not linked to a file yet' : 'download to save (browser has no file access)',
   };
   text.textContent = messages[status] || messages.nofile;
 }
 
 function scheduleSave(){
   scheduleRecoverySave();
-  if (cloudMode() === 'cloud'){
-    if (!cloudIsActive()){ updateSaveStatus('nofile'); return; }
-    scheduleCloudPush();
-    return;
-  }
-  if (!supportsFsApi || !fileHandle){ updateSaveStatus('nofile'); return; }
+  // Every change is written to the linked local file (debounced). The
+  // recovery snapshot above is the crash-safety net.
+  if (!(supportsFsApi && fileHandle)){ updateSaveStatus('nofile'); return; }
   updateSaveStatus('pending');
+  fileSaveFailed = false;
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(doSave, 500);
 }
 
+let fileSaveFailed = false;
 async function doSave(){
   if (!fileHandle) return;
   try{
@@ -3171,349 +2970,14 @@ async function doSave(){
     stampSectionDisplayNames();
     await writable.write(JSON.stringify(state, null, 2));
     await writable.close();
+    fileSaveFailed = false;
     updateSaveStatus('saved');
   } catch(err){
     console.error(err);
+    fileSaveFailed = true;
     updateSaveStatus('error');
   }
 }
-
-/* ---------------------------------------------------------
-   Cloud sync (optional): the songbook JSON synced through the
-   user's own REST proxy (a small serverless function) in front
-   of a free MongoDB Atlas cluster. Local file storage stays the
-   default and always works offline — nothing below runs unless
-   the storage mode is 'cloud'. The proxy holds the database
-   credentials; the app only ever sees a short-lived JWT.
-   API contract: workspace/setbook/CLOUD_SYNC_SPEC.md
---------------------------------------------------------- */
-const CLOUD_LS = {
-  mode: 'setbook-storage-mode',
-  url: 'setbook-cloud-url',
-  token: 'setbook-cloud-token',
-  user: 'setbook-cloud-user',
-  book: 'setbook-cloud-book',
-  lastSync: 'setbook-cloud-last-sync',
-};
-function cloudMode(){
-  try{ return localStorage.getItem(CLOUD_LS.mode) === 'cloud' ? 'cloud' : 'local'; }
-  catch(e){ return 'local'; }
-}
-function setCloudMode(m){
-  try{ localStorage.setItem(CLOUD_LS.mode, m === 'cloud' ? 'cloud' : 'local'); }catch(e){}
-}
-function cloudWorkerUrl(){
-  try{ return (localStorage.getItem(CLOUD_LS.url) || '').trim().replace(/\/+$/,''); }
-  catch(e){ return ''; }
-}
-function setCloudWorkerUrl(u){
-  try{ localStorage.setItem(CLOUD_LS.url, (u || '').trim()); }catch(e){}
-}
-function cloudToken(){
-  try{ return localStorage.getItem(CLOUD_LS.token) || ''; }catch(e){ return ''; }
-}
-function cloudUser(){
-  try{ const raw = localStorage.getItem(CLOUD_LS.user); return raw ? JSON.parse(raw) : null; }
-  catch(e){ return null; }
-}
-function cloudBook(){
-  try{ const raw = localStorage.getItem(CLOUD_LS.book); return raw ? JSON.parse(raw) : null; }
-  catch(e){ return null; }
-}
-function setCloudBook(b){
-  try{
-    if (b) localStorage.setItem(CLOUD_LS.book, JSON.stringify(b));
-    else localStorage.removeItem(CLOUD_LS.book);
-  }catch(e){}
-}
-function cloudLastSync(){
-  try{ return Number(localStorage.getItem(CLOUD_LS.lastSync)) || 0; }catch(e){ return 0; }
-}
-function setCloudLastSync(t){
-  try{ localStorage.setItem(CLOUD_LS.lastSync, String(t)); }catch(e){}
-}
-// Fully ready to sync: cloud mode, signed in, and a songbook open.
-function cloudIsActive(){ return cloudMode() === 'cloud' && !!cloudToken() && !!cloudBook(); }
-
-function cloudErr(code, message, extra){
-  const e = new Error(message || code);
-  e.cloudCode = code;
-  if (extra) Object.assign(e, extra);
-  return e;
-}
-async function cloudApi(path, { method = 'GET', body } = {}){
-  const base = cloudWorkerUrl();
-  if (!base) throw cloudErr('no-url', 'Set your sync server URL in Configuration → Storage first.');
-  let res;
-  try{
-    res = await fetch(base + path, {
-      method,
-      headers: Object.assign(
-        { 'Content-Type': 'application/json' },
-        cloudToken() ? { Authorization: 'Bearer ' + cloudToken() } : {}
-      ),
-      body: body === undefined ? undefined : JSON.stringify(body),
-    });
-  }catch(err){
-    throw cloudErr('network', 'Could not reach the sync server.');
-  }
-  let data = null;
-  try{ data = await res.json(); }catch(e){ /* e.g. 204 No Content */ }
-  if (res.status === 401){
-    cloudSignOut({ silent: true });
-    throw cloudErr('auth', 'Your sign-in expired — please sign in again.');
-  }
-  if (res.status === 409 && data && data.error === 'conflict'){
-    // Only an explicit sync conflict opens the conflict dialog; any other
-    // 409 falls through to the ordinary error below.
-    throw cloudErr('conflict', 'This songbook changed on another device.',
-      { currentRev: data.currentRev,
-        serverUpdatedAt: data.updatedAt });
-  }
-  if (!res.ok) throw cloudErr('request', (data && data.error) || `Sync server error (${res.status}).`);
-  return data;
-}
-
-/* ---- auth ---- */
-function cloudSetSession(token, user){
-  try{
-    localStorage.setItem(CLOUD_LS.token, token);
-    localStorage.setItem(CLOUD_LS.user, JSON.stringify(user));
-  }catch(e){}
-}
-function cloudCredentials(){
-  const email = document.getElementById('cloudEmail').value.trim();
-  const password = document.getElementById('cloudPassword').value;
-  if (!email || !password){
-    showErrorToast('Enter your email and password first.');
-    return null;
-  }
-  return { email, password };
-}
-async function cloudRegister(){
-  const creds = cloudCredentials();
-  if (!creds) return;
-  try{
-    const data = await cloudApi('/api/auth/register', { method: 'POST', body: creds });
-    cloudSetSession(data.token, data.user);
-    document.getElementById('cloudPassword').value = '';
-    showToast(`Account created — signed in as ${data.user.email}.`);
-    syncConfigModal(); refreshCloudBookList(); updateSaveStatus();
-  }catch(err){ showErrorToast(err.message || 'Could not create the account.'); }
-}
-async function cloudLogin(){
-  const creds = cloudCredentials();
-  if (!creds) return;
-  try{
-    const data = await cloudApi('/api/auth/login', { method: 'POST', body: creds });
-    cloudSetSession(data.token, data.user);
-    document.getElementById('cloudPassword').value = '';
-    showToast(`Signed in as ${data.user.email}.`);
-    syncConfigModal(); refreshCloudBookList(); updateSaveStatus();
-  }catch(err){ showErrorToast(err.message || 'Could not sign in.'); }
-}
-async function cloudGoogleStart(){
-  try{
-    const data = await cloudApi('/api/auth/google/start');
-    if (data && data.url) window.open(data.url, '_blank', 'noopener');
-    else showErrorToast('The sync server did not return a Google sign-in link.');
-  }catch(err){ showErrorToast(err.message || 'Could not start Google sign-in.'); }
-}
-function cloudSignOut({ silent } = {}){
-  try{ [CLOUD_LS.token, CLOUD_LS.user, CLOUD_LS.book].forEach(k => localStorage.removeItem(k)); }catch(e){}
-  cloudPushPending = false;
-  if (cloudPushTimer){ clearTimeout(cloudPushTimer); cloudPushTimer = null; }
-  if (!silent){
-    showToast('Signed out of cloud sync. Your local files are untouched.');
-    syncConfigModal(); updateSaveStatus(); updateFileLabel();
-  }
-}
-// Google SSO returns through the sync server, which redirects to this app
-// with #token=<jwt>&email=<address>. The fragment never reaches any server.
-function cloudCheckSsoReturn(){
-  const m = location.hash.match(/[#&]token=([^&]+)/);
-  if (!m) return;
-  const em = location.hash.match(/[#&]email=([^&]+)/);
-  try{
-    const token = decodeURIComponent(m[1]);
-    const email = em ? decodeURIComponent(em[1]) : '';
-    if (!token) return;
-    cloudSetSession(token, { id: '', email });
-    setCloudMode('cloud');
-    showToast(email ? `Signed in with Google as ${email}.` : 'Signed in with Google.');
-  }catch(e){ /* malformed fragment — ignore */ }
-  history.replaceState(null, '', location.pathname + location.search);
-}
-
-/* ---- songbooks ---- */
-async function cloudListBooks(){
-  const books = await cloudApi('/api/books');
-  return Array.isArray(books) ? books : [];
-}
-async function cloudOpenBook(id){
-  const full = await cloudApi('/api/books/' + encodeURIComponent(id));
-  loadParsedState(JSON.parse(JSON.stringify(full.data)));
-  setCloudBook({ id: full.id, name: full.name, rev: full.rev });
-  setCloudLastSync(Date.now());
-  cloudPushPending = false;
-  updateFileLabel(); updateSaveStatus('saved'); renderAll();
-  showToast(`Opened “${full.name}” from the cloud.`);
-  syncConfigModal(); refreshCloudBookList();
-}
-async function cloudUploadNewBook(){
-  const nameInput = document.getElementById('cloudNewBookName');
-  const name = (nameInput.value.trim()
-    || state.projectName
-    || (currentFileName || '').replace(/\.json$/i, '')
-    || 'My songbook');
-  try{
-    stampSectionDisplayNames();
-    const res = await cloudApi('/api/books', { method: 'POST', body: { name, data: state } });
-    setCloudBook({ id: res.id, name, rev: res.rev });
-    setCloudLastSync(Date.now());
-    nameInput.value = '';
-    updateFileLabel(); updateSaveStatus('saved');
-    showToast(`Uploaded “${name}” — it is now your synced songbook.`);
-    syncConfigModal(); refreshCloudBookList();
-  }catch(err){ showErrorToast(err.message || 'Upload failed.'); }
-}
-// Pull the latest server copy. Refuses to stomp unsynced local edits.
-async function cloudPullNow({ quiet } = {}){
-  const book = cloudBook();
-  if (!book || !cloudToken()) return;
-  if (!quiet) updateSaveStatus('saving');
-  try{
-    const full = await cloudApi('/api/books/' + encodeURIComponent(book.id));
-    if (full.rev !== book.rev){
-      if (cloudPushPending){
-        if (!quiet){
-          updateSaveStatus('pending');
-          showToast('The cloud has updates, but you have unsynced edits — resolve the conflict first.');
-        }
-        return;
-      }
-      loadParsedState(JSON.parse(JSON.stringify(full.data)));
-      setCloudBook({ id: full.id, name: full.name, rev: full.rev });
-      setCloudLastSync(Date.now());
-      renderAll(); updateFileLabel();
-      if (!quiet) showToast('Loaded the latest cloud copy.');
-    }else if (!quiet){
-      showToast('Already up to date.');
-    }
-    updateSaveStatus('saved');
-  }catch(err){
-    if (!quiet){ updateSaveStatus('error'); showErrorToast(err.message || 'Could not check for updates.'); }
-  }
-  syncConfigModal();
-}
-
-/* ---- push (debounced, offline-tolerant) ---- */
-let cloudPushTimer = null;
-let cloudPushPending = false;
-function scheduleCloudPush(){
-  updateSaveStatus('pending');
-  if (cloudPushTimer) clearTimeout(cloudPushTimer);
-  cloudPushTimer = setTimeout(() => cloudPushNow(), 800);
-}
-async function cloudPushNow(){
-  if (cloudPushTimer){ clearTimeout(cloudPushTimer); cloudPushTimer = null; }
-  if (cloudMode() !== 'cloud') return;
-  if (!cloudToken()){
-    showToast('Sign in to sync — see Configuration → Storage.');
-    updateSaveStatus('nofile');
-    return;
-  }
-  const book = cloudBook();
-  if (!book){
-    showToast('Open a cloud songbook first — see Configuration → Storage.');
-    updateSaveStatus('nofile');
-    return;
-  }
-  cloudPushPending = false;
-  updateSaveStatus('saving');
-  try{
-    stampSectionDisplayNames();
-    const res = await cloudApi(`/api/books/${encodeURIComponent(book.id)}`, {
-      method: 'PUT',
-      body: { name: book.name, data: state, baseRev: book.rev },
-    });
-    setCloudBook({ id: book.id, name: book.name, rev: res.rev });
-    setCloudLastSync(Date.now());
-    updateSaveStatus('saved');
-  }catch(err){
-    if (err.cloudCode === 'conflict'){
-      cloudPushPending = true; // kept until the person resolves it
-      updateSaveStatus('pending');
-      showConflictDialog(err);
-    }else if (err.cloudCode === 'network'){
-      cloudPushPending = true; // retried on 'online' and on the next save
-      updateSaveStatus('pending');
-      showErrorToast('Sync failed — will retry automatically.');
-    }else{
-      updateSaveStatus('error');
-      showErrorToast(err.message || 'Sync failed.');
-    }
-  }
-  syncConfigModal();
-}
-window.addEventListener('online', () => {
-  if (cloudPushPending && cloudIsActive()) cloudPushNow();
-});
-
-/* ---- conflict dialog ---- */
-let pendingConflict = null;
-function showConflictDialog(err){
-  pendingConflict = err;
-  const book = cloudBook();
-  const when = err.serverUpdatedAt
-    ? new Date(err.serverUpdatedAt).toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit' })
-    : 'recently';
-  document.getElementById('conflictMsg').textContent =
-    `“${book ? book.name : 'Your songbook'}” changed on another device (${when}). ` +
-    `Your edits are safe — choose which copy wins.`;
-  document.getElementById('conflictModalOverlay').classList.add('open');
-}
-function closeConflictDialog(){
-  pendingConflict = null;
-  document.getElementById('conflictModalOverlay').classList.remove('open');
-}
-document.getElementById('conflictKeepMineBtn').addEventListener('click', async () => {
-  const book = cloudBook();
-  // Re-push against the fresh revision: last write wins, deliberately.
-  if (book && pendingConflict && pendingConflict.currentRev != null){
-    setCloudBook({ id: book.id, name: book.name, rev: pendingConflict.currentRev });
-  }
-  closeConflictDialog();
-  await cloudPushNow();
-});
-document.getElementById('conflictLoadCloudBtn').addEventListener('click', async () => {
-  const book = cloudBook();
-  closeConflictDialog();
-  if (!book) return;
-  // Stash the discarded edits as a file first — nothing is silently lost.
-  try{
-    stampSectionDisplayNames();
-    const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = `setbook-backup-${new Date().toISOString().slice(0, 10)}.json`;
-    document.body.appendChild(a);
-    a.click();
-    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 4000);
-    showToast('Your edits were downloaded as a backup file.');
-  }catch(e){ /* backup is best-effort; the cloud load still proceeds */ }
-  await cloudOpenBook(book.id);
-});
-
-/* ---------------------------------------------------------
-   Crash recovery: a debounced snapshot of the whole library in
-   localStorage, so closing the tab without saving (or a crash)
-   never loses work. This matters most on browsers without the
-   File System Access API, where there is no disk autosave — but
-   it also lets any browser pick up where the last session left
-   off. The snapshot is only ever written from the current state
-   and only ever read back at boot with the person's approval.
---------------------------------------------------------- */
 const RECOVERY_KEY = 'setbook-recovery-v1';
 let recoveryTimer = null;
 function scheduleRecoverySave(){
@@ -3545,8 +3009,7 @@ function recoveryHasContent(s){
 }
 // At boot, offer to restore the last session's work inside the welcome
 // modal — the one gate every launch passes through.
-// Set when the person restores a recovery snapshot at boot, so the cloud
-// auto-pull below doesn't stomp those unsynced local edits.
+// Set when the person restores a recovery snapshot at boot.
 let recoveryRestoredThisBoot = false;
 function maybeOfferRecovery(){
   const snap = readRecoverySnapshot();
@@ -5239,8 +4702,7 @@ document.addEventListener('keydown', (e) => {
   if (isTypingTarget(e.target)) return;
   e.preventDefault();
   if (key === 's'){
-    if (cloudMode() === 'cloud') cloudPushNow();
-    else if (fileHandle && supportsFsApi) doSave();
+    if (fileHandle && supportsFsApi) doSave();
     else saveAs();
   } else {
     document.getElementById('btnPdf').click();
@@ -5256,8 +4718,27 @@ document.addEventListener('keydown', (e) => {
 })();
 
 let activePopover = null;
+let activePopoverDocCloser = null;
 function closeActivePopover(){
   if (activePopover){ activePopover.remove(); activePopover = null; }
+  // Drop the click-outside listener too: confirm/cancel buttons close the
+  // popover directly (with stopPropagation), so without this a stale
+  // listener would survive and instantly close the *next* popover.
+  if (activePopoverDocCloser){
+    document.removeEventListener('click', activePopoverDocCloser);
+    activePopoverDocCloser = null;
+  }
+}
+// Click-outside closes the open popover. The opening click is still
+// dispatching when the popover is built, so the listener is armed after it.
+function armPopoverDocCloser(){
+  if (activePopoverDocCloser) document.removeEventListener('click', activePopoverDocCloser);
+  const closer = () => closeActivePopover();
+  activePopoverDocCloser = closer;
+  setTimeout(() => {
+    // Only arm if no newer popover replaced this one while we waited.
+    if (activePopoverDocCloser === closer) document.addEventListener('click', closer, { once:true });
+  }, 0);
 }
 function positionPopover(pop, anchorEl){
   document.body.appendChild(pop);
@@ -5294,7 +4775,7 @@ function showConfirmPopover(anchorEl, message, confirmLabel, onConfirm){
     closeActivePopover();
   });
   activePopover = pop;
-  setTimeout(() => document.addEventListener('click', closeActivePopover, { once:true }), 0);
+  armPopoverDocCloser();
 }
 
 function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmit){
@@ -5322,7 +4803,7 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   input.addEventListener('click', e => e.stopPropagation());
   input.addEventListener('keydown', (e) => { if (e.key === 'Enter'){ e.preventDefault(); submit(); } });
   activePopover = pop;
-  setTimeout(() => document.addEventListener('click', closeActivePopover, { once:true }), 0);
+  armPopoverDocCloser();
 }
 
 /* ---------------------------------------------------------
@@ -5342,25 +4823,8 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   renderAll();
 
   const welcomeModal = wireModal({ overlayId:'welcomeModalOverlay' }).overlay;
-  cloudCheckSsoReturn(); // Google SSO lands back here with #token=… in the URL
   welcomeModal.classList.add('open');
   maybeOfferRecovery();
-  // When the welcome modal is dismissed by any path, pull the remembered
-  // cloud songbook — unless the person restored local work or opened a file.
-  let cloudBootPullDone = false;
-  new MutationObserver((muts) => {
-    for (const m of muts){
-      if (!m.target.classList.contains('open') && !cloudBootPullDone){
-        cloudBootPullDone = true;
-        setTimeout(() => {
-          if (!fileHandle && !recoveryRestoredThisBoot &&
-              cloudMode() === 'cloud' && cloudToken() && cloudBook()){
-            cloudPullNow({ quiet: true });
-          }
-        }, 1200);
-      }
-    }
-  }).observe(welcomeModal, { attributes: true, attributeFilter: ['class'] });
   document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
     welcomeModal.classList.remove('open');
   });
