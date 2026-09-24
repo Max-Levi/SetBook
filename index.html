@@ -2400,6 +2400,16 @@ function groupLinesForDisplay(lines){
   return blocks;
 }
 
+// A block whose only content is a repeat token (e.g. a row with "(x2)" as
+// both the chords and the lyrics): renderers draw the marker itself as the
+// block's single line instead of an empty chord line with the marker
+// floating in it. getText is the renderer's lyric-text accessor
+// (l => l.text for the preview, pdfDisplayText for PDFs).
+function isPureRepeatMarker(block, getText){
+  if (!block.repeatCount || buildSymbolsLine(block.symbols)) return false;
+  return !block.lines.some(l => getText(l) || !l.symbols.length);
+}
+
 // A lyric line wrapped in /* ... */ is a private note-to-self (e.g.
 // "/*Questionable - relisten to this part*/") — it should still show in
 // the on-screen editor/preview, but never in an exported PDF. The chords
@@ -2441,15 +2451,16 @@ function renderPreview(sec){
     const textRows = shownLines
       .map(l => `<div class="p-text mono">${escapeHtml(l.text) || '&nbsp;'}</div>`)
       .join('');
+    const pureMarker = isPureRepeatMarker(b, l => l.text);
     let markerHtml = '';
-    if (b.repeatCount){
+    if (b.repeatCount && !pureMarker){
       const rightmost = Math.max(symLine.length, ...shownLines.map(l => l.text.trimEnd().length), 0);
       markerHtml = `<span class="p-repeat-marker mono" style="left:${rightmost + 1}ch">(x${b.repeatCount})</span>`;
     }
     return `
     <div class="p-line">
-      <div class="p-symbols mono">${escapeHtml(symLine) || '&nbsp;'}</div>
-      ${textRows}
+      <div class="p-symbols mono">${pureMarker ? `(x${b.repeatCount})` : (escapeHtml(symLine) || '&nbsp;')}</div>
+      ${pureMarker ? '' : textRows}
       ${markerHtml}
     </div>
   `;
@@ -3334,6 +3345,11 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     doc.setFontSize(fontSize);
     let maxW = 0;
     blocks.forEach(b => {
+      if (isPureRepeatMarker(b, pdfDisplayText)){
+        // the marker is drawn as the block's line itself
+        maxW = Math.max(maxW, doc.getTextWidth(`(x${b.repeatCount})`));
+        return;
+      }
       maxW = Math.max(maxW, doc.getTextWidth(buildSymbolsLine(b.symbols) || ' '));
       b.lines.forEach(l => {
         maxW = Math.max(maxW, doc.getTextWidth(pdfDisplayText(l) || ' '));
@@ -3563,14 +3579,18 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     const fs = p.chunk.fontSize;
     p.chunk.lines.forEach(block => {
       const symLine = buildSymbolsLine(block.symbols);
+      // A lone repeat token ("(x2)" as both chords and lyrics) is drawn as
+      // the block's chord line instead of an empty line with a floating marker.
+      const pureMarker = isPureRepeatMarker(block, pdfDisplayText);
 
       doc.setFont(monoFont,'bold'); doc.setFontSize(fs);
       doc.setTextColor(...palette.chord);
-      doc.text(symLine || ' ', MARGIN, y);
+      doc.text(pureMarker ? `(x${block.repeatCount})` : (symLine || ' '), MARGIN, y);
       const chordBaselineY = y;
       y += pdfLineHeight(fs);
 
       let shownLyricCount = 0;
+      if (!pureMarker){
       block.lines.forEach(line => {
         const displayText = pdfDisplayText(line);
         const showText = !!(displayText || !line.symbols.length);
@@ -3590,6 +3610,7 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
         doc.setFont(monoFont,'bold'); doc.setFontSize(fs);
         doc.setTextColor(...palette.chord);
         doc.text(marker, MARGIN + x, chordBaselineY + (shownLyricCount * pdfLineHeight(fs)) / 2 + fs * 0.35);
+      }
       }
 
       y += fs * 0.35;
@@ -3712,6 +3733,11 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
     doc.setFontSize(fsz);
     let fits = true;
     for (const b of allBlocks){
+      if (isPureRepeatMarker(b, pdfDisplayText)){
+        // the marker is drawn as the block's line itself
+        if (doc.getTextWidth(`(x${b.repeatCount})`) > contentAvailableWidth){ fits = false; break; }
+        continue;
+      }
       const symLine = buildSymbolsLine(b.symbols);
       if (doc.getTextWidth(symLine || ' ') > contentAvailableWidth){ fits = false; break; }
       for (const l of b.lines){
@@ -3778,14 +3804,18 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
       blocks.forEach(block => {
         ensureRoom(pdfBlockHeight(block, bodySize));
         const symLine = buildSymbolsLine(block.symbols);
+        // A lone repeat token ("(x2)" as both chords and lyrics) is drawn as
+        // the block's chord line instead of an empty line with a floating marker.
+        const pureMarker = isPureRepeatMarker(block, pdfDisplayText);
 
         doc.setFont(monoFont, 'bold'); doc.setFontSize(bodySize);
         doc.setTextColor(...palette.chord);
-        doc.text(symLine || ' ', MARGIN, y);
+        doc.text(pureMarker ? `(x${block.repeatCount})` : (symLine || ' '), MARGIN, y);
         const chordBaselineY = y;
         y += pdfLineHeight(bodySize);
 
         let shownLyricCount = 0;
+        if (!pureMarker){
         block.lines.forEach(line => {
           const displayText = pdfDisplayText(line);
           const showText = !!(displayText || !line.symbols.length);
@@ -3805,6 +3835,7 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
           doc.setFont(monoFont, 'bold'); doc.setFontSize(bodySize);
           doc.setTextColor(...palette.chord);
           doc.text(marker, MARGIN + x, chordBaselineY + (shownLyricCount * pdfLineHeight(bodySize)) / 2 + bodySize * 0.35);
+        }
         }
 
         y += bodySize * 0.35;
