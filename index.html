@@ -3198,6 +3198,11 @@ document.getElementById('pdfDeviceSelect').addEventListener('change', (e) => {
 });
 
 let pdfBlobUrl = null; // revoke the previous one each time a new PDF is generated
+// Downloads with an identical filename can fail instead of being
+// auto-renumbered by the browser, so each generated name is made unique
+// for the session: the first keeps its plain name, later ones get
+// " (1)", " (2)", … before the extension.
+const pdfFilenameCounts = {};
 
 document.getElementById('pdfGenerateBtn').addEventListener('click', async () => {
   const btn = document.getElementById('pdfGenerateBtn');
@@ -3210,11 +3215,14 @@ document.getElementById('pdfGenerateBtn').addEventListener('click', async () => 
     const { blob, filename } = pdfType === 'print-friendly'
       ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, pdfSelectedSongIds)
       : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, pdfSelectedSongIds);
+    const seen = (pdfFilenameCounts[filename] || 0) + 1;
+    pdfFilenameCounts[filename] = seen;
+    const uniqueName = seen > 1 ? filename.replace(/\.pdf$/i, ` (${seen - 1}).pdf`) : filename;
     if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
     pdfBlobUrl = URL.createObjectURL(blob);
     link.href = pdfBlobUrl;
-    link.download = filename;
-    link.textContent = `↓ Download ${filename}`;
+    link.download = uniqueName;
+    link.textContent = `↓ Download ${uniqueName}`;
     link.style.display = 'block';
   } catch(err){
     console.error(err);
