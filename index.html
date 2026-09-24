@@ -3908,18 +3908,28 @@ document.getElementById('btnNewFile').addEventListener('click', (e) => {
 /* ---------------------------------------------------------
    Helpers
 --------------------------------------------------------- */
-// On macOS, both Safari and Chrome route keyboard input through the same
-// system text layer, so the OS-level "add period with double-space"
-// setting (System Settings > Keyboard) can fire in either browser — it's
-// not Safari-specific, so a Safari-only fix (autocorrect="off") does
-// nothing in Chrome. The `beforeinput` event exposes *why* text is being
-// inserted, though: a real keystroke is `insertText`, while an
-// OS/browser autocorrection is `insertReplacementText`. Blocking just
-// that inputType stops the auto-replacement without touching normal
-// typing — including genuinely fast, deliberate double (or more) spaces.
+// On macOS, the OS-level "add period with double-space" setting
+// (System Settings > Keyboard) can fire in any browser — it's not
+// Safari-specific, so a Safari-only fix (autocorrect="off") does nothing
+// in Chrome. The two browsers just report it differently: Safari fires
+// `beforeinput` with inputType `insertReplacementText`, while Chrome on
+// macOS fires inputType `insertText` with data "." and a *non-collapsed*
+// target range covering the just-typed space(s). A genuine "." keystroke
+// always has a collapsed range, so the two are distinguishable: block the
+// replacement only when "." (or ". ") would overwrite whitespace.
+// Everything else — deliberately typed periods (even over a selected word),
+// fast deliberate double (or more) spaces, pastes — passes through untouched.
 function preventAutoReplace(el){
   el.addEventListener('beforeinput', (e) => {
-    if (e.inputType === 'insertReplacementText') e.preventDefault();
+    if (e.inputType === 'insertReplacementText'){ e.preventDefault(); return; }
+    if (e.inputType === 'insertText' && (e.data === '.' || e.data === '. ')){
+      let r = null;
+      try { r = e.getTargetRanges ? e.getTargetRanges()[0] : null; } catch(_){ r = null; }
+      if (r && r.endOffset > r.startOffset){
+        const replaced = String(el.value == null ? '' : el.value).slice(r.startOffset, r.endOffset);
+        if (/^[ \t]+$/.test(replaced)) e.preventDefault();
+      }
+    }
   });
 }
 
