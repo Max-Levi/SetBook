@@ -3532,6 +3532,11 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
         `Formatted for ${device.label} \u2014 ${landscape ? 'Landscape' : 'Portrait'} \u2014 ${isDark ? 'Dark mode' : 'Light mode'}`,
         MARGIN, sc(92)
       );
+    } else {
+      // continuation pages get a small header so they still read as the contents
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(16));
+      doc.setTextColor(...palette.muted);
+      doc.text(`Contents \u00b7 page ${tp + 1} of ${numTocPages}`, MARGIN, sc(55));
     }
     const startIdx = tp * rowsPerTocPage;
     const endIdx = Math.min(songs.length, startIdx + rowsPerTocPage);
@@ -3540,17 +3545,75 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       const s = songs[i];
       const meta = songMeta.get(s.group.id);
       const label = s.group.name || 'Untitled Song';
+      // right-aligned page indicator: tappable, jumps to the song's title page.
+      // Its left edge reserves space first, so a long title + artist never
+      // runs into it — the artist is trimmed with an ellipsis when needed.
+      const pageLabel = String(meta.firstPageNumber);
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+      const pageNumLeft = PAGE_W - MARGIN - doc.getTextWidth(pageLabel);
       doc.setFont('helvetica','bold'); doc.setFontSize(sc(16));
       doc.setTextColor(...palette.text);
       doc.textWithLink(label, MARGIN, y, { pageNumber: meta.firstPageNumber });
+      const labelW = doc.getTextWidth(label);
       if (s.group.artist){
-        const labelW = doc.getTextWidth(label);
+        let artistTxt = '— ' + s.group.artist;
         doc.setFont('helvetica','normal'); doc.setFontSize(sc(12));
         doc.setTextColor(...palette.muted);
-        doc.text('— ' + s.group.artist, MARGIN + labelW + sc(10), y);
+        const maxArtistW = pageNumLeft - sc(8) - (MARGIN + labelW + sc(10));
+        if (maxArtistW > doc.getTextWidth('…')){
+          let trimmed = false;
+          while (artistTxt.length > 1 && doc.getTextWidth(artistTxt + '…') > maxArtistW){ artistTxt = artistTxt.slice(0, -1); trimmed = true; }
+          if (trimmed) artistTxt += '…';
+          doc.text(artistTxt, MARGIN + labelW + sc(10), y);
+        }
+        // no room even for an ellipsis: the artist is dropped, the title stays
       }
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+      doc.setTextColor(...palette.accent);
+      doc.textWithLink(pageLabel, PAGE_W - MARGIN, y, { align:'right', pageNumber: meta.firstPageNumber });
       doc.link(MARGIN, y - sc(16), PAGE_W - 2 * MARGIN, sc(22), { pageNumber: meta.firstPageNumber });
       y += TOC_ROW_H;
+    }
+    // When the contents run to several pages, bottom-of-page prev/next
+    // links move between them — the same pattern as the section
+    // navigation at the bottom of song pages. (ToC pages are PDF pages
+    // 1..numTocPages, so the previous page from tp is tp, 1-based.)
+    if (numTocPages > 1){
+      const tocNavSize = sc(11);
+      const tocNavY = PAGE_H - sc(26); // baseline — matches the section nav position
+      const tocNavGap = sc(7);
+      const tocArrowHW = tocNavSize * 0.5;  // arrow triangle half-width
+      const tocArrowHH = tocNavSize * 0.42; // arrow triangle half-height
+      const tocArrowCy = tocNavY - tocNavSize * 0.35;
+      const drawTocArrow = (cx, dir) => {
+        // vector triangle (not a font glyph) so it renders identically in
+        // every PDF viewer, even when the embedded font fails to load
+        doc.setFillColor(...palette.accent);
+        if (dir < 0) doc.triangle(cx - tocArrowHW, tocArrowCy, cx + tocArrowHW, tocArrowCy - tocArrowHH, cx + tocArrowHW, tocArrowCy + tocArrowHH, 'F');
+        else doc.triangle(cx + tocArrowHW, tocArrowCy, cx - tocArrowHW, tocArrowCy - tocArrowHH, cx - tocArrowHW, tocArrowCy + tocArrowHH, 'F');
+      };
+      const tocNavLinkRect = (x, w, pageNumber) => {
+        doc.link(x - sc(4), tocNavY - tocNavSize * 1.25, w + sc(8), tocNavSize * 1.7, { pageNumber });
+      };
+      doc.setFont('helvetica','bold');
+      doc.setFontSize(tocNavSize);
+      doc.setTextColor(...palette.accent);
+      if (tp > 0){
+        const prevLabel = 'prev';
+        const prevW = doc.getTextWidth(prevLabel);
+        const prevX = MARGIN + tocArrowHW * 2 + tocNavGap;
+        drawTocArrow(MARGIN + tocArrowHW, -1);
+        doc.textWithLink(prevLabel, prevX, tocNavY, { pageNumber: tp });
+        tocNavLinkRect(MARGIN, tocArrowHW * 2 + tocNavGap + prevW, tp);
+      }
+      if (tp < numTocPages - 1){
+        const nextLabel = 'next';
+        const nextW = doc.getTextWidth(nextLabel);
+        const nextX = PAGE_W - MARGIN - tocArrowHW * 2 - tocNavGap - nextW;
+        drawTocArrow(PAGE_W - MARGIN - tocArrowHW, 1);
+        doc.textWithLink(nextLabel, nextX, tocNavY, { pageNumber: tp + 2 });
+        tocNavLinkRect(nextX - tocArrowHW * 2 - tocNavGap, nextW + tocArrowHW * 2 + tocNavGap, tp + 2);
+      }
     }
   }
 
