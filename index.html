@@ -548,6 +548,27 @@
     box-sizing:border-box; margin-bottom:9px;
   }
   .sidebar-search:focus{ outline:none; border-color: var(--focus-border); }
+  /* Collapsible Filters row: everything but search lives behind one toggle
+     so the song list gets most of the sidebar. */
+  .filters-toggle{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    width:100%; box-sizing:border-box; margin-bottom:9px; padding:8px 10px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    color: var(--text); font-family:inherit; font-size:12.5px; font-weight:600;
+    cursor:pointer; text-align:left;
+  }
+  .filters-toggle:hover{ border-color: var(--focus-border); }
+  .filters-toggle:focus-visible{ outline:2px solid var(--focus-border); outline-offset:1px; }
+  .filters-toggle-text{
+    display:flex; align-items:baseline; gap:8px; min-width:0; flex:1;
+  }
+  .filters-toggle-summary{
+    font-weight:400; color: var(--text-muted); font-size:11.5px; min-width:0;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .filters-toggle-chev{ color: var(--text-muted); font-size:11px; flex-shrink:0; }
+  .filters-panel{ display:block; }
+  .sidebar-tools.filters-collapsed .filters-panel{ display:none; }
   .tools-section{
     padding-top:10px; margin-top:10px; border-top:1px solid var(--border);
   }
@@ -619,11 +640,16 @@
     overflow:hidden;
   }
   .group-head{
-    display:flex; align-items:center; gap:8px;
+    display:flex; flex-direction:column; gap:3px;
     padding:8px 10px;
     cursor:pointer;
     border-radius:6px;
   }
+  .group-head-main{
+    display:flex; align-items:center; gap:8px;
+  }
+  .group-badges{ padding-left:22px; }
+  .group-badges .group-type{ margin-top:0; }
   .group-head:hover{ background: var(--panel-2); }
   .group-head.active{ background: var(--panel-2); }
   .group-head .chev{ color: var(--text); font-size:15px; width:14px; flex-shrink:0; text-align:center; }
@@ -674,7 +700,7 @@
     font-family:inherit; border-radius:3px;
   }
   .group-video-edit:hover{ background: var(--hover-bg); color: var(--text); }
-  .group-type{ margin-top:3px; display:flex; gap:5px; flex-wrap:wrap; }
+  .group-type{ margin-top:3px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
   .group-type-badge{
     background: var(--panel-2); border:1px solid var(--border); color: var(--text-muted);
     font-size:10px; font-weight:600; padding:2px 7px; border-radius:10px; cursor:pointer;
@@ -687,10 +713,10 @@
     color: var(--text-muted); font-size:11px; line-height:1.35; overflow-wrap:break-word;
   }
   .details-toggle{
-    align-self:flex-start; background:none; border:none; cursor:pointer;
+    background:none; border:none; cursor:pointer;
     color: var(--text-muted); font-family:inherit; font-size:11px;
-    display:inline-flex; align-items:center; gap:5px;
-    padding:3px 2px; margin-top:3px; border-radius:4px;
+    display:inline-flex; align-items:center; gap:4px;
+    padding:4px 4px; border-radius:4px;
   }
   .details-toggle:hover{ color: var(--gold); }
   .details-toggle .dt-chev{ font-size:9px; }
@@ -855,6 +881,9 @@
       border:1px solid var(--border); border-radius:8px;
       color:var(--text-muted); font-size:18px; cursor:pointer;
     }
+    /* Filters row: full 44px touch target on small screens. */
+    .filters-toggle{ min-height:44px; font-size:13px; }
+    .filters-toggle-summary{ font-size:12px; }
   }
 
   .add-line-btn{ margin: 6px 0 10px 30px; }
@@ -965,7 +994,7 @@
     .filter-select{ min-height:44px; font-size:14px; }
     .tag-pill{ font-size:13px; }
     .tag-pill button{ min-width:44px; min-height:44px; }
-    .details-toggle{ min-height:44px; align-self:stretch; justify-content:flex-start; font-size:12.5px; }
+    .group-type .details-toggle{ min-height:44px; align-self:center; justify-content:flex-start; font-size:12.5px; }
     .group-details{ margin-left:20px; }
     .details-artist-field{ font-size:16px; }
     .tag-add-input{ min-height:44px; font-size:14px; flex-basis:140px; }
@@ -1318,8 +1347,9 @@
             <li>Songs can carry custom tags: open a song's <strong>Details</strong> panel and use the tag editor — type a tag and press Enter (a comma works too); each tag becomes a removable pill. Duplicates are ignored case-insensitively. The sidebar's Filter section offers a tag picker and an artist picker (every tag/artist in the library, A–Z, with a song count beside each, plus an "All" default); a picker selection that no longer exists falls back to All. The tag and artist filters compose with the Cover/Original and Ready/Not ready filters, apply to search results as well, and — like the other filters — close the open song if it gets filtered out of view.</li>
             <li>Multiple artists: the artist field in Details takes one artist per line. The header shows them joined with commas, the artist picker lists each artist separately, and a song matches the artist filter when <em>any</em> of its artists is picked. Sorting by artist uses the first listed artist, and the suggestion popup completes the line being typed.</li>
             <li>Filter toggles: Cover/Original and Ready/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables both filters; All shows active whenever both are on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that flips its value. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
+            <li>Filters row: everything below the search box — sort, the Show pills, the tag/artist pickers, and Expand/Collapse all — lives behind one <strong>Filters</strong> toggle so the song list gets most of the sidebar. The toggle starts collapsed and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
-            <li>Each song card shows an editable title, a read-only artist summary, and clickable Cover/Original and Ready/Not Ready badges. A collapsible <strong>Details</strong> panel under the card holds the artist(s) editor (one per line), the tag editor, and the video link (with open/edit controls). Details stays collapsed until opened and is remembered per card for the session.</li>
+            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the video link (with open/edit controls). Details stays collapsed until opened and is remembered per card for the session.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
             <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Number single sections is saved in the file.</li>
           </ul>
@@ -1410,12 +1440,12 @@
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
-            <li><strong>Sidebar:</strong> search filters the song list; title and artist sorting reorder correctly; Cover/Original, Ready/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
+            <li><strong>Sidebar:</strong> search filters the song list; the Filters toggle collapses and expands the sort/filter controls and its summary line reflects the active filters; title and artist sorting reorder correctly; Cover/Original, Ready/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
             <li><strong>Save:</strong> Save as produces a file download with no errors.</li>
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), and <code>setbook-qa/filter-panel-test.js</code> (25 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -1430,6 +1460,14 @@
     <div class="sidebar-tools">
       <input id="sidebarSearch" class="sidebar-search" type="text" placeholder="Search lyrics, chords, sections…">
 
+      <button id="filtersToggle" class="filters-toggle" aria-expanded="false" aria-controls="filtersPanel" title="Show sort and filter controls">
+        <span class="filters-toggle-text">
+          <span class="filters-toggle-label">Filters</span>
+          <span class="filters-toggle-summary" id="filtersSummary"></span>
+        </span>
+        <span class="filters-toggle-chev" id="filtersToggleChev">▸</span>
+      </button>
+      <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
         <div class="tools-section-label">Sort by</div>
         <div class="tools-buttons">
@@ -1464,6 +1502,7 @@
           <button class="ghost small" id="collapseAllBtn">Collapse all</button>
         </div>
       </div>
+      </div><!-- /filtersPanel -->
     </div>
     <div id="sidebarList" class="sidebar-list"></div>
     <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
@@ -1744,6 +1783,47 @@ document.getElementById('tagFilterSelect').addEventListener('change', e => {
   scheduleSave();
   renderAll();
 });
+
+// Collapsible Filters row. Sort, Show, tag/artist pickers, and expand-all
+// live behind one toggle so the song list gets most of the sidebar; the
+// toggle shows a one-line summary of what's active. Open/closed is a
+// per-device UI preference, persisted in localStorage.
+const FILTERS_PANEL_KEY = 'setbook-filters-open';
+let filtersPanelOpen = false;
+try { filtersPanelOpen = localStorage.getItem(FILTERS_PANEL_KEY) === '1'; } catch(_){}
+
+function updateFiltersPanel(){
+  const tools = document.querySelector('.sidebar-tools');
+  if (tools) tools.classList.toggle('filters-collapsed', !filtersPanelOpen);
+  const toggle = document.getElementById('filtersToggle');
+  if (toggle) toggle.setAttribute('aria-expanded', filtersPanelOpen ? 'true' : 'false');
+  const chev = document.getElementById('filtersToggleChev');
+  if (chev) chev.textContent = filtersPanelOpen ? '▾' : '▸';
+}
+
+function updateFiltersSummary(){
+  const parts = [];
+  if (state.tagFilter) parts.push('Tag: ' + state.tagFilter);
+  if (state.artistFilter) parts.push('Artist: ' + state.artistFilter);
+  const tf = state.songTypeFilter || { cover: true, original: true };
+  if (tf.cover && !tf.original) parts.push('Covers only');
+  else if (!tf.cover && tf.original) parts.push('Originals only');
+  else if (!tf.cover && !tf.original) parts.push('No types shown');
+  const rf = state.readyFilter || { ready: true, notReady: true };
+  if (rf.ready && !rf.notReady) parts.push('Ready only');
+  else if (!rf.ready && rf.notReady) parts.push('Not ready only');
+  else if (!rf.ready && !rf.notReady) parts.push('None ready');
+  if (songSortField !== 'title' || songSortDir !== 'asc')
+    parts.push('Sort: ' + (songSortField === 'artist' ? 'Artist' : 'Title') + ' ' + (songSortDir === 'asc' ? 'A–Z' : 'Z–A'));
+  const el = document.getElementById('filtersSummary');
+  if (el) el.textContent = parts.join(' · ');
+}
+
+document.getElementById('filtersToggle').addEventListener('click', () => {
+  filtersPanelOpen = !filtersPanelOpen;
+  try { localStorage.setItem(FILTERS_PANEL_KEY, filtersPanelOpen ? '1' : '0'); } catch(_){}
+  updateFiltersPanel();
+});
 document.getElementById('artistFilterSelect').addEventListener('change', e => {
   state.artistFilter = e.target.value;
   closeOpenSongIfFilteredOut();
@@ -1960,6 +2040,7 @@ function updateArtistSummary(scopeEl, group){
 
 function renderSidebar(){
   updateFilterSelects();
+  updateFiltersSummary();
   const el = document.getElementById('sidebarList');
   el.innerHTML = '';
   updateSortButtons();
@@ -1991,17 +2072,21 @@ function renderSidebar(){
 
     const head = document.createElement('div');
     head.className = 'group-head' + (selectedGroupId === group.id ? ' active' : '');
+    /* Two-row card: the main row holds the expand chevron, editable name,
+       artist summary, and action buttons; the badges row below spans the
+       full card width so Cover / Ready / Details always share one line. */
     head.innerHTML = `
-      ${focusGroup ? '' : `<span class="chev">${isExpanded ? '▾' : '▸'}</span>`}
-      <div class="group-titles">
-        <span class="group-name" data-gid="${group.id}"></span>
-        <span class="group-artist-summary"></span>
-        <span class="group-type"></span>
-        <button type="button" class="details-toggle" aria-expanded="false" title="Show song details: artists, tags, video link"><span class="dt-chev">▸</span> Details</button>
+      <div class="group-head-main">
+        ${focusGroup ? '' : `<span class="chev">${isExpanded ? '▾' : '▸'}</span>`}
+        <div class="group-titles">
+          <span class="group-name" data-gid="${group.id}"></span>
+          <span class="group-artist-summary"></span>
+        </div>
+        <span class="group-count">${secs.length}</span>
+        ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${group.id}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
+        <button class="icon danger" data-action="del-group" data-gid="${group.id}" title="Delete song">✕</button>
       </div>
-      <span class="group-count">${secs.length}</span>
-      ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${group.id}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
-      <button class="icon danger" data-action="del-group" data-gid="${group.id}" title="Delete song">✕</button>
+      <div class="group-badges"><span class="group-type"></span></div>
     `;
     const nameSpan = head.querySelector('.group-name');
     const nameInput = document.createElement('textarea');
@@ -2063,6 +2148,16 @@ function renderSidebar(){
       renderSidebar();
     });
     typeSpan.appendChild(readyBtn);
+
+    /* Details toggle lives inline with the type/ready badges so each song
+       card costs one fewer vertical line. */
+    const detailsToggleBtn = document.createElement('button');
+    detailsToggleBtn.type = 'button';
+    detailsToggleBtn.className = 'details-toggle';
+    detailsToggleBtn.setAttribute('aria-expanded', 'false');
+    detailsToggleBtn.title = 'Show song details: artists, tags, video link';
+    detailsToggleBtn.innerHTML = '<span class="dt-chev">▸</span> Details';
+    typeSpan.appendChild(detailsToggleBtn);
 
     const focusBtn = head.querySelector('[data-action="focus"]');
     if (focusBtn) focusBtn.addEventListener('click', (e) => {
@@ -5557,6 +5652,7 @@ function showUndoToastFor(entry){
 }
 document.getElementById('btnUndo').addEventListener('click', doUndo);
 updateUndoButton(); // boot state: disabled with a "Nothing to undo" tooltip
+updateFiltersPanel(); // boot state: filters row open/closed from device preference
 document.addEventListener('keydown', (e) => {
   if ((e.ctrlKey || e.metaKey) && !e.shiftKey && (e.key === 'z' || e.key === 'Z')){
     const t = e.target;
