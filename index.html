@@ -485,6 +485,38 @@
   .sidebar-resize-handle:hover, .sidebar-resize-handle.dragging{
     background: rgba(201,162,39,.35);
   }
+  /* ---------- pull to refresh (touch) ----------
+     The app shell locks the document (body height:100vh, overflow:hidden),
+     so mobile browsers never fire their native pull-to-refresh gesture.
+     The editor gets its own: a downward pull from the very top reveals a
+     pill, and releasing past the threshold reloads the page. The pill is
+     decorative (pointer-events:none) and takes no layout space at rest. */
+  .ptr-indicator{
+    position:sticky; top:0; z-index:60;
+    height:52px; margin-bottom:-52px;
+    display:flex; align-items:flex-start; justify-content:center;
+    pointer-events:none;
+    transform:translateY(-52px);
+    transition:transform .18s ease-out;
+  }
+  .ptr-pill{
+    display:flex; align-items:center; gap:8px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:999px;
+    padding:7px 14px; font-size:12.5px; color:var(--text-muted);
+    box-shadow:0 4px 14px rgba(0,0,0,.25);
+    margin-top:8px;
+  }
+  .ptr-spinner{
+    width:13px; height:13px; border-radius:50%;
+    border:2px solid var(--border); border-top-color:var(--gold);
+    opacity:0; transition:opacity .15s;
+    animation:ptr-spin .7s linear infinite;
+  }
+  .ptr-indicator.ptr-ready .ptr-pill{ color:var(--text); border-color:var(--gold); }
+  .ptr-indicator.ptr-ready .ptr-spinner{ opacity:1; }
+  @keyframes ptr-spin{ to{ transform:rotate(360deg); } }
+  @media (prefers-reduced-motion: reduce){ .ptr-spinner{ animation:none; } }
+
   /* ---------- mobile: the sidebar becomes a slide-in drawer ----------
      On narrow viewports the 270px sidebar would leave the editor only a
      sliver of space, so it moves off-canvas and opens as an overlay
@@ -1351,6 +1383,7 @@
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
             <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the video link (with open/edit controls). Details stays collapsed until opened and is remembered per card for the session.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
+            <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch screen slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
             <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Number single sections is saved in the file.</li>
           </ul>
         </section>
@@ -1445,7 +1478,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), and <code>setbook-qa/filter-panel-test.js</code> (25 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (25 checks), and <code>setbook-qa/pull-refresh-test.js</code> (12 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -2783,6 +2816,10 @@ function showRowMenu(anchorBtn, row){
 function renderMain(){
   const main = document.getElementById('main');
   main.innerHTML = '';
+  // Pull-to-refresh pill (touch): re-attached on every render because
+  // renderMain() rebuilds main's contents. It takes no layout space and
+  // stays translated out of view until a pull gesture reveals it.
+  if (typeof ptrIndicator !== 'undefined') main.prepend(ptrIndicator);
 
   const sec = state.sections.find(s => s.id === selectedSectionId);
   const group = state.sectionGroups.find(g => g.id === selectedGroupId);
@@ -4196,6 +4233,74 @@ document.addEventListener('keydown', (e) => {
 // If the viewport grows out of the mobile range with the drawer open,
 // reset so the desktop layout can't inherit a stuck-open state.
 mobileSidebarMQ.addEventListener('change', (e) => { if (!e.matches) setSidebarOpen(false); });
+
+/* ---------------------------------------------------------
+   Pull to refresh (touch only).
+   The app shell locks the document (body height:100vh, overflow:hidden),
+   so mobile browsers never fire their native pull-to-refresh gesture.
+   The editor gets its own: a downward pull from the very top of the song
+   editor reveals a pill, and releasing past the threshold reloads the
+   page. renderMain() rebuilds main's contents, so it re-attaches the
+   indicator on every render (see renderMain).
+--------------------------------------------------------- */
+const ptrIndicator = document.createElement('div');
+ptrIndicator.className = 'ptr-indicator';
+ptrIndicator.setAttribute('aria-hidden', 'true');
+ptrIndicator.innerHTML = '<span class="ptr-pill"><span class="ptr-spinner"></span><span class="ptr-label">Pull to reload</span></span>';
+
+(function initPullToRefresh(){
+  const main = document.getElementById('main');
+  if (!main || !('ontouchstart' in window)) return;
+  const label = ptrIndicator.querySelector('.ptr-label');
+  const HIDE_Y = -52, THRESHOLD = 70, MAX_TRAVEL = 110;
+  let startY = null, pulling = false, travel = 0;
+
+  const setTravel = (t) => {
+    travel = t;
+    ptrIndicator.style.transform = 'translateY(' + (HIDE_Y + t) + 'px)';
+    const ready = t >= THRESHOLD;
+    ptrIndicator.classList.toggle('ptr-ready', ready);
+    label.textContent = ready ? 'Release to reload' : 'Pull to reload';
+  };
+  const resetPtr = () => {
+    startY = null; pulling = false; travel = 0;
+    ptrIndicator.style.transition = '';
+    ptrIndicator.style.transform = '';
+    ptrIndicator.classList.remove('ptr-ready');
+    label.textContent = 'Pull to reload';
+  };
+
+  main.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1){ startY = null; return; }
+    // Arm only when the editor is already at its very top; otherwise the
+    // gesture is a normal scroll and the browser keeps it.
+    startY = (main.scrollTop < 1) ? e.touches[0].clientY : null;
+  }, { passive: true });
+
+  main.addEventListener('touchmove', (e) => {
+    if (startY === null || e.touches.length !== 1) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy > 10 && main.scrollTop < 1){
+      if (!pulling){ pulling = true; ptrIndicator.style.transition = 'none'; }
+      e.preventDefault();
+      setTravel(Math.min(MAX_TRAVEL, dy * 0.55));
+    } else if (pulling && dy <= 10){
+      resetPtr();
+    }
+  }, { passive: false });
+
+  main.addEventListener('touchend', () => {
+    if (!pulling) return;
+    if (travel >= THRESHOLD){
+      label.textContent = 'Reloading…';
+      ptrIndicator.classList.add('ptr-ready');
+      location.reload();
+    } else {
+      resetPtr();
+    }
+  });
+  main.addEventListener('touchcancel', resetPtr);
+})();
 
 document.getElementById('btnSetFolder').addEventListener('click', async () => {
   if (!('showDirectoryPicker' in window)){
