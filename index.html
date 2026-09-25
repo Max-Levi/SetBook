@@ -76,6 +76,7 @@
     --success: #6fae6a;
     --save-dot-idle: #5c5a56;
     --scrollbar-thumb: #3a3a3f;
+    --brand-green: #a3e3b2;
   }
   /* Clean, fresh light palette — warm off-white rather than stark white,
      with a deeper amber accent (the dark theme's bright gold reads too
@@ -102,6 +103,7 @@
     --success: #4a9350;
     --save-dot-idle: #b3ac98;
     --scrollbar-thumb: #ddd7c6;
+    --brand-green: #1d6b38;
   }
   *{ box-sizing: border-box; }
   html,body{ height:100%; }
@@ -127,10 +129,12 @@
     background: var(--panel);
     flex-shrink:0;
   }
-  .brand{ display:flex; align-items:baseline; gap:10px; }
+  .brand{ display:flex; align-items:center; gap:10px; }
   .brand h1{
-    font-size:17px; margin:0; font-weight:600; letter-spacing:.2px;
+    font-size:19px; margin:0; font-weight:700; letter-spacing:.2px;
+    color:var(--brand-green);
   }
+  .brand-mark{ width:30px; height:26px; flex-shrink:0; color:var(--brand-green); }
   .brand span{ color: var(--gold); }
   .brand small{ color: var(--text-muted); font-size:12px; }
   /* QA environment badge — only ever inserted when the IS_QA build flag
@@ -994,6 +998,44 @@
   .bulk-paste-textarea:focus{ outline:none; border-color: var(--focus-border); }
   .bulk-paste-actions{ display:flex; justify-content:flex-end; gap:8px; }
 
+  /* Add song from URL: mass-entry section editor. Each scraped-text block
+     becomes one section; blocks split recursively at any line. */
+  .mass-entry{ max-width:760px; }
+  .mass-entry-kicker{
+    display:inline-block; font-size:12px; font-weight:700; text-transform:uppercase;
+    letter-spacing:.5px; color:var(--gold); border:1px solid var(--gold);
+    border-radius:20px; padding:4px 12px; margin-bottom:2px;
+  }
+  .mass-entry-hint{ font-size:12px; color:var(--text-muted); line-height:1.55; margin:2px 0 14px; }
+  .mass-block{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    padding:10px 12px; margin-bottom:12px;
+  }
+  .mass-block-head{ display:flex; align-items:center; gap:10px; margin-bottom:8px; flex-wrap:wrap; }
+  .mass-block-label{ font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:.4px; }
+  .mass-type-select{
+    font-size:13px; padding:8px 10px; border-radius:6px; border:1px solid var(--border);
+    background:var(--panel); color:var(--text); min-height:44px;
+  }
+  .mass-block-shows{ font-size:12px; color:var(--text-muted); }
+  .mass-del-block{ margin-left:auto; }
+  .mass-line-row{ display:flex; gap:6px; align-items:center; margin-bottom:4px; }
+  .mass-line-input{
+    flex:1; min-width:0; font-size:13px; padding:10px; border-radius:6px;
+    border:1px solid var(--border); background:var(--panel); color:var(--text);
+    min-height:44px; box-sizing:border-box;
+  }
+  .mass-line-input:focus{ outline:none; border-color:var(--focus-border); }
+  .mass-line-row .ghost.small{ min-height:44px; flex:none; }
+  .mass-actions{ display:flex; gap:8px; margin:16px 0 30px; flex-wrap:wrap; align-items:center; }
+  .mass-actions .spacer{ flex:1; }
+  .mass-reset-armed{ border-color:#e08080 !important; color:#e08080 !important; }
+  .url-import-row{ display:flex; gap:8px; margin-top:6px; }
+  .url-import-row .modal-input{ flex:1; min-width:0; }
+  .url-import-status{ font-size:12.5px; color:var(--text-muted); margin-top:10px; min-height:18px; line-height:1.4; }
+  .url-import-status.error{ color:#e08080; }
+  .url-import-note{ font-size:11.5px; color:var(--text-muted); line-height:1.5; margin-top:10px; }
+
   .preview-block{ max-width:760px; }
   .preview-label{
     font-size:11px; color: var(--text-muted); margin-bottom:8px; letter-spacing:.3px;
@@ -1108,7 +1150,8 @@
 <header>
   <button class="ghost small" id="btnSidebarToggle" title="Song library" aria-label="Open song library"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M64 128 h384 M64 256 h384 M64 384 h384" stroke="currentColor" stroke-width="52" fill="none" stroke-linecap="round"/></svg></button>
   <div class="brand">
-    <h1>Set<span>Book</span></h1>
+    <svg class="brand-mark" viewBox="0 0 44 36" aria-hidden="true"><path d="M22 9 C15 3.5, 8 3.5, 4 6 V28.5 C8 26, 15 26, 22 32 C29 26, 36 26, 40 28.5 V6 C36 3.5, 29 3.5, 22 9 Z" fill="none" stroke="currentColor" stroke-width="3.6" stroke-linejoin="round"/><path d="M22 9 V32" stroke="currentColor" stroke-width="3.6" stroke-linecap="round"/></svg>
+    <h1>SetBook</h1>
     <div class="file-status" id="fileStatus">
       <span class="file-name" id="fileNameLabel">No file open</span>
       <span class="save-dot" id="saveDot"></span>
@@ -1233,6 +1276,24 @@
       <button type="button" class="ghost small" id="pdfCancelBtn">Close</button>
       <button type="button" class="primary small" id="pdfGenerateBtn">Generate PDF</button>
     </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="urlImportOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Add song from URL</h2>
+    <p class="modal-sub">Paste a link to a page with the song's text. SetBook fetches it, pulls out the text lines, and opens a mass-entry section where you split the text into sections, tidy it up, then create the sections.</p>
+    <label class="modal-label" for="urlImportInput">URL</label>
+    <div class="url-import-row">
+      <input id="urlImportInput" class="modal-input" inputmode="url" placeholder="https://…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
+    </div>
+    <div class="url-import-status" id="urlImportStatus" role="status"></div>
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="urlImportCancelBtn">Cancel</button>
+      <button type="button" class="primary small" id="urlImportFetchBtn">Fetch text</button>
+    </div>
+    <p class="url-import-note">The site must allow cross-origin reads — plain-text and raw-file URLs work best. Only http(s) addresses are fetched.</p>
   </div>
 </div>
 
@@ -1444,6 +1505,7 @@
             <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (album-version link, optional), <code>videoUrlLive</code> (live-performance link, optional), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
             <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, <code>updatedAt</code> (ms-epoch timestamp of the section's last edit; <code>null</code> on older files, shown as "unknown"), and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
+            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryBlocks[]</code> — each block <code>{ id, nameType, lines[] }</code> holding raw text strings, one per line. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
             <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>autoNumberSections</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
           </ul>
@@ -1461,6 +1523,7 @@
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
             <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
+            <li><strong>Add song from URL:</strong> a button beneath "+ New song" opens a dialog that fetches the text lines from a URL and creates a new song whose first section is a mass-entry staging area (see the Section editor). Plain-text and raw-file URLs work best; the site must allow cross-origin reads, and only http(s) addresses are fetched.</li>
             <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch screen slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
             <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Auto-number sections and Number single sections are saved in the file.</li>
           </ul>
@@ -1483,6 +1546,7 @@
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
+            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor. It starts as a single block typed Intro holding every scraped line as an editable raw-text row. Each block has its own section-type picker ("becomes: X" previews what the block will turn into); every row has <strong>Split</strong> (divides the block above that row — blocks can be split again and again) and <strong>✕</strong> (deletes the row), and a whole block can be deleted. <strong>Reset to scraped text</strong> restores the original text as one Intro block after a two-tap confirmation; <strong>Create sections</strong> turns every non-empty block into a real section in block order (each block's lines pass through the normal chord/lyric parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — reserved for a future scraper extension.</li>
           </ul>
         </section>
         <section id="help-preview">
@@ -1497,6 +1561,7 @@
             <li>Both pipelines use the embedded IBM Plex Mono typeface so chord alignment is exact in any PDF viewer.</li>
             <li>Export scope: all songs in the library, one saved subset, or a manual per-song checklist. The checklist offers bulk selection — Select all, Select none, and Ready only (songs whose ready status is Ready). Like a manual checkbox change, a bulk selection clears the subset dropdown so the selection is clearly custom.</li>
             <li>On phones the PDF dialog keeps its Generate button visible in a sticky footer while the options scroll; the desktop layout is unchanged. Regenerating the same PDF in one session appends " (1)", " (2)", … to the filename so repeat downloads never fail on a name collision.</li>
+            <li>Mass-entry staging sections are never exported: every PDF path goes through <code>printableSections()</code>, which filters out sections flagged <code>massEntry</code> — a song with only a staging section is excluded from the song list entirely.</li>
           </ul>
         </section>
         <section id="help-files">
@@ -1526,6 +1591,7 @@
             <li>UI icons are hand-drawn inline SVGs (<code>&lt;svg class="svg-icon" viewBox="0 0 512 512"&gt;</code>) embedded directly in the markup — there is no icon font or icon CDN. To add an icon, inline a new SVG with the <code>svg-icon</code> class; it sizes to <code>1em</code> and inherits <code>currentColor</code>. Do not reintroduce an external icon library.</li>
             <li>The jsPDF library loads from the cdnjs CDN with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update both the script tag and <code>setbook-qa/security-test.js</code>, which asserts the exact hash.</li>
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
+            <li>URL import (Add song from URL) is the app's only fetch-from-URL feature, and its security model is: fetch gates the scheme on the <em>resolved</em> URL (only <code>http:</code>/<code>https:</code>) so smuggled schemes can't pass; HTML extraction runs through <code>DOMParser</code>, which never executes scripts; and scraped text is only ever assigned to input <code>value</code> properties or plain strings — never <code>innerHTML</code>. The <code>setbook-url-import</code> event hook normalizes its text through the same path before creating the staging section.</li>
             <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
             <li>Mobile UX is a standing requirement on every change, not a separate pass: any UI addition or alteration must also be adapted and verified at phone width (≤760px). New header controls need ≥44px touch targets; new modals must pick up the compact mobile styling (94vw sheet, tightened type, enlarged action buttons); drawer interactions must hand the full screen to the editor (close the drawer when a section, search result, or "+ Add section" is chosen, keep it open while naming a new song). Verify with the mobile Playwright suite (<code>setbook-qa/mobile-drawer-test.js</code>) plus a 390px visual pass.</li>
             <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. Section renames are detected by comparing the <code>(nameType, customName, nameSuffix)</code> triple rather than the display name, so auto-numbering shifts ("Chorus" → "Chorus 1") don't read as renames; <code>songIsEmpty()</code> keeps contentless placeholder songs out of the diff. It is a pure function of two states; the Snapshots modal and the open-file conflict modal are the callers. <code>renderDiffInto()</code> accepts <code>{ showTimes: true }</code> to append each song's and section's last-modified time on both sides (the later highlighted), used by the conflict modal; the Snapshots Compare view renders without it and is unchanged.</li>
@@ -1557,7 +1623,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks) — 25 suites, 574 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (36 checks) — 26 suites, 610 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -2545,6 +2611,11 @@ function renderSidebar(){
     }, 0);
   });
   el.appendChild(addGroupBtn);
+  const addUrlBtn = document.createElement('button');
+  addUrlBtn.className = 'add-group-btn';
+  addUrlBtn.textContent = '+ Add song from URL';
+  addUrlBtn.addEventListener('click', () => { urlImportModal.open(); });
+  el.appendChild(addUrlBtn);
   }
   updateArtistDatalist();
 }
@@ -3038,6 +3109,304 @@ function showRowMenu(anchorBtn, row){
   armPopoverDocCloser();
 }
 
+/* ---------------------------------------------------------
+   Add song from URL — mass entry
+   A section flagged massEntry is a staging area: the scraped text starts
+   as one block, the user splits it into typed blocks (recursively) and
+   deletes junk lines, then Submit replaces this section with real sections.
+   PDF/export pipelines skip mass-entry sections via printableSections().
+   The text itself always travels as plain strings — never innerHTML — and
+   only http(s) URLs are ever fetched.
+--------------------------------------------------------- */
+function printableSections(groupId){
+  return groupSections(groupId).filter(s => !s.massEntry);
+}
+
+function normalizeScrapedText(text){
+  return (text || '').split('\n')
+    .map(l => l.replace(/[ \t\u00a0]+$/, ''))
+    .join('\n')
+    .replace(/^\n+|\n+$/g, '')
+    .replace(/\n{3,}/g, '\n\n');
+}
+
+const MASS_BLOCK_TAGS = new Set(['P','DIV','LI','TR','H1','H2','H3','H4','H5','H6','PRE','BLOCKQUOTE','SECTION','ARTICLE','HR','TABLE','UL','OL','DT','DD','FIGCAPTION']);
+function extractTextFromHtml(htmlText){
+  // DOMParser never executes scripts — this is pure text extraction.
+  const doc = new DOMParser().parseFromString(htmlText, 'text/html');
+  doc.querySelectorAll('script,style,noscript,template,nav,header,footer,aside,form,iframe').forEach(el => el.remove());
+  const out = [];
+  const walk = (node) => {
+    node.childNodes.forEach(ch => {
+      if (ch.nodeType === 3){ out.push(ch.textContent); }
+      else if (ch.nodeType === 1){
+        if (ch.tagName === 'BR'){ out.push('\n'); return; }
+        const block = MASS_BLOCK_TAGS.has(ch.tagName);
+        if (block) out.push('\n');
+        walk(ch);
+        if (block) out.push('\n');
+      }
+    });
+  };
+  walk(doc.body || doc);
+  return normalizeScrapedText(out.join(''));
+}
+
+async function fetchUrlText(rawUrl){
+  const input = (rawUrl || '').trim();
+  if (!input) throw new Error('Enter a URL first.');
+  // Resolve first, then gate the scheme on the resolved URL: WHATWG URL
+  // parsing strips tabs/newlines, so checking the raw string is not enough.
+  let url;
+  try {
+    url = new URL(/^[a-z][a-z0-9+.-]*:/i.test(input) ? input : 'https://' + input);
+  } catch(e){
+    throw new Error('That URL doesn\u2019t look valid.');
+  }
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') throw new Error('Only http(s) URLs are supported.');
+  let res;
+  try {
+    res = await fetch(url.toString());
+  } catch(e){
+    throw new Error('Could not reach that URL. The site may block cross-origin reads.');
+  }
+  if (!res.ok) throw new Error('The server answered ' + res.status + '.');
+  const ct = (res.headers.get('content-type') || '').toLowerCase();
+  const body = await res.text();
+  if (ct.includes('text/html') || /<\s*html[\s>]/i.test(body.slice(0, 4000))) return extractTextFromHtml(body);
+  return normalizeScrapedText(body);
+}
+
+function createSongFromUrlText(text){
+  const g = { id: uid('grp'), name: '', artist: '', updatedAt: Date.now() };
+  state.sectionGroups.push(g);
+  const sec = {
+    id: uid('sec'), groupId: g.id, nameType: 'custom', customName: 'URL import',
+    nameSuffix: '', name: 'URL import', order: 0, lines: [],
+    massEntry: true, massEntryOriginal: text,
+    massEntryBlocks: [{ id: uid('blk'), nameType: 'intro', lines: text.split('\n') }],
+    updatedAt: Date.now()
+  };
+  state.sections.push(sec);
+  selectedGroupId = g.id;
+  selectedSectionId = sec.id;
+  expandedGroups.add(g.id);
+  scheduleSave();
+  renderAll();
+  closeSidebarAfterNavigate();
+  return g;
+}
+
+const urlImportModal = wireModal({
+  overlayId: 'urlImportOverlay', openBtnId: null, closeBtnId: 'urlImportCancelBtn',
+  onOpen(){
+    const status = document.getElementById('urlImportStatus');
+    status.textContent = '';
+    status.classList.remove('error');
+    setTimeout(() => document.getElementById('urlImportInput').focus(), 0);
+  }
+});
+document.getElementById('urlImportFetchBtn').addEventListener('click', async () => {
+  const input = document.getElementById('urlImportInput');
+  const status = document.getElementById('urlImportStatus');
+  const btn = document.getElementById('urlImportFetchBtn');
+  status.classList.remove('error');
+  status.textContent = 'Fetching\u2026';
+  btn.disabled = true;
+  try {
+    const text = await fetchUrlText(input.value);
+    if (!text.trim()) throw new Error('No text lines found at that URL.');
+    createSongFromUrlText(text);
+    input.value = '';
+    urlImportModal.close();
+    showToast('Text imported \u2014 split it into sections below.');
+  } catch(e){
+    status.textContent = (e && e.message) || 'Could not fetch that URL.';
+    status.classList.add('error');
+  } finally {
+    btn.disabled = false;
+  }
+});
+document.getElementById('urlImportInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('urlImportFetchBtn').click();
+});
+
+/* Future extension hook: a scraper extension can deliver text by dispatching
+   `new CustomEvent('setbook-url-import', { detail: { text } })` on window. */
+window.addEventListener('setbook-url-import', (e) => {
+  const text = normalizeScrapedText(e && e.detail && e.detail.text);
+  if (!text.trim()){ showToast('The extension sent no text.'); return; }
+  createSongFromUrlText(text);
+  showToast('Text imported \u2014 split it into sections below.');
+});
+
+let massResetArmed = false; // two-tap confirm for "Reset to scraped text"
+
+function massBlockTypeLabel(nameType){
+  const t = SECTION_TYPES.find(t => t.id === (nameType || 'intro'));
+  return t ? t.label : 'Intro';
+}
+
+function renderMassEntryEditor(main, group, sec){
+  massResetArmed = false;
+  if (!Array.isArray(sec.massEntryBlocks) || !sec.massEntryBlocks.length){
+    sec.massEntryBlocks = [{ id: uid('blk'), nameType: 'intro', lines: (sec.massEntryOriginal || '').split('\n') }];
+  }
+
+  const wrap = document.createElement('div');
+  wrap.className = 'mass-entry';
+
+  const head = document.createElement('div');
+  head.className = 'editor-head';
+  head.innerHTML = `
+    <div class="editor-head-titles">
+      <div class="group-label">${escapeHtml(group.name || 'Untitled song')}${displayArtists(group) ? ' <span class="artist">— ' + escapeHtml(displayArtists(group)) + '</span>' : ''}</div>
+      <div class="section-name-row"><span class="mass-entry-kicker">URL import</span></div>
+      <div class="section-name-preview">Split the scraped text into sections, delete what you don\u2019t need, then create the sections.</div>
+    </div>`;
+  wrap.appendChild(head);
+
+  const hint = document.createElement('div');
+  hint.className = 'mass-entry-hint';
+  hint.textContent = 'Each block below becomes one section. Pick a section type per block, use Split to divide a block above any line, and \u2715 to delete lines you don\u2019t need. Reset restores the originally scraped text.';
+  wrap.appendChild(hint);
+
+  sec.massEntryBlocks.forEach((block, bi) => {
+    const bdiv = document.createElement('div');
+    bdiv.className = 'mass-block';
+    const typeOptions = SECTION_TYPES.filter(t => t.id !== 'custom')
+      .map(t => `<option value="${t.id}"${t.id === (block.nameType || 'intro') ? ' selected' : ''}>${t.label}</option>`).join('');
+    // Block/line text is only ever assigned via input.value (never innerHTML).
+    bdiv.innerHTML = `
+      <div class="mass-block-head">
+        <span class="mass-block-label">Block ${bi + 1}</span>
+        <select class="mass-type-select" aria-label="Section type for block ${bi + 1}" title="Section type">${typeOptions}</select>
+        <span class="mass-block-shows">becomes: <strong>${escapeHtml(massBlockTypeLabel(block.nameType))}</strong></span>
+        ${sec.massEntryBlocks.length > 1 ? '<button type="button" class="ghost small mass-del-block">Delete block</button>' : ''}
+      </div>
+      <div class="mass-lines"></div>
+    `;
+    const typeSel = bdiv.querySelector('.mass-type-select');
+    typeSel.addEventListener('change', () => {
+      block.nameType = typeSel.value;
+      bdiv.querySelector('.mass-block-shows strong').textContent = massBlockTypeLabel(block.nameType);
+      touchSection(sec);
+      scheduleSave();
+    });
+    const delBlock = bdiv.querySelector('.mass-del-block');
+    if (delBlock) delBlock.addEventListener('click', () => {
+      sec.massEntryBlocks.splice(bi, 1);
+      touchSection(sec);
+      scheduleSave();
+      renderMain();
+    });
+
+    const linesWrap = bdiv.querySelector('.mass-lines');
+    block.lines.forEach((lineText, li) => {
+      const row = document.createElement('div');
+      row.className = 'mass-line-row';
+      const input = document.createElement('input');
+      input.className = 'mass-line-input';
+      input.value = lineText || '';
+      input.setAttribute('aria-label', `Block ${bi + 1} line ${li + 1}`);
+      preventAutoReplace(input);
+      input.addEventListener('input', () => {
+        block.lines[li] = input.value;
+        touchSection(sec);
+        scheduleSave();
+      });
+      row.appendChild(input);
+      if (li > 0){
+        const splitBtn = document.createElement('button');
+        splitBtn.type = 'button';
+        splitBtn.className = 'ghost small';
+        splitBtn.textContent = 'Split';
+        splitBtn.title = 'Split this block above this line';
+        splitBtn.setAttribute('aria-label', `Split block ${bi + 1} above line ${li + 1}`);
+        splitBtn.addEventListener('click', () => {
+          const moved = block.lines.splice(li);
+          sec.massEntryBlocks.splice(bi + 1, 0, { id: uid('blk'), nameType: 'intro', lines: moved });
+          touchSection(sec);
+          scheduleSave();
+          renderMain();
+        });
+        row.appendChild(splitBtn);
+      }
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'ghost small';
+      delBtn.textContent = '\u2715';
+      delBtn.title = 'Delete this line';
+      delBtn.setAttribute('aria-label', `Delete line ${li + 1} of block ${bi + 1}`);
+      delBtn.addEventListener('click', () => {
+        block.lines.splice(li, 1);
+        touchSection(sec);
+        scheduleSave();
+        renderMain();
+      });
+      row.appendChild(delBtn);
+      linesWrap.appendChild(row);
+    });
+    wrap.appendChild(bdiv);
+  });
+
+  const actions = document.createElement('div');
+  actions.className = 'mass-actions';
+  actions.innerHTML = `
+    <button type="button" class="ghost small" id="massResetBtn">Reset to scraped text</button>
+    <span class="spacer"></span>
+    <button type="button" class="primary small" id="massSubmitBtn">Create sections</button>
+  `;
+  wrap.appendChild(actions);
+
+  const resetBtn = actions.querySelector('#massResetBtn');
+  resetBtn.addEventListener('click', () => {
+    if (!massResetArmed){
+      massResetArmed = true;
+      resetBtn.textContent = 'Click again to confirm reset';
+      resetBtn.classList.add('mass-reset-armed');
+      return;
+    }
+    massResetArmed = false;
+    sec.massEntryBlocks = [{ id: uid('blk'), nameType: 'intro', lines: (sec.massEntryOriginal || '').split('\n') }];
+    touchSection(sec);
+    scheduleSave();
+    renderMain();
+    showToast('Text reset to the scraped original.');
+  });
+
+  actions.querySelector('#massSubmitBtn').addEventListener('click', () => {
+    const newSecs = [];
+    sec.massEntryBlocks.forEach((block) => {
+      const rows = block.lines
+        .map(t => (t || '').replace(/[ \t\u00a0]+$/, ''))
+        .filter(t => t.trim() !== '')
+        .map(t => ({ text: t, symbols: [] }));
+      if (!rows.length) return; // skip blocks left completely empty
+      newSecs.push({
+        id: uid('sec'), groupId: sec.groupId,
+        nameType: block.nameType || 'intro', customName: '', nameSuffix: '',
+        name: '', order: 0, lines: rows, updatedAt: Date.now()
+      });
+    });
+    if (!newSecs.length){
+      showToast('Nothing to create \u2014 every block is empty.');
+      return;
+    }
+    const idx = state.sections.findIndex(s => s.id === sec.id);
+    state.sections.splice(idx, 1); // remove the mass-entry staging section
+    state.sections.splice(idx, 0, ...newSecs);
+    groupSections(sec.groupId).forEach((s, i) => { s.order = i; });
+    newSecs.forEach(s => { s.name = displaySectionName(s); touchSection(s); });
+    selectedSectionId = newSecs[0].id;
+    scheduleSave();
+    renderAll();
+    showToast(`Created ${newSecs.length} section${newSecs.length === 1 ? '' : 's'}.`);
+  });
+
+  main.appendChild(wrap);
+}
+
 function renderMain(){
   const main = document.getElementById('main');
   main.innerHTML = '';
@@ -3071,6 +3440,13 @@ function renderMain(){
     state.lastOpenGroupId = group.id;
     state.lastOpenSectionId = sec.id;
     scheduleSave();
+  }
+
+  // URL-import staging sections get their own editor: blocks of scraped
+  // text that split recursively, then submit into real sections.
+  if (sec.massEntry){
+    renderMassEntryEditor(main, group, sec);
+    return;
   }
 
   const head = document.createElement('div');
@@ -4981,14 +5357,14 @@ function updatePdfModalCopy(){
 let pdfSelectedSongIds = new Set();
 
 function allSongIdsWithSections(){
-  return state.sectionGroups.filter(g => groupSections(g.id).length).map(g => g.id);
+  return state.sectionGroups.filter(g => printableSections(g.id).length).map(g => g.id);
 }
 
 function renderPdfSongChecklist(){
   const list = document.getElementById('pdfSongChecklist');
   list.innerHTML = '';
   sortedSongGroups().forEach(group => {
-    if (!groupSections(group.id).length) return;
+    if (!printableSections(group.id).length) return;
     const row = document.createElement('label');
     row.className = 'song-check-row';
     const checked = pdfSelectedSongIds.has(group.id);
@@ -5042,7 +5418,7 @@ document.getElementById('pdfSelectNoneBtn').addEventListener('click', () => {
 });
 document.getElementById('pdfSelectReadyBtn').addEventListener('click', () => {
   const readyIds = state.sectionGroups
-    .filter(g => groupSections(g.id).length && (g.readyStatus || 'not-ready') === 'ready')
+    .filter(g => printableSections(g.id).length && (g.readyStatus || 'not-ready') === 'ready')
     .map(g => g.id);
   applyPdfChecklistSelection(readyIds);
 });
@@ -5289,7 +5665,7 @@ async function setupPdfDoc(deviceId, orientationId){
 // subset), sorted for the document. Throws when there is nothing to print.
 function collectPdfSongs(selectedGroupIds){
   const songs = state.sectionGroups
-    .map(g => ({ group: g, sections: groupSections(g.id) }))
+    .map(g => ({ group: g, sections: printableSections(g.id) }))
     .filter(s => s.sections.length > 0 && (!selectedGroupIds || selectedGroupIds.has(s.group.id)))
     .sort((a,b) => (a.group.name || 'Untitled Song').localeCompare(b.group.name || 'Untitled Song', undefined, { sensitivity:'base' }));
   if (!songs.length){
