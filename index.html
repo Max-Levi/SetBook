@@ -243,7 +243,7 @@
 
   /* ---------- toasts ---------- */
   .toast-container{
-    position:fixed; top:18px; right:18px; z-index:400;
+    position:fixed; top:76px; right:18px; z-index:400;
     display:flex; flex-direction:column; gap:8px; max-width:320px;
   }
   .toast{
@@ -1035,6 +1035,8 @@
   .url-import-status{ font-size:12.5px; color:var(--text-muted); margin-top:10px; min-height:18px; line-height:1.4; }
   .url-import-status.error{ color:#e08080; }
   .url-import-note{ font-size:11.5px; color:var(--text-muted); line-height:1.5; margin-top:10px; }
+  .url-import-ext-hint{ margin-top:10px; padding:10px 12px; border:1px solid var(--gold, #b98a1d); border-radius:10px; background:color-mix(in srgb, var(--gold, #b98a1d) 10%, transparent); }
+  .url-import-ext-hint p{ margin:0 0 8px; font-size:13px; line-height:1.5; }
 
   .preview-block{ max-width:760px; }
   .preview-label{
@@ -1087,7 +1089,7 @@
   .recovery-banner-text{ font-size:13px; line-height:1.5; margin-bottom:10px; }
   .recovery-banner-text strong{ display:block; font-size:13.5px; margin-bottom:2px; }
   .recovery-banner-text span{ color:var(--text-muted); }
-  .recovery-banner-actions{ display:flex; gap:8px; }
+  .recovery-banner-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
   /* Compact welcome modal for returning users: when a recovery snapshot is
      offered, the marketing tour (feature list + "built for" line) is hidden
@@ -1289,6 +1291,10 @@
       <input id="urlImportInput" class="modal-input" inputmode="url" placeholder="https://…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false">
     </div>
     <div class="url-import-status" id="urlImportStatus" role="status"></div>
+    <div class="url-import-ext-hint" id="urlImportExtHint" hidden>
+      <p>This site blocks cross-origin reads, so SetBook can't fetch it directly. Install the <strong>SetBook scraper</strong> extension: open the lyrics page, click the extension's toolbar button, and it sends the text straight into SetBook.</p>
+      <button type="button" class="ghost small" id="urlImportExtHelpBtn">Extension setup</button>
+    </div>
     <div class="modal-actions">
       <button type="button" class="ghost small" id="urlImportCancelBtn">Cancel</button>
       <button type="button" class="primary small" id="urlImportFetchBtn">Fetch text</button>
@@ -1481,7 +1487,8 @@
         <a href="#help-transfer">9. Device transfer</a>
         <a href="#help-requirements">10. Requirements</a>
         <a href="#help-maintainers">11. Maintainer notes</a>
-        <a href="#help-qa">12. QA regression checklist</a>
+        <a href="#help-extension">12. Scraper extension</a>
+        <a href="#help-qa">13. QA regression checklist</a>
       </nav>
       <div class="help-content">
         <section id="help-overview">
@@ -1546,7 +1553,7 @@
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
-            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor. It starts as a single block typed Intro holding every scraped line as an editable raw-text row. Each block has its own section-type picker ("becomes: X" previews what the block will turn into); every row has <strong>Split</strong> (divides the block above that row — blocks can be split again and again) and <strong>✕</strong> (deletes the row), and a whole block can be deleted. <strong>Reset to scraped text</strong> restores the original text as one Intro block after a two-tap confirmation; <strong>Create sections</strong> turns every non-empty block into a real section in block order (each block's lines pass through the normal chord/lyric parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — reserved for a future scraper extension.</li>
+            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor. It starts as a single block typed Intro holding every scraped line as an editable raw-text row. Each block has its own section-type picker ("becomes: X" previews what the block will turn into); every row has <strong>Split</strong> (divides the block above that row — blocks can be split again and again) and <strong>✕</strong> (deletes the row), and a whole block can be deleted. <strong>Reset to scraped text</strong> restores the original text as one Intro block after a two-tap confirmation; <strong>Create sections</strong> turns every non-empty block into a real section in block order (each block's lines pass through the normal chord/lyric parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text.</li>
           </ul>
         </section>
         <section id="help-preview">
@@ -1589,7 +1596,6 @@
           <ul>
             <li>All display-affecting transforms (lyric-continuation grouping, comment-line stripping, repeat markers) are centralized in <code>groupLinesForDisplay</code> and its helpers so the preview and both PDF pipelines share one code path. Editor source data is never mutated by display logic.</li>
             <li>UI icons are hand-drawn inline SVGs (<code>&lt;svg class="svg-icon" viewBox="0 0 512 512"&gt;</code>) embedded directly in the markup — there is no icon font or icon CDN. To add an icon, inline a new SVG with the <code>svg-icon</code> class; it sizes to <code>1em</code> and inherits <code>currentColor</code>. Do not reintroduce an external icon library.</li>
-            <li>The header brand is a hand-drawn inline SVG too: an open-book stroke mark (<code>&lt;svg class="brand-mark"&gt;</code>) beside the <code>SetBook</code> wordmark in theme-aware <code>--brand-green</code> (mint on dark, deep green on light), matching the app's icon stroke style. No external image assets.</li>
             <li>The jsPDF library loads from the cdnjs CDN with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update both the script tag and <code>setbook-qa/security-test.js</code>, which asserts the exact hash.</li>
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
             <li>URL import (Add song from URL) is the app's only fetch-from-URL feature, and its security model is: fetch gates the scheme on the <em>resolved</em> URL (only <code>http:</code>/<code>https:</code>) so smuggled schemes can't pass; HTML extraction runs through <code>DOMParser</code>, which never executes scripts; and scraped text is only ever assigned to input <code>value</code> properties or plain strings — never <code>innerHTML</code>. The <code>setbook-url-import</code> event hook normalizes its text through the same path before creating the staging section.</li>
@@ -1599,8 +1605,17 @@
             <li>When adding, changing, or removing a feature, update this documentation to describe it and refresh the "Last updated" date above.</li>
           </ul>
         </section>
+        <section id="help-extension">
+          <h3>12. Scraper extension</h3>
+          <p>Some lyrics sites block cross-origin reads, so <strong>+ Add song from URL</strong> cannot fetch them directly — the dialog says so and offers an <strong>Extension setup</strong> button that opens this help. The <strong>SetBook Scraper</strong> browser extension (Chrome/Edge) covers those sites: open the lyrics page, click the extension's toolbar button, and it reads the page's own text (no cross-origin fetch involved) and delivers it straight into the mass-entry editor.</p>
+          <p><a href="https://max-levi.github.io/SetBook/" id="extDownloadLink">Download the SetBook scraper extension</a> <span id="extVersionNote"></span></p>
+          <p><strong>Install:</strong> download the zip, unzip it into a folder you'll keep, open <code>chrome://extensions</code> (type it into the address bar — pages cannot open chrome:// links), enable Developer mode, choose <strong>Load unpacked</strong>, and pick that folder. Pin the SetBook icon to the toolbar.</p>
+          <p><strong>Use:</strong> open the page with the lyrics, click the SetBook toolbar icon. SetBook opens (or is brought forward) with the scraped text ready to split into sections; if the page has no readable text, SetBook says so instead. Nothing is ever pasted or typed by hand.</p>
+          <p><strong>Updates:</strong> unpacked extensions don't update themselves. The extension checks a small version file on the SetBook site whenever its icon is clicked; when a newer version exists, a gold banner appears at the top of SetBook with <strong>Download</strong>, <strong>How to update</strong> (download the new zip, empty the same folder, unzip the new version into it, then press <strong>Reload</strong> on chrome://extensions), and <strong>Dismiss</strong>. Dismissing remembers that version, so the banner won't nag again.</p>
+          <p><strong>Permissions:</strong> the extension asks for the minimum it needs — <code>activeTab</code> and <code>scripting</code> (to read the text of the tab you click it on, one tab at a time) plus access to the SetBook site itself (to deliver the text and show the update banner). It cannot see your other tabs, and it runs no code from the pages it scrapes — it only reads their text.</p>
+        </section>
         <section id="help-qa">
-          <h3>12. QA regression checklist</h3>
+          <h3>13. QA regression checklist</h3>
           <p>Run this pass after any code change — especially refactors — before calling the work done. It is written so a human or an automated browser script can repeat it.</p>
           <p><strong>A. Static checks</strong> (fast, no browser needed):</p>
           <ul>
@@ -1624,7 +1639,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (36 checks) — 26 suites, 610 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (36 checks), and <code>setbook-qa/setbook-ext-test.js</code> (31 checks) — 27 suites, 641 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -3169,7 +3184,12 @@ async function fetchUrlText(rawUrl){
   try {
     res = await fetch(url.toString());
   } catch(e){
-    throw new Error('Could not reach that URL. The site may block cross-origin reads.');
+    // The fetch itself rejected: a network failure or, far more often, the
+    // site blocking the cross-origin read. Flag it so the dialog can point
+    // the user at the scraper extension.
+    const err = new Error('Could not reach that URL. The site may block cross-origin reads.');
+    err.isCorsBlock = true;
+    throw err;
   }
   if (!res.ok) throw new Error('The server answered ' + res.status + '.');
   const ct = (res.headers.get('content-type') || '').toLowerCase();
@@ -3204,15 +3224,24 @@ const urlImportModal = wireModal({
     const status = document.getElementById('urlImportStatus');
     status.textContent = '';
     status.classList.remove('error');
+    document.getElementById('urlImportExtHint').hidden = true;
     setTimeout(() => document.getElementById('urlImportInput').focus(), 0);
   }
+});
+document.getElementById('urlImportExtHelpBtn').addEventListener('click', () => {
+  urlImportModal.close();
+  document.getElementById('btnHelp').click();
+  const sec = document.getElementById('help-extension');
+  if (sec) setTimeout(() => sec.scrollIntoView({ block:'start' }), 60);
 });
 document.getElementById('urlImportFetchBtn').addEventListener('click', async () => {
   const input = document.getElementById('urlImportInput');
   const status = document.getElementById('urlImportStatus');
   const btn = document.getElementById('urlImportFetchBtn');
+  const hint = document.getElementById('urlImportExtHint');
   status.classList.remove('error');
   status.textContent = 'Fetching\u2026';
+  hint.hidden = true;
   btn.disabled = true;
   try {
     const text = await fetchUrlText(input.value);
@@ -3224,6 +3253,7 @@ document.getElementById('urlImportFetchBtn').addEventListener('click', async () 
   } catch(e){
     status.textContent = (e && e.message) || 'Could not fetch that URL.';
     status.classList.add('error');
+    if (e && e.isCorsBlock) hint.hidden = false;
   } finally {
     btn.disabled = false;
   }
@@ -3232,11 +3262,14 @@ document.getElementById('urlImportInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') document.getElementById('urlImportFetchBtn').click();
 });
 
-/* Future extension hook: a scraper extension can deliver text by dispatching
+/* Extension hook: the SetBook Scraper extension delivers text by dispatching
    `new CustomEvent('setbook-url-import', { detail: { text } })` on window. */
 window.addEventListener('setbook-url-import', (e) => {
   const text = normalizeScrapedText(e && e.detail && e.detail.text);
   if (!text.trim()){ showToast('The extension sent no text.'); return; }
+  // The extension opens the app fresh, so the welcome modal is usually up —
+  // the user's toolbar click is an explicit import intent, so dismiss it.
+  document.getElementById('welcomeModalOverlay').classList.remove('open');
   createSongFromUrlText(text);
   showToast('Text imported \u2014 split it into sections below.');
 });
@@ -4660,6 +4693,22 @@ async function isDiskFileNewerThanSnapshot(snap, allowPrompt){
 // the newer file. The snapshot is left in place, nothing is deleted.
 // Set when the person restores a recovery snapshot at boot.
 let recoveryRestoredThisBoot = false;
+// Puts the welcome modal's file buttons back the way the static markup had
+// them: "Open existing file…" returns to the bottom row (after "Start new
+// file"), and the bottom row and its label are un-hidden. Called when the
+// recovery banner is dismissed without the modal closing.
+function restoreWelcomeFileButtons(){
+  const openBtn = document.getElementById('welcomeOpenBtn');
+  const startBtn = document.getElementById('welcomeStartNewBtn');
+  const bottomRow = startBtn ? startBtn.closest('.modal-actions') : null;
+  const ctaLabel = document.querySelector('#welcomeModalOverlay .welcome-cta-label');
+  if (openBtn && bottomRow && openBtn.parentElement !== bottomRow){
+    openBtn.textContent = 'Open existing file\u2026';
+    bottomRow.appendChild(openBtn); // lands after Start new — the original order
+  }
+  if (bottomRow) bottomRow.style.display = '';
+  if (ctaLabel) ctaLabel.style.display = '';
+}
 async function maybeOfferRecovery(){
   const snap = readRecoverySnapshot();
   if (!snap || !recoveryHasContent(snap.state)) return;
@@ -4677,9 +4726,24 @@ async function maybeOfferRecovery(){
     <div class="recovery-banner-text"><strong>Pick up where you left off?</strong><span>Your songbook from ${escapeHtml(when)} was saved automatically on this device.${linkNote}</span></div>
     <div class="recovery-banner-actions">
       <button type="button" class="primary small" id="recoveryRestoreBtn">Restore my work</button>
-      <button type="button" class="ghost small" id="recoveryDiscardBtn">Start fresh</button>
+      <button type="button" class="ghost small" id="recoveryDiscardBtn">Start a fresh file</button>
     </div>`;
   ctaLabel.before(banner);
+  // The banner already offers "start fresh" and file opening, so the stock
+  // welcome buttons below are redundant: move "Open existing file" up into
+  // the banner (renamed "Open another file") and hide the bottom row plus
+  // its now-orphaned label. restoreWelcomeFileButtons() undoes this when
+  // the banner goes away without the modal closing.
+  const welcomeOpenBtn = document.getElementById('welcomeOpenBtn');
+  const welcomeStartNewBtn = document.getElementById('welcomeStartNewBtn');
+  const welcomeBottomRow = welcomeStartNewBtn ? welcomeStartNewBtn.closest('.modal-actions') : null;
+  const bannerActions = banner.querySelector('.recovery-banner-actions');
+  if (welcomeOpenBtn && bannerActions){
+    welcomeOpenBtn.textContent = 'Open another file';
+    bannerActions.appendChild(welcomeOpenBtn);
+  }
+  if (welcomeBottomRow) welcomeBottomRow.style.display = 'none';
+  ctaLabel.style.display = 'none';
   // Returning user with saved work: collapse the marketing tour so the
   // recovery banner and the file buttons fit without scrolling.
   const welcomeModalEl = document.querySelector('#welcomeModalOverlay .modal-welcome');
@@ -4691,6 +4755,7 @@ async function maybeOfferRecovery(){
       // browser data over a newer file — the click is the gesture that
       // allows the permission prompt.
       if (await isDiskFileNewerThanSnapshot(snap, true)){
+        restoreWelcomeFileButtons();
         banner.remove();
         showToast('The file on disk is newer than the auto-saved data — open it directly to keep the newest work.');
         return;
@@ -4712,6 +4777,7 @@ async function maybeOfferRecovery(){
   });
   banner.querySelector('#recoveryDiscardBtn').addEventListener('click', () => {
     clearRecoverySnapshot();
+    restoreWelcomeFileButtons();
     banner.remove();
   });
 }
@@ -6505,6 +6571,10 @@ function escapeAttr(str){ return escapeHtml(str); }
 --------------------------------------------------------- */
 function showToast(message, opts = {}){
   const container = document.getElementById('toastContainer');
+  // Keep toasts clear of the header menu: sit just below the header,
+  // measured live so desktop and mobile header heights both work.
+  const header = document.querySelector('header');
+  if (header) container.style.top = (header.getBoundingClientRect().height + 10) + 'px';
   const toast = document.createElement('div');
   toast.className = 'toast' + (opts.type === 'error' ? ' error' : '');
   const msg = document.createElement('span');
@@ -6823,6 +6893,27 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
 
   // Technical documentation / Help modal
   wireModal({ overlayId:'helpModalOverlay', openBtnId:'btnHelp', closeBtnId:'helpCloseBtn' });
+  /* Scraper extension download link (Help → section 12): filled at runtime from
+     ext-version.json so the docs never name a stale version. Only fetched when
+     Help is opened; silent when offline. */
+  document.getElementById('btnHelp').addEventListener('click', function fillExtDownloadLink(){
+    const link = document.getElementById('extDownloadLink');
+    if (!link || link.dataset.extDone) return;
+    link.dataset.extDone = '1';
+    fetch('https://max-levi.github.io/SetBook/ext-version.json', { cache: 'no-store' })
+      .then(r => { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
+      .then(info => {
+        const v = info && info.version;
+        const dl = info && info.download;
+        if (!/^\d+\.\d+\.\d+$/.test(v || '') || !/^https:\/\//i.test(dl || '')) throw new Error('bad version payload');
+        link.href = dl;
+        link.textContent = 'Download the SetBook scraper extension (v' + v + ')';
+      })
+      .catch(() => {
+        const note = document.getElementById('extVersionNote');
+        if (note) note.textContent = '— the latest version list could not be reached; the newest setbook-extension zip is on the SetBook site.';
+      });
+  });
   document.querySelectorAll('.share-topic[data-topic]').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.share-topic').forEach(b => b.classList.remove('active'));
