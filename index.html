@@ -32,7 +32,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SetBook — Section Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&family=Inconsolata:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
   integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA=="
   crossorigin="anonymous"></script>
@@ -86,7 +86,7 @@
     --panel: #ffffff;
     --panel-2: #eeece3;
     --gold: #8a6a10;
-    --gold-dim: #b08f4a;
+    --gold-dim: #7a5f16;
     --gold-hover: #74590c;
     --gold-tint: #f6eed7;
     --gold-tint-strong: #ecdfb3;
@@ -135,7 +135,6 @@
     color:var(--brand-green);
   }
   .brand-mark{ width:30px; height:26px; flex-shrink:0; color:var(--brand-green); }
-  .brand span{ color: var(--gold); }
   .brand small{ color: var(--text-muted); font-size:12px; }
   /* QA environment badge — only ever inserted when the IS_QA build flag
      is flipped on by the QA deploy script; prod never shows this. */
@@ -143,11 +142,11 @@
     display:inline-flex; align-items:center; flex-shrink:0;
     font-size:15px; font-weight:800; letter-spacing:2px;
     color:#fff; background:#c0392b;
-    border-radius:8px; padding:5px 12px 5px 14px;
+    border-radius:10px; padding:5px 12px 5px 14px;
     box-shadow:0 0 0 2px rgba(192,57,43,.35);
   }
   .file-status{ display:flex; align-items:center; gap:7px; margin-left:6px; padding-left:12px; border-left:1px solid var(--border); }
-  .file-name{ font-size:12.5px; color:var(--text-muted); font-family:'JetBrains Mono', monospace; }
+  .file-name{ font-size:12.5px; color:var(--text-muted); }
   .save-dot{ width:7px; height:7px; border-radius:50%; background: var(--save-dot-idle); flex-shrink:0; }
   .save-dot.saved{ background: var(--success); }
   .save-dot.pending{ background:var(--gold); }
@@ -165,9 +164,13 @@
     padding:7px 13px;
     border-radius:6px;
     cursor:pointer;
-    transition: border-color .15s ease, background .15s ease;
+    transition: border-color .15s ease, background .15s ease, transform .07s ease;
   }
   button:hover{ border-color: var(--hover-border); background: var(--hover-bg); }
+  button:active{ transform: translateY(1px); }
+  button:focus-visible{
+    outline:2px solid var(--gold); outline-offset:2px;
+  }
   button.primary{
     background: var(--gold);
     border-color: var(--gold);
@@ -187,20 +190,11 @@
     padding:10px 16px;
     min-height:42px;
   }
-  /* NOTE: plain-ID selectors here (not `header .actions #id`) so the
-     later mobile rules below win by source order at equal specificity. */
-  #btnShareHelp,
-  #btnHelp{
-    min-width:42px;
-    min-height:42px;
-    padding:8px;
-  }
-  #btnShareHelp svg,
-  #btnHelp svg{ width:20px; height:20px; }
-  /* The undo button is disabled whenever there's nothing to undo — it
-     must look disabled, otherwise it reads as a dead button that
+  /* The undo menu item is disabled whenever there's nothing to undo — it
+     must look disabled, otherwise it reads as a dead entry that
      ignores taps. */
   #btnUndo:disabled{ opacity:.35; cursor:default; }
+  #btnUndo:disabled:hover{ background:transparent; }
   button.icon{ padding:4px 8px; font-size:12px; line-height:1; }
   button.icon svg{ vertical-align:-1px; }
   button.danger:hover{ border-color: var(--danger); color: var(--danger-hover-text); }
@@ -216,7 +210,7 @@
     fill:none; stroke-linecap:round; stroke-linejoin:round; }
   .file-menu-dropdown{
     display:none; position:absolute; top:calc(100% + 6px); right:0;
-    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:10px;
     padding:5px; width:230px; z-index:50;
     box-shadow: 0 12px 30px rgba(0,0,0,.45);
   }
@@ -225,7 +219,7 @@
     white-space:normal; word-wrap:break-word; line-height:1.35;
     display:flex; align-items:center; width:100%; text-align:left;
     background:transparent; border:none; color: var(--text); font-family:inherit;
-    padding:8px 9px; font-size:12.5px; border-radius:5px; cursor:pointer;
+    padding:8px 9px; font-size:12.5px; border-radius:6px; cursor:pointer;
   }
   .file-menu-item:hover{ background: var(--hover-bg); border-color:transparent; }
   .file-menu-item-hint{ margin-left:auto; padding-left:10px; font-size:11px; color: var(--text-muted); }
@@ -247,7 +241,7 @@
     display:flex; flex-direction:column; gap:8px; max-width:320px;
   }
   .toast{
-    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:10px;
     padding:11px 13px; font-size:13px; color: var(--text); line-height:1.4;
     display:flex; align-items:center; gap:10px;
     box-shadow: 0 10px 28px rgba(0,0,0,.45);
@@ -256,14 +250,14 @@
   .toast-msg{ flex:1; min-width:0; }
   .toast-action{
     flex-shrink:0; background:transparent; border:1px solid var(--gold); color: var(--gold);
-    border-radius:5px; padding:4px 10px; font-size:12px; cursor:pointer; font-family:inherit;
+    border-radius:6px; padding:4px 10px; font-size:12px; cursor:pointer; font-family:inherit;
   }
   .toast-action:hover{ background: var(--gold-tint); }
 
   /* ---------- inline confirm / prompt popovers (replace confirm()/prompt()) ---------- */
   .confirm-popover{
     position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
-    border-radius:8px; padding:12px 14px; width:230px; font-size:12.5px; color: var(--text);
+    border-radius:10px; padding:12px 14px; width:230px; font-size:12.5px; color: var(--text);
     box-shadow: 0 12px 30px rgba(0,0,0,.45);
   }
   .confirm-popover-msg{ margin-bottom:10px; line-height:1.45; }
@@ -289,7 +283,7 @@
   }
   .modal-overlay.open{ display:flex; }
   .modal{
-    background: var(--panel); border:1px solid var(--border); border-radius:12px;
+    background: var(--panel); border:1px solid var(--border); border-radius:10px;
     padding: 24px 26px; width: 380px; max-width:90vw;
     max-height: 88vh; overflow-y:auto;
     box-shadow: 0 20px 50px rgba(0,0,0,.5);
@@ -318,7 +312,7 @@
   .checklist-bulk{ display:flex; gap:6px; margin-bottom:8px; }
   .song-check-row{
     display:flex; align-items:center; gap:8px; padding:6px 4px; font-size:13px;
-    cursor:pointer; border-radius:4px;
+    cursor:pointer; border-radius:6px;
   }
   .song-check-row:hover{ background: var(--hover-bg); }
   .song-check-row input{ flex-shrink:0; }
@@ -378,7 +372,7 @@
   }
   .help-nav a{
     font-size:12.5px; color:var(--text-muted); text-decoration:none;
-    padding:5px 8px; border-radius:5px; white-space:nowrap;
+    padding:5px 8px; border-radius:6px; white-space:nowrap;
   }
   .help-nav a:hover{ background:var(--hover-bg); color:var(--text); }
   .help-content{ flex:1; min-width:0; font-size:13px; line-height:1.55; color:var(--text-muted); }
@@ -390,7 +384,7 @@
   .help-content li{ margin-bottom:6px; }
   .help-content strong{ color:var(--text); }
   .help-content code{
-    background:var(--panel-2); padding:1px 5px; border-radius:4px;
+    background:var(--panel-2); padding:1px 5px; border-radius:6px;
     font-size:12px; font-family:'JetBrains Mono',monospace;
   }
   @media (max-width:680px){
@@ -410,7 +404,7 @@
   .share-topic{
     display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box;
     background:var(--panel-2); border:1px solid var(--border); color:var(--text);
-    border-radius:8px; padding:10px 12px; font-size:13px; font-family:inherit;
+    border-radius:10px; padding:10px 12px; font-size:13px; font-family:inherit;
     cursor:pointer; text-align:left;
   }
   .share-topic:hover:not(:disabled){ border-color:var(--focus-border); }
@@ -424,10 +418,10 @@
   .share-guide-steps{ margin:0; padding-left:20px; font-size:13px; line-height:1.55; color:var(--text-muted); }
   .share-guide-steps li{ margin-bottom:8px; }
   .share-guide-steps li::marker{ color:var(--gold); font-weight:600; }
-  .modal-group{ border:1px solid var(--border); border-radius:8px; padding:14px; margin-bottom:12px; }
+  .modal-group{ border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px; }
   .modal-group .modal-input{ margin-bottom:14px; }
   .modal-group-label{
-    font-size:10.5px; font-weight:600; color: var(--gold); text-transform:uppercase;
+    font-size:10.5px; font-weight:600; color: var(--text-muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:10px;
   }
   .modal-wide{ width:760px; max-width:95vw; }
@@ -446,7 +440,7 @@
     .modal, .modal-wide{
       width:94vw; max-width:94vw;
       padding:18px 16px;
-      border-radius:14px;
+      border-radius:10px;
       max-height:88vh; max-height:calc(100dvh - 20px);
     }
     .modal h2{ font-size:16px; margin-bottom:8px; }
@@ -558,11 +552,11 @@
   @media (max-width: 760px){
     /* 44px minimum touch targets (Apple HIG) — the 12px icons in
        .small buttons were only ~24px tall and hard to tap. */
-    #btnSidebarToggle, #btnShareHelp, #btnHelp, #btnUndo{
+    #btnSidebarToggle{
       display:inline-flex; align-items:center; justify-content:center;
       min-width:44px; min-height:44px; padding:6px;
     }
-    #btnSidebarToggle svg, #btnShareHelp svg, #btnHelp svg, #btnUndo svg{ width:22px; height:22px; }
+    #btnSidebarToggle svg{ width:22px; height:22px; }
     /* the File / Export PDF text buttons get the same 44px target;
        tighter padding and gap keep the header fitting at 390px */
     #btnFileMenu, #btnPdf{
@@ -658,7 +652,7 @@
   .tools-section:first-child{ border-top:none; margin-top:0; padding-top:0; }
   .sidebar-search + .tools-section{ border-top:none; margin-top:0; padding-top:0; }
   .tools-section-label{
-    font-size:10px; font-weight:600; color: var(--gold); text-transform:uppercase;
+    font-size:10px; font-weight:600; color: var(--text-muted); text-transform:uppercase;
     letter-spacing:.4px; margin-bottom:7px;
   }
   .tools-buttons{ display:flex; gap:6px; }
@@ -678,8 +672,8 @@
   .song-tags-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:9px; }
   .tag-pill{
     display:inline-flex; align-items:center; gap:2px;
-    background:var(--gold-tint); border:1px solid var(--gold); color:var(--gold);
-    border-radius:20px; padding:3px 4px 3px 10px; font-size:12px; font-weight:600;
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:999px; padding:3px 4px 3px 10px; font-size:12px; font-weight:600;
     max-width:100%;
   }
   .tag-pill span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
@@ -709,7 +703,7 @@
   .search-result-song .artist{ text-transform:none; font-weight:400; }
   .search-result-row{
     display:flex; align-items:center; gap:6px;
-    padding:7px 8px; border-radius:5px; cursor:pointer; font-size:13px;
+    padding:7px 8px; border-radius:6px; cursor:pointer; font-size:13px;
   }
   .search-result-row:hover{ background: var(--panel-2); }
   .search-result-row .snippet{
@@ -719,7 +713,7 @@
   .search-empty{ color: var(--text-muted); font-size:12.5px; padding: 16px 4px; text-align:center; }
   .group{
     margin-bottom: 6px;
-    border-radius:8px;
+    border-radius:10px;
     overflow:hidden;
   }
   .group-head{
@@ -766,7 +760,7 @@
   }
   .group-video-input{
     flex:1; min-width:0; background: var(--panel-2); border:1px solid var(--border);
-    color: var(--text); border-radius:4px;
+    color: var(--text); border-radius:6px;
     font-family:inherit; font-size:10.5px; padding:2px 5px; margin:0;
   }
   .group-video-input:focus{ outline:none; border-color: var(--focus-border); }
@@ -774,13 +768,13 @@
   .group-video-open{
     flex-shrink:0; align-items:center; background:transparent; border:none;
     color: var(--gold); font-size:10.5px; font-weight:600; padding:1px 4px; cursor:pointer;
-    font-family:inherit; border-radius:3px;
+    font-family:inherit; border-radius:6px;
   }
   .group-video-open:hover{ background: var(--gold-tint); }
   .group-video-edit{
     flex-shrink:0; align-items:center; background:transparent; border:none;
     color: var(--text-muted); font-size:10.5px; padding:1px 4px; cursor:pointer;
-    font-family:inherit; border-radius:3px;
+    font-family:inherit; border-radius:6px;
   }
   .group-video-edit:hover{ background: var(--hover-bg); color: var(--text); }
   .group-type{ margin-top:3px; display:flex; gap:4px; flex-wrap:wrap; align-items:center; }
@@ -799,13 +793,13 @@
     background:none; border:none; cursor:pointer;
     color: var(--text-muted); font-family:inherit; font-size:11px;
     display:inline-flex; align-items:center; gap:4px;
-    padding:4px 4px; border-radius:4px;
+    padding:4px 4px; border-radius:6px;
   }
   .details-toggle:hover{ color: var(--gold); }
   .details-toggle .dt-chev{ font-size:9px; }
   .group-details{
     margin:4px 6px 8px 32px; padding:11px 12px;
-    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:10px;
     display:flex; flex-direction:column; gap:9px;
   }
   .details-label{
@@ -827,14 +821,14 @@
     box-shadow: 0 12px 30px rgba(0,0,0,.45);
   }
   .artist-suggest-row{
-    padding:6px 8px; font-size:12px; color: var(--text); border-radius:4px; cursor:pointer;
+    padding:6px 8px; font-size:12px; color: var(--text); border-radius:6px; cursor:pointer;
   }
   .artist-suggest-row:hover{ background: var(--hover-bg); }
   .group-count{ font-size:11px; color: var(--text-muted); }
   .section-list{ padding: 2px 4px 6px 22px; }
   .section-row{
     display:flex; align-items:center; gap:4px;
-    padding:6px 8px; border-radius:5px;
+    padding:6px 8px; border-radius:6px;
     font-size:12.5px; cursor:pointer; color: var(--text-muted);
   }
   .section-row:hover{ background: var(--panel-2); color:var(--text); }
@@ -842,7 +836,7 @@
   .section-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .section-row .order-btns{ display:none; gap:2px; }
   .section-row:hover .order-btns{ display:flex; }
-  .order-btns button{ padding:1px 5px; font-size:10px; border-radius:3px; }
+  .order-btns button{ padding:1px 5px; font-size:10px; border-radius:6px; }
   .add-section-btn{
     margin: 4px 0 10px 22px;
     font-size:12px; color: var(--text-muted); background:none; border:1px dashed var(--border);
@@ -890,7 +884,7 @@
   .line-row{
     display:flex; align-items:flex-start; gap:10px;
     margin-bottom:10px; padding: 6px 8px 8px 4px;
-    border-radius:8px;
+    border-radius:10px;
     border:1px solid transparent;
   }
   .line-row:hover{ border-color: var(--border); background: var(--hover-bg); }
@@ -911,12 +905,12 @@
   .row-menu-btn{ display:none; }
   .popover-menu{
     position:absolute; z-index:420; min-width:170px;
-    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
     box-shadow:0 8px 24px rgba(0,0,0,.35); padding:4px;
   }
   .popover-menu button{
     display:flex; width:100%; align-items:center; gap:8px;
-    background:transparent; border:none; border-radius:5px;
+    background:transparent; border:none; border-radius:6px;
     color:var(--text); font-size:13px; padding:10px 10px; cursor:pointer;
     min-height:44px; text-align:left;
   }
@@ -932,21 +926,21 @@
   .hint-row .line-tools{ margin-left:auto; flex-shrink:0; }
   .line-tools{ display:flex; gap:5px; }
   .clear-btn{
-    font-size:10.5px; padding:1px 8px; border-radius:4px;
+    font-size:10.5px; padding:1px 8px; border-radius:6px;
     background:transparent; border:1px solid var(--border); color: var(--text-muted);
   }
   .clear-btn:hover{ color: var(--danger-hover-text); border-color: var(--danger); background: var(--hover-bg); }
-  .mono-edit{ font-family:'Inconsolata', 'JetBrains Mono', monospace; }
+  .mono-edit{ font-family:'JetBrains Mono', monospace; }
   .chord-input-wrap input{
     width:100%; background: var(--panel-2); border:1px solid var(--border);
     border-bottom:none; color: var(--gold); font-weight:600;
-    border-radius:5px 5px 0 0; padding: 6px 8px; font-size:14.5px; box-sizing:border-box;
+    border-radius:6px 5px 0 0; padding: 6px 8px; font-size:14.5px; box-sizing:border-box;
   }
   .chord-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
   .chord-input-wrap input::placeholder{ color: var(--placeholder); font-weight:400; }
   .text-input-wrap input{
     width:100%; background: var(--panel-2); border:1px solid var(--border);
-    color:var(--text); border-radius:0 0 5px 5px; padding: 6px 8px;
+    color:var(--text); border-radius:0 0 6px 6px; padding: 6px 8px;
     font-size:14.5px; box-sizing:border-box;
   }
   .text-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
@@ -961,7 +955,7 @@
     .row-menu-btn{
       display:inline-flex; align-items:center; justify-content:center;
       width:44px; height:44px; background:transparent;
-      border:1px solid var(--border); border-radius:8px;
+      border:1px solid var(--border); border-radius:10px;
       color:var(--text-muted); font-size:18px; cursor:pointer;
     }
     /* Filters row: full 44px touch target on small screens. */
@@ -974,7 +968,7 @@
   .bulk-paste-btn{ margin: 0 0 30px 30px; }
   .bulk-paste-wrap{
     max-width: 760px; margin: 0 0 30px 30px;
-    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:10px;
     padding: 12px 14px;
   }
   .bulk-paste-hint{ font-size:11.5px; color: var(--text-muted); line-height:1.5; margin-bottom:8px; }
@@ -1009,7 +1003,7 @@
   .mass-entry-kicker{
     display:inline-block; font-size:12px; font-weight:700; text-transform:uppercase;
     letter-spacing:.5px; color:var(--gold); border:1px solid var(--gold);
-    border-radius:20px; padding:4px 12px; margin-bottom:2px;
+    border-radius:999px; padding:4px 12px; margin-bottom:2px;
   }
   .mass-entry-hint{ font-size:12px; color:var(--text-muted); line-height:1.55; margin:2px 0 14px; }
   .mass-hint-header{ color:var(--gold); font-weight:700; text-decoration:underline; }
@@ -1030,7 +1024,7 @@
   .mass-split-btn{
     position:absolute; right:10px; pointer-events:auto; cursor:pointer;
     font-size:11px; font-weight:600; line-height:1.4; white-space:nowrap;
-    padding:3px 10px; border-radius:20px;
+    padding:3px 10px; border-radius:999px;
     border:1px solid var(--gold); color:var(--gold); background:var(--panel);
   }
   .mass-split-btn:hover{ background:color-mix(in srgb, var(--gold) 15%, transparent); }
@@ -1056,6 +1050,12 @@
     padding: 22px 26px; box-shadow: 0 6px 20px rgba(0,0,0,.35);
     overflow-x:auto; -webkit-overflow-scrolling:touch;
   }
+  /* Light theme: the app background is paper-toned too, so the preview
+     card needs a hairline border + a touch more shadow to separate. */
+  html[data-theme="light"] .paper{
+    border:1px solid var(--border);
+    box-shadow: 0 8px 24px rgba(60,50,30,.18);
+  }
   .paper .p-section-title{
     font-size:17px; font-weight:700; margin-bottom:12px; letter-spacing:.3px;
     color:#2a2620;
@@ -1068,7 +1068,8 @@
   .paper .p-symbols{ color: var(--gold-dim); font-size:15.5px; font-weight:700; white-space:pre; line-height:1.5; }
   .paper .p-text{ font-size:15.5px; white-space:pre; line-height:1.5; }
   .paper .p-line:last-child{ margin-bottom:0; }
-  .paper .p-empty{ color:#a89f88; font-style:italic; font-size:13px; }
+  .paper .p-empty{ color:#a89f88; font-style:italic; font-size:13px; text-align:center; padding:20px 0 10px; }
+  .p-empty-art{ width:66px; height:54px; display:block; margin:0 auto 12px; color:#c4b897; }
 
   /* ---------- empty-state coaching card ----------
      Shown at the top of the editor when the selected song has no
@@ -1116,11 +1117,11 @@
   .snapshot-actions{ display:flex; gap:6px; flex-shrink:0; }
   .snapshot-empty{ padding:10px; font-size:12.5px; color:var(--text-muted); }
   .backup-nudge{ font-size:12.5px; line-height:1.5; color:var(--text-muted);
-    background:var(--panel-2); border:1px solid var(--gold); border-radius:8px;
+    background:var(--panel-2); border:1px solid var(--gold); border-radius:10px;
     padding:8px 10px; margin:0 0 10px; text-align:left; }
   .backup-nudge strong{ color:var(--text); }
   .diff-list{ list-style:none; margin:8px 0 4px; padding:10px 12px; max-height:260px; overflow-y:auto;
-    background:var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
     font-size:13px; line-height:1.55; text-align:left; }
   .diff-list li{ margin:3px 0; overflow-wrap:anywhere; }
   .diff-list .diff-sub{ font-weight:600; margin-top:8px; }
@@ -1170,12 +1171,11 @@
     </div>
   </div>
   <div class="actions">
-    <button class="ghost small" id="btnUndo" title="Undo" aria-label="Undo" disabled><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M176 144 L64 256 L176 368" fill="none" stroke="currentColor" stroke-width="52" stroke-linecap="round" stroke-linejoin="round"/><path d="M88 256 H336 c88 0 88 120 0 120 H208" fill="none" stroke="currentColor" stroke-width="52" stroke-linecap="round"/></svg></button>
-    <button class="ghost small" id="btnShareHelp" title="Help: getting PDFs onto your devices"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M176 168 L336 226 M176 344 L336 286" stroke="currentColor" stroke-width="44" fill="none" stroke-linecap="round"/><circle cx="128" cy="128" r="72"/><circle cx="384" cy="256" r="72"/><circle cx="128" cy="384" r="72"/></svg></button>
-    <button class="ghost small" id="btnHelp" title="Help & technical documentation"><svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M256 32 C132.3 32 32 132.3 32 256 s100.3 224 224 224 224-100.3 224-224 S379.7 32 256 32 z M256 448 c-106 0-192-86-192-192 S150 64 256 64 s192 86 192 192-86 192-192 192 z"/><text x="256" y="352" text-anchor="middle" font-size="280" font-weight="700" fill="currentColor">?</text></svg></button>
     <div class="file-menu-wrap">
       <button class="ghost small" id="btnFileMenu">File <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
       <div class="file-menu-dropdown" id="fileMenuDropdown">
+        <div class="file-menu-group-label">Edit</div>
+        <button class="file-menu-item" id="btnUndo">Undo<span class="file-menu-item-hint">Ctrl+Z</span></button>
         <div class="file-menu-group-label">File</div>
         <button class="file-menu-item" id="btnNewFile">New file</button>
         <button class="file-menu-item" id="btnOpen">Open…</button>
@@ -1189,6 +1189,9 @@
         <button class="file-menu-item" id="btnCopySongs">Import songs</button>
         <div class="file-menu-group-label">Settings</div>
         <button class="file-menu-item" id="btnConfigureLayout">Configuration…</button>
+        <div class="file-menu-group-label">Help</div>
+        <button class="file-menu-item" id="btnShareHelp">Getting PDFs onto your devices…</button>
+        <button class="file-menu-item" id="btnHelp">Help & documentation</button>
       </div>
     </div>
     <input type="file" id="fileInput" accept="application/json">
@@ -1556,7 +1559,7 @@
             <li>Numbering is automatic and always derived from the current sections: a lone Chorus is shown as <code>Chorus</code>, but two Choruses in one song become <code>Chorus 1</code> and <code>Chorus 2</code> — deleting or retyping one renumbers the rest. Custom names are counted as well. Typing a section-type name into the Custom field — even with a trailing number, e.g. <code>Chorus 2</code> — converts it to that picked type when you leave the field: the number is discarded and the app's own numbering takes over. The <strong>Number single sections</strong> setting (File → Configuration…) numbers lone sections too (<code>Chorus 1</code>); it is saved per file and defaults to off. The <strong>Auto-number sections</strong> master switch above it turns all automatic numbering off entirely. The derived name is used everywhere: sidebar, preview, search, and both PDF pipelines.</li>
             <li>"+ Add section" picks its type from the bottom section's name: after a Verse comes a Chorus; after a Chorus, Bridge, or Instrumental comes a Verse; a Pre-Chorus leads into a Chorus; anything else (Intro, Outro, Custom, untitled) starts a Verse. Matching is by name prefix, so "Chorus 2" and a custom "Chorus (reprise)" count as choruses. "Create copy of section" copies the section's type along with its lyrics.</li>
             <li>Row actions: each row has <strong>Clear chords</strong> and <strong>Clear lyrics</strong> buttons above its fields (these clear one input only), plus icon buttons at the right edge to move the row up, move it down, copy it (duplicate icon), and delete it. Copying duplicates the row's chords and lyrics and appends the copy at the bottom of the section, then scrolls it into view. Rows can also be reordered by <strong>dragging the line-number gutter</strong> at the left edge (grip icon): the row follows the pointer with a dimmed ghost and the other rows make room live; dropping writes the new order, Escape cancels, and a press without moving does nothing. At phone width (≤760px) the four icon buttons collapse into a <strong>⋯ menu</strong> with the same labeled actions (Move up, Move down, Copy row, Delete row), and the gutter widens to a 40px touch target.</li>
-            <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the ↩ button in the header, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
+            <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the File menu's Edit group, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
             <li>Keyboard shortcuts: Ctrl/Cmd+S saves — straight to the linked file when one is open, otherwise through the Save-as flow; Ctrl/Cmd+E opens the PDF exporter. Shortcuts never fire while typing in a text field. Escape backs out in layers: it cancels an in-progress row drag first, then closes the confirm popover, then the topmost modal, then the mobile drawer. Modals return focus to the control that opened them.</li>
             <li>New (content-less) songs show a short coaching card in the editor — name the song from the library title field, open Details for artists, tags, and video links (multiple artists go one per line), then add sections and type chords over lyrics — which disappears once the song has rows and can be dismissed per device. On narrow screens the hint row above each row wraps, so the hint text drops above the Clear pills instead of colliding with them.</li>
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
@@ -1586,7 +1589,7 @@
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
-            <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>The File menu is grouped under small labels: Edit (Undo), File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…), Help (Getting PDFs onto your devices…, Help & documentation). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Export filtered songs: File → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
             <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
@@ -1594,7 +1597,7 @@
         </section>
         <section id="help-transfer">
           <h3>9. Device transfer</h3>
-          <p>The share button in the header opens step-by-step guides for transferring exported PDFs to reading devices. Current guides: Apple Books on iPhone/iPad, and Files by Google on Android. The guide set is extensible — additional destinations can be added to the built-in hub.</p>
+          <p>File → <strong>Getting PDFs onto your devices…</strong> (in the Help group) opens step-by-step guides for transferring exported PDFs to reading devices. Current guides: Apple Books on iPhone/iPad, and Files by Google on Android. The guide set is extensible — additional destinations can be added to the built-in hub.</p>
         </section>
         <section id="help-requirements">
           <h3>10. Requirements</h3>
@@ -1605,6 +1608,7 @@
           <ul>
             <li>All display-affecting transforms (lyric-continuation grouping, comment-line stripping, repeat markers) are centralized in <code>groupLinesForDisplay</code> and its helpers so the preview and both PDF pipelines share one code path. Editor source data is never mutated by display logic.</li>
             <li>UI icons are hand-drawn inline SVGs (<code>&lt;svg class="svg-icon" viewBox="0 0 512 512"&gt;</code>) embedded directly in the markup — there is no icon font or icon CDN. To add an icon, inline a new SVG with the <code>svg-icon</code> class; it sizes to <code>1em</code> and inherits <code>currentColor</code>. Do not reintroduce an external icon library.</li>
+            <li>Design tokens are disciplined: gold (<code>--gold</code>) is reserved for the brand mark, chord symbols, active states, and focus — never for general labels, tags, or status text. Radii follow a three-step scale: <code>6px</code> controls, <code>10px</code> surfaces, <code>999px</code> pills. Only two typefaces load — Work Sans for UI, JetBrains Mono for chords and code. Pressable controls translate 1px on press (<code>:active</code>), and every focusable element shows a gold <code>:focus-visible</code> ring. In light mode the dimmed gold (<code>--gold-dim #7a5f16</code>) is the darkest that still keeps the brand look while holding ≈4.9:1 contrast against the paper background for preview chord symbols. The empty preview state shows a hand-drawn open-book illustration, not blank paper.</li>
             <li>The jsPDF library loads from the cdnjs CDN with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update both the script tag and <code>setbook-qa/security-test.js</code>, which asserts the exact hash.</li>
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
             <li>URL import (Add song from URL) is the app's only fetch-from-URL feature, and its security model is: fetch gates the scheme on the <em>resolved</em> URL (only <code>http:</code>/<code>https:</code>) so smuggled schemes can't pass; HTML extraction runs through <code>DOMParser</code>, which never executes scripts; and scraped text is only ever assigned to input <code>value</code> properties or plain strings — never <code>innerHTML</code>. The <code>setbook-url-import</code> event hook normalizes its text through the same path before creating the staging section.</li>
@@ -1639,7 +1643,7 @@
             <li><strong>Create content:</strong> add a song (title + artist), set its section type via the picker, add rows, type chords and lyrics. The live preview must reflect every edit.</li>
             <li><strong>Focus mode:</strong> click the ◎ button on a song header and confirm the search box, sort/filter controls, "+ New song", and other songs are hidden while the focused song's sections stay listed and selectable, and confirm the editor opens the focused song's top section (not whatever section was open in the previous song); click "← All songs" and confirm everything returns; reload and confirm the focus choice is restored.</li>
             <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); toggle <strong>Auto-number sections</strong> off and confirm all numbering disappears and the singles checkbox disables, then toggle it back on; open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
-            <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the header ↩ button, or Ctrl/Cmd+Z. No console errors.</li>
+            <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the File menu (Edit group), or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
@@ -4206,7 +4210,7 @@ function renderPreview(sec){
   if (!paper) return;
   const titleHtml = `<div class="p-section-title">[${escapeHtml(displaySectionName(sec))}]</div>`;
   if (!sec.lines.length || sec.lines.every(l => !l.symbols.length && !l.text)){
-    paper.innerHTML = titleHtml + `<div class="p-empty">Nothing to preview yet — add a line above.</div>`;
+    paper.innerHTML = titleHtml + `<div class="p-empty"><svg class="p-empty-art" viewBox="0 0 66 54" aria-hidden="true"><path d="M33 13 C26 7, 17 7, 11 10 V42 C17 39, 26 39, 33 45 C40 39, 49 39, 55 42 V10 C49 7, 40 7, 33 13 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M33 13 V45" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M20 24 h10 M20 29 h10 M36 24 h10 M36 29 h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><div>Nothing to preview yet — add a line above.</div></div>`;
     return;
   }
   paper.innerHTML = titleHtml + groupLinesForDisplay(sec.lines).map(b => {
@@ -6900,7 +6904,7 @@ document.querySelectorAll('.modal-overlay').forEach((overlay) => {
 });
 /* ---------- undo ----------
    Discrete destructive actions (clear/delete at row level, deletes at
-   section and song level) push an entry here. The header ↩ button,
+   section and song level) push an entry here. The File menu's Undo item,
    Ctrl/Cmd+Z, and each toast's Undo button all consume the same entry
    exactly once, so they can never double-apply. */
 const undoStack = [];
