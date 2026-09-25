@@ -1261,7 +1261,7 @@
     <div class="welcome-features">
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 48 L464 152 L256 256 L48 152 Z"/><path d="M48 216 L256 320 L464 216 L464 264 L256 368 L48 264 Z"/><path d="M48 296 L256 400 L464 296 L464 344 L256 448 L48 344 Z"/></svg>
-        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by tag, artist, cover/original, or ready/not ready. Each song's Details panel holds its artists, tags, and video link.</span></div>
+        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by tag, artist, cover/original, or ready/not ready. Each song's Details panel holds its artists, tags, and video links.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M421 38 L474 91 L191 374 L80 432 L139 321 Z"/></svg>
@@ -1439,7 +1439,7 @@
           <h3>3. Data model</h3>
           <p>All persistent data is a JSON serialization of the <code>state</code> object:</p>
           <ul>
-            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
+            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (album-version link, optional), <code>videoUrlLive</code> (live-performance link, optional), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
             <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, <code>updatedAt</code> (ms-epoch timestamp of the section's last edit; <code>null</code> on older files, shown as "unknown"), and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
@@ -1457,7 +1457,7 @@
             <li>Filter toggles: Cover/Original and Ready/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables both filters; All shows active whenever both are on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that flips its value. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
             <li>Sort &amp; Filter row: everything below the search box — sort, the Show pills, and the tag/artist pickers — lives behind one <strong>Sort &amp; Filter</strong> toggle so the song list gets most of the sidebar. The toggle is an accordion-style section header (uppercase label, divider, prominent chevron — deliberately not a boxed field), starts collapsed, and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device. <strong>Expand all</strong> and <strong>Collapse all</strong> sit outside the panel in their own always-visible row and light up gold to reflect the expansion state — Expand all when every song is expanded, Collapse all when every song is collapsed, neither in a mixed state. A <strong>Clear all</strong> button appears beside the toggle whenever anything is narrowing the song list — search text, a dropdown filter, or a type/ready pill — whether the panel is open or closed, and resets all of them at once (sort is untouched). Each dropdown also has its own <strong>✕</strong> button beside it, visible only while that dropdown has a selection, which clears just that filter.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
-            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the video link (with open/edit controls). Details stays collapsed until opened and is remembered per card for the session.</li>
+            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
             <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch screen slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
             <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Auto-number sections and Number single sections are saved in the file.</li>
@@ -1477,7 +1477,7 @@
             <li>Row actions: each row has <strong>Clear chords</strong> and <strong>Clear lyrics</strong> buttons above its fields (these clear one input only), plus icon buttons at the right edge to move the row up, move it down, copy it (duplicate icon), and delete it. Copying duplicates the row's chords and lyrics and appends the copy at the bottom of the section, then scrolls it into view. Rows can also be reordered by <strong>dragging the line-number gutter</strong> at the left edge (grip icon): the row follows the pointer with a dimmed ghost and the other rows make room live; dropping writes the new order, Escape cancels, and a press without moving does nothing. At phone width (≤760px) the four icon buttons collapse into a <strong>⋯ menu</strong> with the same labeled actions (Move up, Move down, Copy row, Delete row), and the gutter widens to a 40px touch target.</li>
             <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the ↩ button in the header, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
             <li>Keyboard shortcuts: Ctrl/Cmd+S saves — straight to the linked file when one is open, otherwise through the Save-as flow; Ctrl/Cmd+E opens the PDF exporter. Shortcuts never fire while typing in a text field. Escape backs out in layers: it cancels an in-progress row drag first, then closes the confirm popover, then the topmost modal, then the mobile drawer. Modals return focus to the control that opened them.</li>
-            <li>New (content-less) songs show a short coaching card in the editor — name the song from the library title field, open Details for artists, tags, and the video link (multiple artists go one per line), then add sections and type chords over lyrics — which disappears once the song has rows and can be dismissed per device. On narrow screens the hint row above each row wraps, so the hint text drops above the Clear pills instead of colliding with them.</li>
+            <li>New (content-less) songs show a short coaching card in the editor — name the song from the library title field, open Details for artists, tags, and video links (multiple artists go one per line), then add sections and type chords over lyrics — which disappears once the song has rows and can be dismissed per device. On narrow screens the hint row above each row wraps, so the hint text drops above the Clear pills instead of colliding with them.</li>
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
@@ -1554,7 +1554,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (14 checks) — 24 suites, 543 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (14 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks) — 25 suites, 568 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -2076,7 +2076,7 @@ function setSongFocus(gid){
 /* ---------------------------------------------------------
    Sidebar rendering
 --------------------------------------------------------- */
-// The Details panel: song-level data (artists, tags, video link) nested in its
+// The Details panel: song-level data (artists, tags, video links) nested in its
 // own collapsible area under the song header, so the card stays scannable.
 function buildDetailsPanel(group, gDiv){
   const panel = document.createElement('div');
@@ -2174,56 +2174,99 @@ function buildDetailsPanel(group, gDiv){
   tagsRow.appendChild(tagInput);
   panel.append(tagsLabel, tagsRow);
 
-  // --- Video link ---
-  const videoLabel = document.createElement('div');
-  videoLabel.className = 'details-label';
-  videoLabel.textContent = 'Video link';
-  const videoRow = document.createElement('div');
-  videoRow.className = 'group-video';
-  const videoInput = document.createElement('input');
-  videoInput.type = 'text';
-  videoInput.className = 'group-video-input';
-  videoInput.placeholder = 'Paste video link';
-  videoInput.value = group.videoUrl || '';
-  videoInput.title = group.videoUrl || '';
-  const videoOpenBtn = document.createElement('button');
-  videoOpenBtn.type = 'button';
-  videoOpenBtn.className = 'group-video-open';
-  videoOpenBtn.textContent = '\u25b6 Watch';
-  videoOpenBtn.title = watchTarget() === 'self' ? 'Open video in the same tab' : 'Open video in a new tab';
-  const videoEditBtn = document.createElement('button');
-  videoEditBtn.type = 'button';
-  videoEditBtn.className = 'group-video-edit';
-  function setVideoEditing(editing){
-    if (editing){
-      videoInput.style.display = 'block';
-      videoOpenBtn.style.display = 'none';
-      videoEditBtn.style.display = 'none';
-      setTimeout(() => { videoInput.focus(); videoInput.select(); }, 0);
-    } else {
-      videoInput.style.display = 'none';
-      videoOpenBtn.style.display = group.videoUrl ? 'inline-flex' : 'none';
-      videoEditBtn.style.display = 'inline-flex';
-      videoEditBtn.textContent = group.videoUrl ? '\u2710' : '+ Video';
-      videoEditBtn.title = group.videoUrl ? 'Edit video link' : 'Add a video link';
-    }
+  // --- Video links: one for the album version, one for a live performance ---
+  // A single Watch button opens the only link directly, or offers a picker
+  // when both are present. Each row below edits its own link.
+  const videosLabel = document.createElement('div');
+  videosLabel.className = 'details-label';
+  videosLabel.textContent = 'Videos';
+  panel.appendChild(videosLabel);
+  const videoWatchBtn = document.createElement('button');
+  videoWatchBtn.type = 'button';
+  videoWatchBtn.className = 'group-video-open';
+  videoWatchBtn.textContent = '\u25b6 Watch';
+  videoWatchBtn.title = watchTarget() === 'self' ? 'Open video in the same tab' : 'Open video in a new tab';
+  function refreshVideoWatch(){
+    videoWatchBtn.style.display = (group.videoUrl || group.videoUrlLive) ? 'inline-flex' : 'none';
   }
-  videoEditBtn.addEventListener('click', () => setVideoEditing(true));
-  videoInput.addEventListener('input', () => {
-    group.videoUrl = videoInput.value.trim();
-    touchGroup(group);
-    videoInput.title = group.videoUrl;
-    scheduleSave();
+  videoWatchBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const album = group.videoUrl, live = group.videoUrlLive;
+    if (album && live){
+      closeActivePopover();
+      const pop = document.createElement('div');
+      pop.className = 'popover-menu';
+      [['Album version', album], ['Live performance', live]].forEach(([label, url]) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        const t = document.createElement('span');
+        t.textContent = '\u25b6 ' + label;
+        b.appendChild(t);
+        b.title = url;
+        b.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          closeActivePopover();
+          openVideoLink(url);
+        });
+        pop.appendChild(b);
+      });
+      positionPopover(pop, videoWatchBtn);
+      activePopover = pop;
+      armPopoverDocCloser();
+    } else {
+      openVideoLink(album || live);
+    }
   });
-  videoInput.addEventListener('blur', () => setVideoEditing(false));
-  videoInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter'){ e.preventDefault(); videoInput.blur(); }
-  });
-  preventAutoReplace(videoInput);
-  videoOpenBtn.addEventListener('click', () => openVideoLink(group.videoUrl));
-  videoRow.append(videoOpenBtn, videoEditBtn, videoInput);
-  setVideoEditing(false);
-  panel.append(videoLabel, videoRow);
+  panel.appendChild(videoWatchBtn);
+  function buildVideoRow(field, labelText, placeholderText){
+    const videoLabel = document.createElement('div');
+    videoLabel.className = 'details-label';
+    videoLabel.textContent = labelText;
+    const videoRow = document.createElement('div');
+    videoRow.className = 'group-video';
+    videoRow.dataset.videoField = field;
+    const videoInput = document.createElement('input');
+    videoInput.type = 'text';
+    videoInput.className = 'group-video-input';
+    videoInput.placeholder = placeholderText;
+    videoInput.value = group[field] || '';
+    videoInput.title = group[field] || '';
+    const videoEditBtn = document.createElement('button');
+    videoEditBtn.type = 'button';
+    videoEditBtn.className = 'group-video-edit';
+    const linkNoun = labelText.toLowerCase() + ' link';
+    function setVideoEditing(editing){
+      if (editing){
+        videoInput.style.display = 'block';
+        videoEditBtn.style.display = 'none';
+        setTimeout(() => { videoInput.focus(); videoInput.select(); }, 0);
+      } else {
+        videoInput.style.display = 'none';
+        videoEditBtn.style.display = 'inline-flex';
+        videoEditBtn.textContent = group[field] ? '\u2710' : '+ Video';
+        videoEditBtn.title = group[field] ? 'Edit ' + linkNoun : 'Add a ' + linkNoun;
+      }
+    }
+    videoEditBtn.addEventListener('click', () => setVideoEditing(true));
+    videoInput.addEventListener('input', () => {
+      group[field] = videoInput.value.trim();
+      touchGroup(group);
+      videoInput.title = group[field];
+      refreshVideoWatch();
+      scheduleSave();
+    });
+    videoInput.addEventListener('blur', () => setVideoEditing(false));
+    videoInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter'){ e.preventDefault(); videoInput.blur(); }
+    });
+    preventAutoReplace(videoInput);
+    videoRow.append(videoEditBtn, videoInput);
+    setVideoEditing(false);
+    panel.append(videoLabel, videoRow);
+  }
+  buildVideoRow('videoUrl', 'Album video', 'Paste album-version link');
+  buildVideoRow('videoUrlLive', 'Live video', 'Paste live-performance link');
+  refreshVideoWatch();
 
   return panel;
 }
@@ -2357,7 +2400,7 @@ function renderSidebar(){
     detailsToggleBtn.type = 'button';
     detailsToggleBtn.className = 'details-toggle';
     detailsToggleBtn.setAttribute('aria-expanded', 'false');
-    detailsToggleBtn.title = 'Show song details: artists, tags, video link';
+    detailsToggleBtn.title = 'Show song details: artists, tags, video links';
     detailsToggleBtn.innerHTML = '<span class="dt-chev">▸</span> Details';
     typeSpan.appendChild(detailsToggleBtn);
 
@@ -2841,7 +2884,7 @@ function buildCoachCard(){
     <button type="button" class="coach-dismiss" aria-label="Dismiss">✕</button>
     <h3>Start your first song</h3>
     <ol>
-      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> under the song for artists (one per line), tags, and a video link.</li>
+      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> under the song for artists (one per line), tags, and video links.</li>
       <li><strong>Add sections</strong> — a song is its sections in playing order; add them with <strong>+ Add section</strong> under the song in the library.</li>
       <li><strong>Write rows</strong> — pick a section, then type chords on each row's top line and lyrics underneath. The preview below keeps them lined up.</li>
     </ol>`;
@@ -4857,7 +4900,7 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   copySelectedGroupIds.forEach(gid => {
     const srcGroup = copySourceState.sectionGroups.find(g => g.id === gid);
     if (!srcGroup) return;
-    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready', tags: [...groupTags(srcGroup)], updatedAt: Date.now() };
+    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', videoUrlLive: srcGroup.videoUrlLive || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready', tags: [...groupTags(srcGroup)], updatedAt: Date.now() };
     state.sectionGroups.push(newGroup);
     const srcSections = copySourceState.sections
       .filter(s => s.groupId === gid)
