@@ -560,6 +560,37 @@
   .tools-buttons{ display:flex; gap:6px; }
   .tools-buttons button{ flex:1; padding:5px 6px; font-size:11.5px; min-width:0; }
   .tools-buttons + .tools-buttons{ margin-top:6px; }
+  .filter-select{
+    width:100%; box-sizing:border-box; font-family:inherit; font-size:12.5px; color:var(--text);
+    background-color:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:7px 30px 7px 9px; margin:0 0 6px; cursor:pointer;
+    appearance:none; -webkit-appearance:none; max-width:100%;
+    text-overflow:ellipsis; overflow:hidden; white-space:nowrap;
+    background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'><path d='M1 1l4 4 4-4' fill='none' stroke='%239a9aa0' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+    background-repeat:no-repeat; background-position:right 11px center;
+  }
+  .filter-select:last-child{ margin-bottom:0; }
+  .filter-select:focus{ outline:none; border-color:var(--focus-border); }
+  .song-tags-row{ display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:9px; }
+  .tag-pill{
+    display:inline-flex; align-items:center; gap:2px;
+    background:var(--gold-tint); border:1px solid var(--gold); color:var(--gold);
+    border-radius:20px; padding:3px 4px 3px 10px; font-size:12px; font-weight:600;
+    max-width:100%;
+  }
+  .tag-pill span{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .tag-pill button{
+    background:none; border:none; color:inherit; cursor:pointer;
+    font-size:14px; line-height:1; padding:4px 6px; border-radius:50%;
+  }
+  .tag-pill button:hover{ background:rgba(0,0,0,.12); }
+  .tag-add-input{
+    background:transparent; border:none; border-bottom:1px dashed var(--border);
+    color:var(--text); font-family:inherit; font-size:12px; padding:4px 2px;
+    min-width:90px; flex:1 1 120px; max-width:220px;
+  }
+  .tag-add-input:focus{ outline:none; border-bottom-color:var(--gold); }
+  .tag-add-input::placeholder{ color:var(--placeholder); }
   .sort-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
   .sort-chev{ display:inline-block; font-size:9px; margin-left:2px; }
   .sidebar-list{
@@ -902,6 +933,10 @@
   @media (max-width:760px){
     .snapshot-actions button{ min-height:44px; }
     .snapshot-top-actions button{ min-height:44px; }
+    .filter-select{ min-height:44px; font-size:14px; }
+    .tag-pill{ font-size:13px; }
+    .tag-pill button{ min-width:44px; min-height:44px; }
+    .tag-add-input{ min-height:44px; font-size:14px; flex-basis:140px; }
   }
 
   /* Themed scrollbars are scoped to the main app scroll areas only.
@@ -942,6 +977,7 @@
         <button class="file-menu-item" id="btnOpen">Open…</button>
         <button class="file-menu-item" id="btnSaveAs">Save as…<span class="file-menu-item-hint" id="saveShortcutHint"></span></button>
         <button class="file-menu-item" id="btnSnapshots">Snapshots…</button>
+        <button class="file-menu-item" id="btnExportFiltered">Export filtered songs…<span class="file-menu-item-hint" id="exportFilteredHint"></span></button>
         <div class="file-menu-group-label">Folders</div>
         <button class="file-menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="file-menu-item-hint"></span></button>
         <button class="file-menu-item" id="btnRevealFolder">Open enclosing folder…</button>
@@ -1234,7 +1270,7 @@
           <h3>3. Data model</h3>
           <p>All persistent data is a JSON serialization of the <code>state</code> object:</p>
           <ul>
-            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>).</li>
+            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>).</li>
             <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Number single sections</strong> setting (File → Configuration…) also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
@@ -1245,8 +1281,9 @@
           <h3>4. Song library (sidebar)</h3>
           <ul>
             <li>Songs are listed alphabetically with their sections nested beneath. Songs can be expanded and collapsed individually or all at once.</li>
-            <li>Search is a case-insensitive substring match across song title, artist, section name, lyric text, and chord symbols. Matches are shown per section with a snippet of the matching lyric line. The Cover/Original and Ready/Not ready filters apply to search results as well as to browsing.</li>
+            <li>Search is a case-insensitive substring match across song title, artist, tags, section name, lyric text, and chord symbols. Matches are shown per section with a snippet of the matching lyric line. The Cover/Original, Ready/Not ready, tag, and artist filters apply to search results as well as to browsing.</li>
             <li>Sorting is by title or artist, ascending or descending. Untitled songs are pinned below titled songs in both directions; songs without an artist are pinned below songs that have one. A leading "The " in an artist name is ignored for ordering ("The Beatles" sorts under B).</li>
+            <li>Songs can carry custom tags: open a song and use the tag row under its title — type a tag and press Enter (a comma works too); each tag becomes a removable pill. Duplicates are ignored case-insensitively. The sidebar's Filter section offers a tag picker and an artist picker (every tag/artist in the library, A–Z, with a song count beside each, plus an "All" default); a picker selection that no longer exists falls back to All. The tag and artist filters compose with the Cover/Original and Ready/Not ready filters, apply to search results as well, and — like the other filters — close the open song if it gets filtered out of view.</li>
             <li>Filter toggles: Cover/Original and Ready/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables both filters; All shows active whenever both are on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that flips its value. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
             <li>Per-song metadata: editable title and artist, optional video link (with open/edit controls), Cover/Original badge, and Ready/Not Ready badge.</li>
@@ -1293,9 +1330,10 @@
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff.</li>
-            <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>Export filtered songs: File → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
-            <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type and ready status are carried over, defaulting to Cover / Not Ready when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the tag slot), then any name matching a section-type name is converted to that picked type.</li>
+            <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the tag slot), then any name matching a section-type name is converted to that picked type.</li>
           </ul>
         </section>
         <section id="help-transfer">
@@ -1338,12 +1376,12 @@
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
-            <li><strong>Sidebar:</strong> search filters the song list; title and artist sorting reorder correctly; Cover/Original and Ready/Not ready filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
+            <li><strong>Sidebar:</strong> search filters the song list; title and artist sorting reorder correctly; Cover/Original, Ready/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
             <li><strong>Save:</strong> Save as produces a file download with no errors.</li>
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), and <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), and <code>setbook-qa/export-filtered-test.js</code> (12 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -1381,6 +1419,12 @@
       </div>
 
       <div class="tools-section">
+        <div class="tools-section-label">Filter</div>
+        <select id="tagFilterSelect" class="filter-select" title="Show only songs with this tag" aria-label="Filter songs by tag"></select>
+        <select id="artistFilterSelect" class="filter-select" title="Show only songs by this artist" aria-label="Filter songs by artist"></select>
+      </div>
+
+      <div class="tools-section">
         <div class="tools-buttons">
           <button class="ghost small" id="expandAllBtn">Expand all</button>
           <button class="ghost small" id="collapseAllBtn">Collapse all</button>
@@ -1414,7 +1458,8 @@ function defaultState(){
     numberSingleSections: false,
     focusedGroupId: null,
     songTypeFilter: { cover: true, original: true },
-    readyFilter: { ready: true, notReady: true }
+    readyFilter: { ready: true, notReady: true },
+    tagFilter: '', artistFilter: ''
   };
 }
 let state = defaultState();
@@ -1484,13 +1529,62 @@ function matchesReadyFilter(group){
   return (ready && filter.ready) || (!ready && filter.notReady);
 }
 
+// Custom per-song tags. Stored on the song group as an array of strings;
+// matching is case-insensitive but the original casing is kept for display.
+function groupTags(group){
+  return Array.isArray(group.tags) ? group.tags.filter(t => typeof t === 'string') : [];
+}
+function addTagToGroup(group, raw){
+  const tag = (raw || '').trim();
+  if (!tag) return false;
+  const tags = groupTags(group);
+  if (tags.some(t => t.toLowerCase() === tag.toLowerCase())) return false;
+  group.tags = [...tags, tag];
+  return true;
+}
+function removeTagFromGroup(group, raw){
+  const tag = (raw || '').trim().toLowerCase();
+  group.tags = groupTags(group).filter(t => t.toLowerCase() !== tag);
+}
+// every tag in use across the library, with song counts, A-Z
+function allTags(){
+  const map = new Map();
+  state.sectionGroups.forEach(g => groupTags(g).forEach(t => {
+    const k = t.toLowerCase();
+    if (!map.has(k)) map.set(k, { tag: t, count: 0 });
+    map.get(k).count++;
+  }));
+  return [...map.values()].sort((a, b) => a.tag.localeCompare(b.tag, undefined, { sensitivity: 'base' }));
+}
+// every artist in use across the library, with song counts, A-Z
+function allArtists(){
+  const map = new Map();
+  state.sectionGroups.forEach(g => {
+    const a = (g.artist || '').trim();
+    if (!a) return;
+    const k = a.toLowerCase();
+    if (!map.has(k)) map.set(k, { artist: a, count: 0 });
+    map.get(k).count++;
+  });
+  return [...map.values()].sort((a, b) => a.artist.localeCompare(b.artist, undefined, { sensitivity: 'base' }));
+}
+function matchesTagFilter(group){
+  if (!state.tagFilter) return true;
+  const want = String(state.tagFilter).toLowerCase();
+  return groupTags(group).some(t => t.toLowerCase() === want);
+}
+function matchesArtistFilter(group){
+  if (!state.artistFilter) return true;
+  return (group.artist || '').trim().toLowerCase() === String(state.artistFilter).toLowerCase();
+}
+
 // If the song open in the editor is hidden by the current filters, close it
 // and fall back to the empty starting view — editing a song the user can no
 // longer see in the sidebar makes no sense.
 function closeOpenSongIfFilteredOut(){
   const group = state.sectionGroups.find(g => g.id === selectedGroupId);
   if (!group) return;
-  if (matchesSongTypeFilter(group) && matchesReadyFilter(group)) return;
+  if (matchesSongTypeFilter(group) && matchesReadyFilter(group) && matchesTagFilter(group) && matchesArtistFilter(group)) return;
   selectedGroupId = null;
   selectedSectionId = null;
 }
@@ -1569,13 +1663,46 @@ document.getElementById('filterAllReadyBtn').addEventListener('click', () => {
   renderAll();
 });
 
+// Tag and artist pickers. Options are rebuilt from the library on every
+// sidebar render (tags/artists can appear, disappear, or be renamed at any
+// time); a selection that no longer exists falls back to "All".
+function updateFilterSelects(){
+  const tagSel = document.getElementById('tagFilterSelect');
+  const artistSel = document.getElementById('artistFilterSelect');
+  if (!tagSel || !artistSel) return;
+  const tags = allTags();
+  if (state.tagFilter && !tags.some(t => t.tag.toLowerCase() === String(state.tagFilter).toLowerCase())) state.tagFilter = '';
+  const tagWant = String(state.tagFilter || '').toLowerCase();
+  tagSel.innerHTML = '<option value="">All tags</option>' + tags.map(t =>
+    `<option value="${escapeAttr(t.tag)}"${t.tag.toLowerCase() === tagWant ? ' selected' : ''}>${escapeHtml(t.tag)} (${t.count})</option>`
+  ).join('');
+  const artists = allArtists();
+  if (state.artistFilter && !artists.some(a => a.artist.toLowerCase() === String(state.artistFilter).toLowerCase())) state.artistFilter = '';
+  const artistWant = String(state.artistFilter || '').toLowerCase();
+  artistSel.innerHTML = '<option value="">All artists</option>' + artists.map(a =>
+    `<option value="${escapeAttr(a.artist)}"${a.artist.toLowerCase() === artistWant ? ' selected' : ''}>${escapeHtml(a.artist)} (${a.count})</option>`
+  ).join('');
+}
+document.getElementById('tagFilterSelect').addEventListener('change', e => {
+  state.tagFilter = e.target.value;
+  closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+document.getElementById('artistFilterSelect').addEventListener('change', e => {
+  state.artistFilter = e.target.value;
+  closeOpenSongIfFilteredOut();
+  scheduleSave();
+  renderAll();
+});
+
 function searchSections(query){
   const q = query.trim().toLowerCase();
   if (!q) return [];
   const results = [];
-  sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter).forEach(group => {
+  sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter).filter(matchesTagFilter).filter(matchesArtistFilter).forEach(group => {
     groupSections(group.id).forEach(section => {
-      const haystackParts = [group.name || '', group.artist || '', displaySectionName(section)];
+      const haystackParts = [group.name || '', group.artist || '', groupTags(group).join(' '), displaySectionName(section)];
       section.lines.forEach(line => {
         haystackParts.push(line.text || '');
         line.symbols.forEach(s => haystackParts.push(s.value || ''));
@@ -1620,6 +1747,7 @@ function setSongFocus(gid){
    Sidebar rendering
 --------------------------------------------------------- */
 function renderSidebar(){
+  updateFilterSelects();
   const el = document.getElementById('sidebarList');
   el.innerHTML = '';
   updateSortButtons();
@@ -1641,7 +1769,7 @@ function renderSidebar(){
     return;
   }
 
-  (focusGroup ? [focusGroup] : sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter)).forEach(group => {
+  (focusGroup ? [focusGroup] : sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter).filter(matchesTagFilter).filter(matchesArtistFilter)).forEach(group => {
     const secs = groupSections(group.id);
     const isExpanded = focusGroup ? true : expandedGroups.has(group.id);
 
@@ -2457,6 +2585,56 @@ function renderMain(){
       <div class="section-name-preview">Shows as: <strong>${escapeHtml(displaySectionName(sec))}</strong></div>
     </div>
   `;
+  // Song tags: removable pills plus an add box, tucked under the song title.
+  // Enter or comma commits a tag; duplicates (case-insensitive) are ignored.
+  const tagsRow = document.createElement('div');
+  tagsRow.className = 'song-tags-row';
+  tagsRow.setAttribute('aria-label', 'Song tags');
+  head.querySelector('.group-label').after(tagsRow);
+  function buildTagPill(tag){
+    const pill = document.createElement('span');
+    pill.className = 'tag-pill';
+    const label = document.createElement('span');
+    label.textContent = tag;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '\u00d7';
+    x.title = 'Remove tag';
+    x.setAttribute('aria-label', 'Remove tag ' + tag);
+    x.addEventListener('click', () => {
+      removeTagFromGroup(group, tag);
+      scheduleSave();
+      pill.remove();
+      if (!groupTags(group).length) tagInput.placeholder = 'Add tags, e.g. rock, singalong';
+      renderSidebar(); // the tag picker options may have shrunk
+    });
+    pill.append(label, x);
+    return pill;
+  }
+  groupTags(group).forEach(tag => tagsRow.appendChild(buildTagPill(tag)));
+  const tagInput = document.createElement('input');
+  tagInput.className = 'tag-add-input';
+  tagInput.placeholder = groupTags(group).length ? '+ Add tag' : 'Add tags, e.g. rock, singalong';
+  tagInput.title = 'Type a tag and press Enter (a comma works too)';
+  tagInput.setAttribute('aria-label', 'Add a tag to this song');
+  preventAutoReplace(tagInput);
+  const commitTag = (keepFocus) => {
+    const tag = tagInput.value.trim();
+    if (tag && addTagToGroup(group, tag)){
+      scheduleSave();
+      tagsRow.insertBefore(buildTagPill(tag), tagInput);
+      tagInput.placeholder = '+ Add tag';
+      renderSidebar(); // the tag picker options may have grown
+    }
+    tagInput.value = '';
+    if (keepFocus) tagInput.focus();
+  };
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ','){ e.preventDefault(); commitTag(true); }
+  });
+  tagInput.addEventListener('blur', () => commitTag(false));
+  tagsRow.appendChild(tagInput);
+
   const typeSel = head.querySelector('.section-type-select');
   const customInput = head.querySelector('.section-custom-input');
   const suffixInput = head.querySelector('.section-suffix-input');
@@ -3276,8 +3454,11 @@ document.getElementById('compareFileInput').addEventListener('change', async (e)
 const fileMenuDropdown = document.getElementById('fileMenuDropdown');
 document.getElementById('btnFileMenu').addEventListener('click', (e) => {
   e.stopPropagation();
+  const n = filteredSongGroups().length;
+  document.getElementById('exportFilteredHint').textContent = n ? `(${n})` : '';
   fileMenuDropdown.classList.toggle('open');
 });
+document.getElementById('btnExportFiltered').addEventListener('click', exportFilteredSongs);
 fileMenuDropdown.addEventListener('click', (e) => {
   if (e.target.closest('.file-menu-item')) fileMenuDropdown.classList.remove('open');
 });
@@ -3412,6 +3593,12 @@ function loadParsedState(parsed){
   state = parsed;
   state.sections.forEach(migrateSectionName);
   state.sections.forEach(migrateMultilineLyrics);
+  state.sectionGroups.forEach(g => {
+    if (!Array.isArray(g.tags)) g.tags = [];
+    else g.tags = g.tags.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim());
+  });
+  if (typeof state.tagFilter !== 'string') state.tagFilter = '';
+  if (typeof state.artistFilter !== 'string') state.artistFilter = '';
   if (typeof state.projectName !== 'string') state.projectName = '';
   if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
   if (typeof state.lastFolderName !== 'string') state.lastFolderName = '';
@@ -3528,6 +3715,74 @@ async function saveAs(){
   } catch(err){
     if (err.name !== 'AbortError') showErrorToast('Could not create that file: ' + err.message);
   }
+}
+
+// The songs currently on screen in the sidebar: the four sidebar filters,
+// plus the search box when it has text (the list is literally showing hits).
+function filteredSongGroups(){
+  if (searchQuery.trim()){
+    const seen = new Set();
+    return searchSections(searchQuery).filter(r => {
+      if (seen.has(r.group.id)) return false;
+      seen.add(r.group.id);
+      return true;
+    }).map(r => r.group);
+  }
+  return sortedSongGroups()
+    .filter(matchesSongTypeFilter)
+    .filter(matchesReadyFilter)
+    .filter(matchesTagFilter)
+    .filter(matchesArtistFilter);
+}
+
+// Download a JSON containing just the currently filtered songs, as a new
+// file — the open file (and its linked file handle) is left untouched.
+// The export is a standalone library: filters are reset so everything in it
+// shows, saved PDF setlists are pruned to the exported songs, and section
+// display names are re-stamped against the exported set.
+function exportFilteredSongs(){
+  const groups = filteredSongGroups();
+  if (!groups.length){
+    showErrorToast('No songs match the current filters — nothing to export.');
+    return;
+  }
+  const keepIds = new Set(groups.map(g => g.id));
+  const out = JSON.parse(JSON.stringify(state));
+  out.sectionGroups = out.sectionGroups.filter(g => keepIds.has(g.id));
+  out.sections = out.sections.filter(x => keepIds.has(x.groupId));
+  if (Array.isArray(out.songSubsets)){
+    out.songSubsets = out.songSubsets
+      .map(sub => ({ ...sub, songIds: (sub.songIds || []).filter(id => keepIds.has(id)) }))
+      .filter(sub => sub.songIds.length);
+  }
+  out.songTypeFilter = { cover: true, original: true };
+  out.readyFilter = { ready: true, notReady: true };
+  out.tagFilter = '';
+  out.artistFilter = '';
+  out.focusedGroupId = null;
+  if (!keepIds.has(out.lastOpenGroupId)){ out.lastOpenGroupId = null; out.lastOpenSectionId = null; }
+  else if (!out.sections.some(x => x.id === out.lastOpenSectionId)) out.lastOpenSectionId = null;
+  // re-stamp display names against the exported sections only (numbering can
+  // shift when a same-named sibling is left behind); swap state briefly —
+  // displaySectionName only reads state, and the swap is exception-safe.
+  const liveState = state;
+  try { state = out; stampSectionDisplayNames(); }
+  finally { state = liveState; }
+
+  const base = currentFileName || `setbook-${new Date().toISOString().slice(0,10)}.json`;
+  const dot = base.lastIndexOf('.');
+  const name = dot > 0 ? base.slice(0, dot) + ' (filtered)' + base.slice(dot) : base + ' (filtered)';
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+  const n = out.sectionGroups.length;
+  showToast(`Exported ${n} song${n === 1 ? '' : 's'} to ${name} — your open file is unchanged.`);
 }
 
 function downloadCopy(){
@@ -3775,7 +4030,7 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   copySelectedGroupIds.forEach(gid => {
     const srcGroup = copySourceState.sectionGroups.find(g => g.id === gid);
     if (!srcGroup) return;
-    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready' };
+    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready', tags: [...groupTags(srcGroup)] };
     state.sectionGroups.push(newGroup);
     const srcSections = copySourceState.sections
       .filter(s => s.groupId === gid)
