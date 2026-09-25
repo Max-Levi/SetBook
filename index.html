@@ -130,6 +130,15 @@
   }
   .brand span{ color: var(--gold); }
   .brand small{ color: var(--text-muted); font-size:12px; }
+  /* QA environment badge — only ever inserted when the IS_QA build flag
+     is flipped on by the QA deploy script; prod never shows this. */
+  .brand .qa-badge{
+    display:inline-flex; align-items:center; flex-shrink:0;
+    font-size:15px; font-weight:800; letter-spacing:2px;
+    color:#fff; background:#c0392b;
+    border-radius:8px; padding:5px 12px 5px 14px;
+    box-shadow:0 0 0 2px rgba(192,57,43,.35);
+  }
   .file-status{ display:flex; align-items:center; gap:7px; margin-left:6px; padding-left:12px; border-left:1px solid var(--border); }
   .file-name{ font-size:12.5px; color:var(--text-muted); font-family:'JetBrains Mono', monospace; }
   .save-dot{ width:7px; height:7px; border-radius:50%; background: var(--save-dot-idle); flex-shrink:0; }
@@ -342,11 +351,15 @@
   .config-row:has(+ .modal-actions){ border-bottom:0; } /* last row sits right above the actions: no divider */
   #configModalOverlay .modal-actions{ margin-top:14px; }
 
-  .config-text{ flex:1; min-width:0; }
-  .config-name{ font-size:13.5px; font-weight:600; }
-  .config-desc{ font-size:12px; color:var(--text-muted); margin-top:2px; }
+  .config-text{ flex:1; min-width:0; display:block; }
+  .config-name{ font-size:13.5px; font-weight:600; display:block; }
+  .config-desc{ font-size:12px; color:var(--text-muted); margin-top:2px; display:block; }
   .config-row .mode-toggle{ flex-shrink:0; }
   .config-check{ width:18px; height:18px; accent-color:var(--gold); flex-shrink:0; cursor:pointer; }
+  .config-check:disabled{ cursor:not-allowed; opacity:.5; }
+  label.config-row{ cursor:pointer; }
+  .config-subrow{ padding-left:16px; } /* subordinate to the row above */
+  .config-row.disabled-row .config-text{ opacity:.45; }
   .modal-welcome{ width:520px; }
 
   /* Technical documentation / Help modal */
@@ -445,8 +458,14 @@
     .welcome-use{ font-size:12px; margin-bottom:12px; }
     .welcome-cta-label{ font-size:12.5px; margin-bottom:10px; }
     /* bigger tap targets on modal action buttons, like the header */
-    .modal-actions .ghost.small, .modal-actions .primary.small{
+    .modal-actions .ghost.small, .modal-actions .primary.small,
+    .recovery-banner-actions .ghost.small, .recovery-banner-actions .primary.small{
       padding:10px 16px; font-size:14px;
+    }
+    /* the recovery banner's buttons are the primary action in the compact
+       welcome modal — guarantee the full 44px touch target */
+    .recovery-banner-actions .ghost.small, .recovery-banner-actions .primary.small{
+      min-height:44px;
     }
     /* In the PDF exporter the Generate button can scroll far out of sight
        on phones: pin the action footer to the bottom of the visible modal.
@@ -582,14 +601,18 @@
   .sidebar-search:focus{ outline:none; border-color: var(--focus-border); }
   /* Collapsible Filters row: everything but search lives behind one toggle
      so the song list gets most of the sidebar. */
+  /* Accordion-style Filters header: deliberately not a boxed field — a
+     transparent section header with a prominent chevron, so it reads as
+     expandable rather than as a text input. */
   .filters-toggle{
     display:flex; align-items:center; justify-content:space-between; gap:8px;
-    width:100%; box-sizing:border-box; margin-bottom:9px; padding:8px 10px;
-    background: var(--panel-2); border:1px solid var(--border); border-radius:6px;
-    color: var(--text); font-family:inherit; font-size:12.5px; font-weight:600;
+    width:100%; box-sizing:border-box; padding:8px 2px;
+    background:transparent; border:none; border-bottom:1px solid var(--border); border-radius:0;
+    color: var(--text); font-family:inherit; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.6px;
     cursor:pointer; text-align:left;
   }
-  .filters-toggle:hover{ border-color: var(--focus-border); }
+  .filters-toggle:hover .filters-toggle-label{ color:var(--gold); }
   .filters-toggle:focus-visible{ outline:2px solid var(--focus-border); outline-offset:1px; }
   .filters-toggle-text{
     display:flex; align-items:baseline; gap:8px; min-width:0; flex:1;
@@ -597,8 +620,16 @@
   .filters-toggle-summary{
     font-weight:400; color: var(--text-muted); font-size:11.5px; min-width:0;
     white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    text-transform:none; letter-spacing:normal;
   }
-  .filters-toggle-chev{ color: var(--text-muted); font-size:11px; flex-shrink:0; }
+  .filters-toggle-chev{ color:var(--text); font-size:14px; flex-shrink:0; }
+  /* Clear button beside the toggle: visible only when the panel is closed
+     and a tag/artist dropdown filter is active, so a hidden filter can be
+     cleared without reopening the row. */
+  .filters-toggle-row{ display:flex; gap:8px; align-items:stretch; margin-bottom:9px; }
+  .filters-toggle-row .filters-toggle{ flex:1; min-width:0; width:auto; margin-bottom:0; }
+  .filters-clear{ flex-shrink:0; }
+  .filters-clear[hidden]{ display:none; }
   .filters-panel{ display:block; }
   .sidebar-tools.filters-collapsed .filters-panel{ display:none; }
   .tools-section{
@@ -999,6 +1030,12 @@
   .recovery-banner-text span{ color:var(--text-muted); }
   .recovery-banner-actions{ display:flex; gap:8px; }
 
+  /* Compact welcome modal for returning users: when a recovery snapshot is
+     offered, the marketing tour (feature list + "built for" line) is hidden
+     so the recovery banner and the file buttons fit without scrolling. */
+  .modal-welcome.welcome-compact .welcome-features,
+  .modal-welcome.welcome-compact .welcome-use{ display:none; }
+
   /* ---------- snapshots & diff ---------- */
   .snapshot-top-actions{ justify-content:flex-start; margin-bottom:10px; flex-wrap:wrap; }
   .snapshot-row{ display:flex; align-items:center; gap:8px; padding:8px 10px;
@@ -1272,13 +1309,20 @@
         <button type="button" class="mode-btn" data-theme-choice="light">Light</button>
       </div>
     </div>
-    <div class="config-row">
-      <div class="config-text">
-        <div class="config-name">Number single sections</div>
-        <div class="config-desc">Also number sections that appear only once in a song (“Chorus 1” instead of “Chorus”). Saved in the file.</div>
-      </div>
+    <label class="config-row" id="configAutoNumberRow">
+      <span class="config-text">
+        <span class="config-name">Auto-number sections</span>
+        <span class="config-desc">Number repeated sections automatically (“Chorus 1”, “Chorus 2”). Turn it off to always show the plain section name. Saved in the file.</span>
+      </span>
+      <input type="checkbox" class="config-check" id="configAutoNumber" aria-label="Auto-number sections">
+    </label>
+    <label class="config-row config-subrow" id="configNumberSinglesRow">
+      <span class="config-text">
+        <span class="config-name">Number single sections</span>
+        <span class="config-desc">Also number sections that appear only once in a song (“Chorus 1” instead of “Chorus”).</span>
+      </span>
       <input type="checkbox" class="config-check" id="configNumberSingles" aria-label="Number single sections">
-    </div>
+    </label>
     <div class="config-row">
       <div class="config-text">
         <div class="config-name">Watch video links</div>
@@ -1364,10 +1408,10 @@
           <p>All persistent data is a JSON serialization of the <code>state</code> object:</p>
           <ul>
             <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>).</li>
-            <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Number single sections</strong> setting (File → Configuration…) also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
+            <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
-            <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
+            <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>autoNumberSections</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
           </ul>
         </section>
         <section id="help-library">
@@ -1379,12 +1423,12 @@
             <li>Songs can carry custom tags: open a song's <strong>Details</strong> panel and use the tag editor — type a tag and press Enter (a comma works too); each tag becomes a removable pill. Duplicates are ignored case-insensitively. The sidebar's Filter section offers a tag picker and an artist picker (every tag/artist in the library, A–Z, with a song count beside each, plus an "All" default); a picker selection that no longer exists falls back to All. The tag and artist filters compose with the Cover/Original and Ready/Not ready filters, apply to search results as well, and — like the other filters — close the open song if it gets filtered out of view.</li>
             <li>Multiple artists: the artist field in Details takes one artist per line. The header shows them joined with commas, the artist picker lists each artist separately, and a song matches the artist filter when <em>any</em> of its artists is picked. Sorting by artist uses the first listed artist, and the suggestion popup completes the line being typed.</li>
             <li>Filter toggles: Cover/Original and Ready/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables both filters; All shows active whenever both are on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that flips its value. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
-            <li>Filters row: everything below the search box — sort, the Show pills, the tag/artist pickers, and Expand/Collapse all — lives behind one <strong>Filters</strong> toggle so the song list gets most of the sidebar. The toggle starts collapsed and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device.</li>
+            <li>Filters row: everything below the search box — sort, the Show pills, the tag/artist pickers, and Expand/Collapse all — lives behind one <strong>Filters</strong> toggle so the song list gets most of the sidebar. The toggle is an accordion-style section header (uppercase label, divider, prominent chevron — deliberately not a boxed field), starts collapsed, and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device. While the panel is closed, a <strong>Clear all</strong> button appears beside the toggle whenever anything is narrowing the song list — search text, a dropdown filter, or a type/ready pill — and resets all of them at once (sort is untouched).</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
             <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the video link (with open/edit controls). Details stays collapsed until opened and is remembered per card for the session.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
             <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch screen slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
-            <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Number single sections is saved in the file.</li>
+            <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Auto-number sections and Number single sections are saved in the file.</li>
           </ul>
         </section>
         <section id="help-editor">
@@ -1396,7 +1440,7 @@
             <li>Bulk paste: pasting multiple lines into the editor alternates chord/lyric pairing automatically.</li>
             <li>Sections can be added, moved up and down, and deleted; renaming is done through the name picker in the editor header.</li>
             <li>Section names are chosen from a picker: Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or Custom (free text). A label field next to the picker holds informational text shown after the number, e.g. <code>(guitar solo)</code>; a "Shows as" line under the picker previews the final derived name.</li>
-            <li>Numbering is automatic and always derived from the current sections: a lone Chorus is shown as <code>Chorus</code>, but two Choruses in one song become <code>Chorus 1</code> and <code>Chorus 2</code> — deleting or retyping one renumbers the rest. Custom names are counted as well. Typing a section-type name into the Custom field — even with a trailing number, e.g. <code>Chorus 2</code> — converts it to that picked type when you leave the field: the number is discarded and the app's own numbering takes over. The <strong>Number single sections</strong> setting (File → Configuration…) numbers lone sections too (<code>Chorus 1</code>); it is saved per file and defaults to off. The derived name is used everywhere: sidebar, preview, search, and both PDF pipelines.</li>
+            <li>Numbering is automatic and always derived from the current sections: a lone Chorus is shown as <code>Chorus</code>, but two Choruses in one song become <code>Chorus 1</code> and <code>Chorus 2</code> — deleting or retyping one renumbers the rest. Custom names are counted as well. Typing a section-type name into the Custom field — even with a trailing number, e.g. <code>Chorus 2</code> — converts it to that picked type when you leave the field: the number is discarded and the app's own numbering takes over. The <strong>Number single sections</strong> setting (File → Configuration…) numbers lone sections too (<code>Chorus 1</code>); it is saved per file and defaults to off. The <strong>Auto-number sections</strong> master switch above it turns all automatic numbering off entirely. The derived name is used everywhere: sidebar, preview, search, and both PDF pipelines.</li>
             <li>"+ Add section" picks its type from the bottom section's name: after a Verse comes a Chorus; after a Chorus, Bridge, or Instrumental comes a Verse; a Pre-Chorus leads into a Chorus; anything else (Intro, Outro, Custom, untitled) starts a Verse. Matching is by name prefix, so "Chorus 2" and a custom "Chorus (reprise)" count as choruses. "Create copy of section" copies the section's type along with its lyrics.</li>
             <li>Row actions: each row has <strong>Clear chords</strong> and <strong>Clear lyrics</strong> buttons above its fields (these clear one input only), plus icon buttons at the right edge to move the row up, move it down, copy it (duplicate icon), and delete it. Copying duplicates the row's chords and lyrics and appends the copy at the bottom of the section, then scrolls it into view. Rows can also be reordered by <strong>dragging the line-number gutter</strong> at the left edge (grip icon): the row follows the pointer with a dimmed ghost and the other rows make room live; dropping writes the new order, Escape cancels, and a press without moving does nothing. At phone width (≤760px) the four icon buttons collapse into a <strong>⋯ menu</strong> with the same labeled actions (Move up, Move down, Copy row, Delete row), and the gutter widens to a 40px touch target.</li>
             <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the ↩ button in the header, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
@@ -1425,7 +1469,7 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked.</li>
+            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff.</li>
             <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Export filtered songs: File → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
@@ -1468,17 +1512,17 @@
             <li><strong>Welcome modal:</strong> dismisses cleanly via its start button.</li>
             <li><strong>Create content:</strong> add a song (title + artist), set its section type via the picker, add rows, type chords and lyrics. The live preview must reflect every edit.</li>
             <li><strong>Focus mode:</strong> click the ◎ button on a song header and confirm the search box, sort/filter controls, "+ New song", and other songs are hidden while the focused song's sections stay listed and selectable, and confirm the editor opens the focused song's top section (not whatever section was open in the previous song); click "← All songs" and confirm everything returns; reload and confirm the focus choice is restored.</li>
-            <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
+            <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); toggle <strong>Auto-number sections</strong> off and confirm all numbering disappears and the singles checkbox disables, then toggle it back on; open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
             <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the header ↩ button, or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
-            <li><strong>Sidebar:</strong> search filters the song list; the Filters toggle collapses and expands the sort/filter controls and its summary line reflects the active filters; title and artist sorting reorder correctly; Cover/Original, Ready/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
+            <li><strong>Sidebar:</strong> search filters the song list; the Filters toggle collapses and expands the sort/filter controls and its summary line reflects the active filters; with the panel closed and a filter active, the <strong>Clear all</strong> button appears beside the toggle and resets search plus every filter at once; title and artist sorting reorder correctly; Cover/Original, Ready/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
             <li><strong>Save:</strong> Save as produces a file download with no errors.</li>
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (25 checks), and <code>setbook-qa/pull-refresh-test.js</code> (12 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (47 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), and <code>setbook-qa/section-numbering-test.js</code> (18 checks) — 20 suites, 444 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -1493,6 +1537,7 @@
     <div class="sidebar-tools">
       <input id="sidebarSearch" class="sidebar-search" type="text" placeholder="Search lyrics, chords, sections…">
 
+      <div class="filters-toggle-row">
       <button id="filtersToggle" class="filters-toggle" aria-expanded="false" aria-controls="filtersPanel" title="Show sort and filter controls">
         <span class="filters-toggle-text">
           <span class="filters-toggle-label">Filters</span>
@@ -1500,6 +1545,8 @@
         </span>
         <span class="filters-toggle-chev" id="filtersToggleChev">▸</span>
       </button>
+      <button type="button" id="filtersClearBtn" class="ghost small filters-clear" title="Clear search and all filters" aria-label="Clear search and all filters" hidden>Clear all</button>
+      </div>
       <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
         <div class="tools-section-label">Sort by</div>
@@ -1547,6 +1594,29 @@
 
 <script>
 /* ---------------------------------------------------------
+   Build flag: QA environment marker
+   false in the shipped source and on the prod site. The QA deploy
+   script flips this to true for the QA Pages site, which then shows
+   a QA badge in the header and stamps "QA" into every generated
+   filename — so a QA build can never be mistaken for prod.
+--------------------------------------------------------- */
+const IS_QA = false;
+
+// QA builds stamp "QA" into every generated filename so a file produced
+// on the QA site can never be mistaken for a prod one.
+function qaStamp(name){
+  if (!IS_QA) return name;
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(0, dot) + ' QA' + name.slice(dot) : name + ' QA';
+}
+
+if (IS_QA){
+  document.title = document.title + ' — QA';
+  const brandEl = document.querySelector('header .brand');
+  if (brandEl) brandEl.insertAdjacentHTML('afterbegin', '<span class="qa-badge" aria-label="QA environment">QA</span>');
+}
+
+/* ---------------------------------------------------------
    Data model
    state = {
      sectionGroups: [{ id, name }],
@@ -1561,6 +1631,7 @@ function defaultState(){
     sectionGroups: [], sections: [], projectName: '', songSubsets: [],
     songSort: { field: 'title', dir: 'asc' },
     lastFolderName: '', sidebarWidth: 270,
+    autoNumberSections: true,
     numberSingleSections: false,
     focusedGroupId: null,
     songTypeFilter: { cover: true, original: true },
@@ -1850,12 +1921,33 @@ function updateFiltersSummary(){
     parts.push('Sort: ' + (songSortField === 'artist' ? 'Artist' : 'Title') + ' ' + (songSortDir === 'asc' ? 'A–Z' : 'Z–A'));
   const el = document.getElementById('filtersSummary');
   if (el) el.textContent = parts.join(' · ');
+  // The Clear all button appears only when the panel is closed and something
+  // is narrowing the song list — a dropdown filter, a type/ready pill, or
+  // search text. Clearing can't hide the open song, so no
+  // closeOpenSongIfFilteredOut() is needed on that path.
+  const narrowing = state.tagFilter || state.artistFilter
+    || !(tf.cover && tf.original) || !(rf.ready && rf.notReady)
+    || (typeof searchQuery === 'string' && searchQuery.trim());
+  const clearBtn = document.getElementById('filtersClearBtn');
+  if (clearBtn) clearBtn.hidden = filtersPanelOpen || !narrowing;
 }
 
 document.getElementById('filtersToggle').addEventListener('click', () => {
   filtersPanelOpen = !filtersPanelOpen;
   try { localStorage.setItem(FILTERS_PANEL_KEY, filtersPanelOpen ? '1' : '0'); } catch(_){}
   updateFiltersPanel();
+  updateFiltersSummary(); // refresh the Clear button visibility for the new state
+});
+document.getElementById('filtersClearBtn').addEventListener('click', () => {
+  state.tagFilter = '';
+  state.artistFilter = '';
+  state.songTypeFilter = { cover: true, original: true };
+  state.readyFilter = { ready: true, notReady: true };
+  searchQuery = '';
+  const searchInput = document.getElementById('sidebarSearch');
+  if (searchInput) searchInput.value = '';
+  scheduleSave();
+  renderAll();
 });
 document.getElementById('artistFilterSelect').addEventListener('change', e => {
   state.artistFilter = e.target.value;
@@ -2489,7 +2581,7 @@ function displaySectionName(sec){
   const key = numBase.toLowerCase();
   const sibs = groupSections(sec.groupId).filter(s => sectionNumberBase(s).toLowerCase() === key);
   let name;
-  if (sibs.length > 1 || state.numberSingleSections){
+  if (state.autoNumberSections && (sibs.length > 1 || state.numberSingleSections)){
     name = numBase + ' ' + (sibs.findIndex(s => s.id === sec.id) + 1);
   } else {
     name = base; // as typed — a legacy custom "Verse 1" keeps its number
@@ -3356,8 +3448,16 @@ function syncConfigModal(){
     b.classList.toggle('active', b.dataset.themeChoice === currentTheme()));
   document.querySelectorAll('#configWatchToggle .mode-btn').forEach(b =>
     b.classList.toggle('active', b.dataset.watchTarget === watchTarget()));
+  const autoCb = document.getElementById('configAutoNumber');
+  const autoOn = state.autoNumberSections !== false;
+  if (autoCb) autoCb.checked = autoOn;
   const cb = document.getElementById('configNumberSingles');
-  if (cb) cb.checked = !!state.numberSingleSections;
+  if (cb){
+    cb.checked = !!state.numberSingleSections;
+    cb.disabled = !autoOn; // meaningless while auto-numbering is off
+  }
+  const subRow = document.getElementById('configNumberSinglesRow');
+  if (subRow) subRow.classList.toggle('disabled-row', !autoOn);
 }
 function setWatchTarget(mode){
   try{ localStorage.setItem('setbook-watch-target', mode === 'self' ? 'self' : 'blank'); }catch(e){}
@@ -3368,6 +3468,12 @@ document.querySelectorAll('#configThemeToggle .mode-btn').forEach(b =>
   b.addEventListener('click', () => setTheme(b.dataset.themeChoice)));
 document.querySelectorAll('#configWatchToggle .mode-btn').forEach(b =>
   b.addEventListener('click', () => setWatchTarget(b.dataset.watchTarget)));
+document.getElementById('configAutoNumber').addEventListener('change', (e) => {
+  state.autoNumberSections = e.target.checked;
+  scheduleSave();
+  syncConfigModal();
+  renderAll();
+});
 document.getElementById('configNumberSingles').addEventListener('change', (e) => {
   state.numberSingleSections = e.target.checked;
   scheduleSave();
@@ -3893,6 +3999,10 @@ async function maybeOfferRecovery(){
       <button type="button" class="ghost small" id="recoveryDiscardBtn">Start fresh</button>
     </div>`;
   ctaLabel.before(banner);
+  // Returning user with saved work: collapse the marketing tour so the
+  // recovery banner and the file buttons fit without scrolling.
+  const welcomeModalEl = document.querySelector('#welcomeModalOverlay .modal-welcome');
+  if (welcomeModalEl) welcomeModalEl.classList.add('welcome-compact');
   banner.querySelector('#recoveryRestoreBtn').addEventListener('click', async () => {
     try{
       loadParsedState(JSON.parse(JSON.stringify(snap.state)));
@@ -3932,6 +4042,7 @@ function loadParsedState(parsed){
   if (typeof state.projectName !== 'string') state.projectName = '';
   if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
   if (typeof state.lastFolderName !== 'string') state.lastFolderName = '';
+  if (typeof state.autoNumberSections !== 'boolean') state.autoNumberSections = true;
   if (typeof state.numberSingleSections !== 'boolean') state.numberSingleSections = false;
   if (typeof state.lastBackupAt !== 'number' || !isFinite(state.lastBackupAt)) state.lastBackupAt = 0;
   if (!state.sectionGroups.some(g => g.id === state.focusedGroupId)) state.focusedGroupId = null;
@@ -4032,7 +4143,7 @@ async function saveAs(){
   }
   try{
     const opts = {
-      suggestedName: currentFileName || 'setbook.json',
+      suggestedName: qaStamp(currentFileName || 'setbook.json'),
       types: [{ description: 'SetBook JSON', accept: { 'application/json': ['.json'] } }]
     };
     if (fileHandle) opts.startIn = fileHandle;
@@ -4103,7 +4214,7 @@ function exportFilteredSongs(){
 
   const base = currentFileName || `setbook-${new Date().toISOString().slice(0,10)}.json`;
   const dot = base.lastIndexOf('.');
-  const name = dot > 0 ? base.slice(0, dot) + ' (filtered)' + base.slice(dot) : base + ' (filtered)';
+  const name = qaStamp(dot > 0 ? base.slice(0, dot) + ' (filtered)' + base.slice(dot) : base + ' (filtered)');
   const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -4124,7 +4235,7 @@ function downloadCopy(){
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = currentFileName || `setbook-${new Date().toISOString().slice(0,10)}.json`;
+  a.download = qaStamp(currentFileName || `setbook-${new Date().toISOString().slice(0,10)}.json`);
   document.body.appendChild(a);
   a.click();
   a.remove();
@@ -5308,7 +5419,7 @@ function buildPdfFilename(extraParts){
   const dateStr = new Date().toISOString().slice(0,10);
   const base = state.projectName || (currentFileName ? currentFileName.replace(/\.json$/i,'') : 'setbook');
   const slug = base.trim().replace(/[^a-z0-9]+/gi,'-').replace(/(^-+|-+$)/g,'') || 'setbook';
-  return [slug, ...extraParts, dateStr].join('-') + '.pdf';
+  return qaStamp([slug, ...extraParts, dateStr].join('-') + '.pdf');
 }
 
 /* ---------------------------------------------------------
