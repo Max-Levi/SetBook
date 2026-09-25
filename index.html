@@ -683,6 +683,35 @@
   .group-type-badge:hover{ border-color: var(--focus-border); }
   .group-type-badge.is-original{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
   .group-type-badge.is-ready{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  .group-artist-summary{
+    color: var(--text-muted); font-size:11px; line-height:1.35; overflow-wrap:break-word;
+  }
+  .details-toggle{
+    align-self:flex-start; background:none; border:none; cursor:pointer;
+    color: var(--text-muted); font-family:inherit; font-size:11px;
+    display:inline-flex; align-items:center; gap:5px;
+    padding:3px 2px; margin-top:3px; border-radius:4px;
+  }
+  .details-toggle:hover{ color: var(--gold); }
+  .details-toggle .dt-chev{ font-size:9px; }
+  .group-details{
+    margin:4px 6px 8px 32px; padding:11px 12px;
+    background: var(--panel-2); border:1px solid var(--border); border-radius:8px;
+    display:flex; flex-direction:column; gap:9px;
+  }
+  .details-label{
+    font-size:10px; text-transform:uppercase; letter-spacing:.07em; color: var(--text-muted);
+  }
+  .details-label .hint{ text-transform:none; letter-spacing:0; }
+  .details-artist-field{
+    display:block; width:100%; box-sizing:border-box;
+    background: var(--panel); border:1px solid var(--border); border-radius:6px;
+    color: var(--text); font-family:inherit; font-size:12.5px; line-height:1.4;
+    padding:7px 9px; margin:0; resize:none; overflow:hidden;
+  }
+  .details-artist-field:focus{ outline:none; border-color: var(--gold); }
+  .details-artist-field::placeholder{ color: var(--placeholder); }
+  .group-details .song-tags-row{ margin-top:0; }
   .artist-suggest-popover{
     position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
     border-radius:6px; padding:4px; max-height:180px; overflow-y:auto;
@@ -936,6 +965,9 @@
     .filter-select{ min-height:44px; font-size:14px; }
     .tag-pill{ font-size:13px; }
     .tag-pill button{ min-width:44px; min-height:44px; }
+    .details-toggle{ min-height:44px; align-self:stretch; justify-content:flex-start; font-size:12.5px; }
+    .group-details{ margin-left:20px; }
+    .details-artist-field{ font-size:16px; }
     .tag-add-input{ min-height:44px; font-size:14px; flex-basis:140px; }
   }
 
@@ -1113,7 +1145,7 @@
     <div class="welcome-features">
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 48 L464 152 L256 256 L48 152 Z"/><path d="M48 216 L256 320 L464 216 L464 264 L256 368 L48 264 Z"/><path d="M48 296 L256 400 L464 296 L464 344 L256 448 L48 344 Z"/></svg>
-        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by cover/original or ready/not ready.</span></div>
+        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by tag, artist, cover/original, or ready/not ready. Each song's Details panel holds its artists, tags, and video link.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M421 38 L474 91 L191 374 L80 432 L139 321 Z"/></svg>
@@ -1235,7 +1267,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook — Technical Documentation</h2>
-    <p class="modal-sub">Last updated 2026-09-24.</p>
+    <p class="modal-sub">Last updated 2026-09-25.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-overview">1. Overview</a>
@@ -1283,10 +1315,12 @@
             <li>Songs are listed alphabetically with their sections nested beneath. Songs can be expanded and collapsed individually or all at once.</li>
             <li>Search is a case-insensitive substring match across song title, artist, tags, section name, lyric text, and chord symbols. Matches are shown per section with a snippet of the matching lyric line. The Cover/Original, Ready/Not ready, tag, and artist filters apply to search results as well as to browsing.</li>
             <li>Sorting is by title or artist, ascending or descending. Untitled songs are pinned below titled songs in both directions; songs without an artist are pinned below songs that have one. A leading "The " in an artist name is ignored for ordering ("The Beatles" sorts under B).</li>
-            <li>Songs can carry custom tags: open a song and use the tag row under its title — type a tag and press Enter (a comma works too); each tag becomes a removable pill. Duplicates are ignored case-insensitively. The sidebar's Filter section offers a tag picker and an artist picker (every tag/artist in the library, A–Z, with a song count beside each, plus an "All" default); a picker selection that no longer exists falls back to All. The tag and artist filters compose with the Cover/Original and Ready/Not ready filters, apply to search results as well, and — like the other filters — close the open song if it gets filtered out of view.</li>
+            <li>Songs can carry custom tags: open a song's <strong>Details</strong> panel and use the tag editor — type a tag and press Enter (a comma works too); each tag becomes a removable pill. Duplicates are ignored case-insensitively. The sidebar's Filter section offers a tag picker and an artist picker (every tag/artist in the library, A–Z, with a song count beside each, plus an "All" default); a picker selection that no longer exists falls back to All. The tag and artist filters compose with the Cover/Original and Ready/Not ready filters, apply to search results as well, and — like the other filters — close the open song if it gets filtered out of view.</li>
+            <li>Multiple artists: the artist field in Details takes one artist per line. The header shows them joined with commas, the artist picker lists each artist separately, and a song matches the artist filter when <em>any</em> of its artists is picked. Sorting by artist uses the first listed artist, and the suggestion popup completes the line being typed.</li>
             <li>Filter toggles: Cover/Original and Ready/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables both filters; All shows active whenever both are on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that flips its value. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
-            <li>Per-song metadata: editable title and artist, optional video link (with open/edit controls), Cover/Original badge, and Ready/Not Ready badge.</li>
+            <li>Each song card shows an editable title, a read-only artist summary, and clickable Cover/Original and Ready/Not Ready badges. A collapsible <strong>Details</strong> panel under the card holds the artist(s) editor (one per line), the tag editor, and the video link (with open/edit controls). Details stays collapsed until opened and is remembered per card for the session.</li>
+            <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
             <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Number single sections is saved in the file.</li>
           </ul>
         </section>
@@ -1298,13 +1332,13 @@
             <li>Chord entry is tokenized on whitespace; each token becomes a chord symbol positioned at its character offset, keeping chords aligned over the lyric line.</li>
             <li>Bulk paste: pasting multiple lines into the editor alternates chord/lyric pairing automatically.</li>
             <li>Sections can be added, moved up and down, and deleted; renaming is done through the name picker in the editor header.</li>
-            <li>Section names are chosen from a picker: Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or Custom (free text). A tag field next to the picker holds informational text shown after the number, e.g. <code>(guitar solo)</code>; a "Shows as" line under the picker previews the final derived name.</li>
+            <li>Section names are chosen from a picker: Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or Custom (free text). A label field next to the picker holds informational text shown after the number, e.g. <code>(guitar solo)</code>; a "Shows as" line under the picker previews the final derived name.</li>
             <li>Numbering is automatic and always derived from the current sections: a lone Chorus is shown as <code>Chorus</code>, but two Choruses in one song become <code>Chorus 1</code> and <code>Chorus 2</code> — deleting or retyping one renumbers the rest. Custom names are counted as well. Typing a section-type name into the Custom field — even with a trailing number, e.g. <code>Chorus 2</code> — converts it to that picked type when you leave the field: the number is discarded and the app's own numbering takes over. The <strong>Number single sections</strong> setting (File → Configuration…) numbers lone sections too (<code>Chorus 1</code>); it is saved per file and defaults to off. The derived name is used everywhere: sidebar, preview, search, and both PDF pipelines.</li>
             <li>"+ Add section" picks its type from the bottom section's name: after a Verse comes a Chorus; after a Chorus, Bridge, or Instrumental comes a Verse; a Pre-Chorus leads into a Chorus; anything else (Intro, Outro, Custom, untitled) starts a Verse. Matching is by name prefix, so "Chorus 2" and a custom "Chorus (reprise)" count as choruses. "Create copy of section" copies the section's type along with its lyrics.</li>
             <li>Row actions: each row has <strong>Clear chords</strong> and <strong>Clear lyrics</strong> buttons above its fields (these clear one input only), plus icon buttons at the right edge to move the row up, move it down, copy it (duplicate icon), and delete it. Copying duplicates the row's chords and lyrics and appends the copy at the bottom of the section, then scrolls it into view. Rows can also be reordered by <strong>dragging the line-number gutter</strong> at the left edge (grip icon): the row follows the pointer with a dimmed ghost and the other rows make room live; dropping writes the new order, Escape cancels, and a press without moving does nothing. At phone width (≤760px) the four icon buttons collapse into a <strong>⋯ menu</strong> with the same labeled actions (Move up, Move down, Copy row, Delete row), and the gutter widens to a 40px touch target.</li>
             <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the ↩ button in the header, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
             <li>Keyboard shortcuts: Ctrl/Cmd+S saves — straight to the linked file when one is open, otherwise through the Save-as flow; Ctrl/Cmd+E opens the PDF exporter. Shortcuts never fire while typing in a text field. Escape backs out in layers: it cancels an in-progress row drag first, then closes the confirm popover, then the topmost modal, then the mobile drawer. Modals return focus to the control that opened them.</li>
-            <li>New (content-less) songs show a short coaching card in the editor — name the song, pick a section type, type chords over lyrics — which disappears once the song has rows and can be dismissed per device. On narrow screens the hint row above each row wraps, so the hint text drops above the Clear pills instead of colliding with them.</li>
+            <li>New (content-less) songs show a short coaching card in the editor — name the song from the library title field, open Details for artists, tags, and the video link (multiple artists go one per line), then add sections and type chords over lyrics — which disappears once the song has rows and can be dismissed per device. On narrow screens the hint row above each row wraps, so the hint text drops above the Clear pills instead of colliding with them.</li>
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
@@ -1328,12 +1362,12 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh.</li>
+            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff.</li>
             <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Export filtered songs: File → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
-            <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the tag slot), then any name matching a section-type name is converted to that picked type.</li>
+            <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
           </ul>
         </section>
         <section id="help-transfer">
@@ -1371,7 +1405,7 @@
             <li><strong>Welcome modal:</strong> dismisses cleanly via its start button.</li>
             <li><strong>Create content:</strong> add a song (title + artist), set its section type via the picker, add rows, type chords and lyrics. The live preview must reflect every edit.</li>
             <li><strong>Focus mode:</strong> click the ◎ button on a song header and confirm the search box, sort/filter controls, "+ New song", and other songs are hidden while the focused song's sections stay listed and selectable, and confirm the editor opens the focused song's top section (not whatever section was open in the previous song); click "← All songs" and confirm everything returns; reload and confirm the focus choice is restored.</li>
-            <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a tag like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
+            <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
             <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the header ↩ button, or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
@@ -1381,7 +1415,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), and <code>setbook-qa/export-filtered-test.js</code> (12 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -1466,6 +1500,7 @@ let state = defaultState();
 let selectedGroupId = null;
 let selectedSectionId = null;
 let expandedGroups = new Set();
+const detailsOpen = new Set(); // song ids whose Details panel is expanded (session-only)
 
 function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
 
@@ -1484,7 +1519,7 @@ function sortedSongGroups(){
   const dirMult = songSortDir === 'desc' ? -1 : 1;
   const titleOf = g => (g.name || '').trim();
   // "The Beatles" sorts under B, not T
-  const artistKey = g => titleOf({ name: g.artist }).replace(/^the\s+/i, '');
+  const artistKey = g => titleOf({ name: groupArtists(g)[0] || '' }).replace(/^the\s+/i, '');
   groups.sort((a, b) => {
     const an = titleOf(a);
     const bn = titleOf(b);
@@ -1546,6 +1581,22 @@ function removeTagFromGroup(group, raw){
   const tag = (raw || '').trim().toLowerCase();
   group.tags = groupTags(group).filter(t => t.toLowerCase() !== tag);
 }
+// A song can credit several artists — one per line in the artist field.
+// Matching is case-insensitive; the original casing is kept for display.
+function groupArtists(group){
+  return (group.artist || '').split('\n').map(a => a.trim()).filter(Boolean);
+}
+function displayArtists(group){
+  return groupArtists(group).join(', ');
+}
+// the line of a textarea the caret is on (for per-line artist suggestions)
+function currentLineOf(textarea){
+  const pos = textarea.selectionStart == null ? textarea.value.length : textarea.selectionStart;
+  const lines = textarea.value.split('\n');
+  let idx = textarea.value.slice(0, pos).split('\n').length - 1;
+  idx = Math.max(0, Math.min(lines.length - 1, idx));
+  return { lines, idx, text: lines[idx] };
+}
 // every tag in use across the library, with song counts, A-Z
 function allTags(){
   const map = new Map();
@@ -1560,11 +1611,14 @@ function allTags(){
 function allArtists(){
   const map = new Map();
   state.sectionGroups.forEach(g => {
-    const a = (g.artist || '').trim();
-    if (!a) return;
-    const k = a.toLowerCase();
-    if (!map.has(k)) map.set(k, { artist: a, count: 0 });
-    map.get(k).count++;
+    const seen = new Set();
+    groupArtists(g).forEach(a => {
+      const k = a.toLowerCase();
+      if (seen.has(k)) return;
+      seen.add(k);
+      if (!map.has(k)) map.set(k, { artist: a, count: 0 });
+      map.get(k).count++;
+    });
   });
   return [...map.values()].sort((a, b) => a.artist.localeCompare(b.artist, undefined, { sensitivity: 'base' }));
 }
@@ -1575,7 +1629,8 @@ function matchesTagFilter(group){
 }
 function matchesArtistFilter(group){
   if (!state.artistFilter) return true;
-  return (group.artist || '').trim().toLowerCase() === String(state.artistFilter).toLowerCase();
+  const want = String(state.artistFilter).toLowerCase();
+  return groupArtists(group).some(a => a.toLowerCase() === want);
 }
 
 // If the song open in the editor is hidden by the current filters, close it
@@ -1746,6 +1801,163 @@ function setSongFocus(gid){
 /* ---------------------------------------------------------
    Sidebar rendering
 --------------------------------------------------------- */
+// The Details panel: song-level data (artists, tags, video link) nested in its
+// own collapsible area under the song header, so the card stays scannable.
+function buildDetailsPanel(group, gDiv){
+  const panel = document.createElement('div');
+  panel.className = 'group-details';
+
+  // --- Artists, one per line ---
+  const artistLabel = document.createElement('div');
+  artistLabel.className = 'details-label';
+  artistLabel.innerHTML = 'Artist(s) <span class="hint">\u2014 one per line</span>';
+  const artistInput = document.createElement('textarea');
+  artistInput.className = 'details-artist-field';
+  artistInput.rows = 2;
+  artistInput.value = group.artist || '';
+  artistInput.placeholder = 'Artist';
+  artistInput.setAttribute('aria-label', 'Song artists, one per line');
+  const syncArtistUI = () => {
+    autoGrowTextarea(artistInput);
+    updateArtistDatalist();
+    updateArtistSummary(gDiv, group);
+    if (selectedGroupId === group.id) renderMain();
+  };
+  artistInput.addEventListener('input', () => {
+    group.artist = artistInput.value;
+    scheduleSave();
+    syncArtistUI();
+    const cur = currentLineOf(artistInput);
+    showArtistSuggestions(artistInput, cur.text, (name) => {
+      const c2 = currentLineOf(artistInput);
+      c2.lines[c2.idx] = name;
+      artistInput.value = c2.lines.join('\n');
+      group.artist = artistInput.value;
+      const upto = c2.lines.slice(0, c2.idx + 1).join('\n').length;
+      try{ artistInput.setSelectionRange(upto, upto); }catch(_){}
+      scheduleSave();
+      syncArtistUI();
+    });
+  });
+  artistInput.addEventListener('blur', () => setTimeout(closeArtistSuggestions, 150));
+  preventAutoReplace(artistInput);
+  panel.append(artistLabel, artistInput);
+  deferAutoGrow(artistInput);
+
+  // --- Tags: removable pills plus an add box ---
+  // Enter or comma commits a tag; duplicates (case-insensitive) are ignored.
+  const tagsLabel = document.createElement('div');
+  tagsLabel.className = 'details-label';
+  tagsLabel.textContent = 'Tags';
+  const tagsRow = document.createElement('div');
+  tagsRow.className = 'song-tags-row';
+  tagsRow.setAttribute('aria-label', 'Song tags');
+  const tagInput = document.createElement('input');
+  tagInput.className = 'tag-add-input';
+  function buildTagPill(tag){
+    const pill = document.createElement('span');
+    pill.className = 'tag-pill';
+    const label = document.createElement('span');
+    label.textContent = tag;
+    const x = document.createElement('button');
+    x.type = 'button';
+    x.textContent = '\u00d7';
+    x.title = 'Remove tag';
+    x.setAttribute('aria-label', 'Remove tag ' + tag);
+    x.addEventListener('click', () => {
+      removeTagFromGroup(group, tag);
+      scheduleSave();
+      pill.remove();
+      if (!groupTags(group).length) tagInput.placeholder = 'Add tags, e.g. rock, singalong';
+      updateFilterSelects(); // the tag picker options may have shrunk
+    });
+    pill.append(label, x);
+    return pill;
+  }
+  groupTags(group).forEach(tag => tagsRow.appendChild(buildTagPill(tag)));
+  tagInput.placeholder = groupTags(group).length ? '+ Add tag' : 'Add tags, e.g. rock, singalong';
+  tagInput.title = 'Type a tag and press Enter (a comma works too)';
+  tagInput.setAttribute('aria-label', 'Add a tag to this song');
+  preventAutoReplace(tagInput);
+  const commitTag = (keepFocus) => {
+    const tag = tagInput.value.trim();
+    if (tag && addTagToGroup(group, tag)){
+      scheduleSave();
+      tagsRow.insertBefore(buildTagPill(tag), tagInput);
+      tagInput.placeholder = '+ Add tag';
+      updateFilterSelects(); // the tag picker options may have grown
+    }
+    tagInput.value = '';
+    if (keepFocus) tagInput.focus();
+  };
+  tagInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ','){ e.preventDefault(); commitTag(true); }
+  });
+  tagInput.addEventListener('blur', () => commitTag(false));
+  tagsRow.appendChild(tagInput);
+  panel.append(tagsLabel, tagsRow);
+
+  // --- Video link ---
+  const videoLabel = document.createElement('div');
+  videoLabel.className = 'details-label';
+  videoLabel.textContent = 'Video link';
+  const videoRow = document.createElement('div');
+  videoRow.className = 'group-video';
+  const videoInput = document.createElement('input');
+  videoInput.type = 'text';
+  videoInput.className = 'group-video-input';
+  videoInput.placeholder = 'Paste video link';
+  videoInput.value = group.videoUrl || '';
+  videoInput.title = group.videoUrl || '';
+  const videoOpenBtn = document.createElement('button');
+  videoOpenBtn.type = 'button';
+  videoOpenBtn.className = 'group-video-open';
+  videoOpenBtn.textContent = '\u25b6 Watch';
+  videoOpenBtn.title = watchTarget() === 'self' ? 'Open video in the same tab' : 'Open video in a new tab';
+  const videoEditBtn = document.createElement('button');
+  videoEditBtn.type = 'button';
+  videoEditBtn.className = 'group-video-edit';
+  function setVideoEditing(editing){
+    if (editing){
+      videoInput.style.display = 'block';
+      videoOpenBtn.style.display = 'none';
+      videoEditBtn.style.display = 'none';
+      setTimeout(() => { videoInput.focus(); videoInput.select(); }, 0);
+    } else {
+      videoInput.style.display = 'none';
+      videoOpenBtn.style.display = group.videoUrl ? 'inline-flex' : 'none';
+      videoEditBtn.style.display = 'inline-flex';
+      videoEditBtn.textContent = group.videoUrl ? '\u2710' : '+ Video';
+      videoEditBtn.title = group.videoUrl ? 'Edit video link' : 'Add a video link';
+    }
+  }
+  videoEditBtn.addEventListener('click', () => setVideoEditing(true));
+  videoInput.addEventListener('input', () => {
+    group.videoUrl = videoInput.value.trim();
+    videoInput.title = group.videoUrl;
+    scheduleSave();
+  });
+  videoInput.addEventListener('blur', () => setVideoEditing(false));
+  videoInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter'){ e.preventDefault(); videoInput.blur(); }
+  });
+  preventAutoReplace(videoInput);
+  videoOpenBtn.addEventListener('click', () => openVideoLink(group.videoUrl));
+  videoRow.append(videoOpenBtn, videoEditBtn, videoInput);
+  setVideoEditing(false);
+  panel.append(videoLabel, videoRow);
+
+  return panel;
+}
+
+function updateArtistSummary(scopeEl, group){
+  const el = scopeEl.querySelector('.group-artist-summary');
+  if (!el) return;
+  const txt = displayArtists(group);
+  el.textContent = txt;
+  el.style.display = txt ? '' : 'none';
+}
+
 function renderSidebar(){
   updateFilterSelects();
   const el = document.getElementById('sidebarList');
@@ -1783,9 +1995,9 @@ function renderSidebar(){
       ${focusGroup ? '' : `<span class="chev">${isExpanded ? '▾' : '▸'}</span>`}
       <div class="group-titles">
         <span class="group-name" data-gid="${group.id}"></span>
-        <span class="group-artist"></span>
-        <span class="group-video"></span>
+        <span class="group-artist-summary"></span>
         <span class="group-type"></span>
+        <button type="button" class="details-toggle" aria-expanded="false" title="Show song details: artists, tags, video link"><span class="dt-chev">▸</span> Details</button>
       </div>
       <span class="group-count">${secs.length}</span>
       ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${group.id}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
@@ -1809,86 +2021,9 @@ function renderSidebar(){
     deferAutoGrow(nameInput);
     preventAutoReplace(nameInput);
 
-    const artistSpan = head.querySelector('.group-artist');
-    const artistInput = document.createElement('textarea');
-    artistInput.className = 'group-artist-field';
-    artistInput.rows = 1;
-    artistInput.value = group.artist || '';
-    artistInput.placeholder = 'Artist';
-    artistInput.addEventListener('click', e => e.stopPropagation());
-    artistInput.addEventListener('input', e => {
-      group.artist = e.target.value;
-      autoGrowTextarea(artistInput);
-      scheduleSave();
-      updateArtistDatalist();
-      if (selectedGroupId === group.id) renderMain();
-      showArtistSuggestions(artistInput, artistInput.value, (name) => {
-        artistInput.value = name;
-        group.artist = name;
-        autoGrowTextarea(artistInput);
-        scheduleSave();
-        if (selectedGroupId === group.id) renderMain();
-      });
-    });
-    artistInput.addEventListener('blur', () => setTimeout(closeArtistSuggestions, 150));
-    artistSpan.appendChild(artistInput);
-    deferAutoGrow(artistInput);
-    preventAutoReplace(artistInput);
+    updateArtistSummary(head, group);
 
-    const videoSpan = head.querySelector('.group-video');
-    const videoInput = document.createElement('input');
-    videoInput.type = 'text';
-    videoInput.className = 'group-video-input';
-    videoInput.placeholder = 'Paste video link';
-    videoInput.value = group.videoUrl || '';
-    videoInput.title = group.videoUrl || '';
 
-    const videoOpenBtn = document.createElement('button');
-    videoOpenBtn.type = 'button';
-    videoOpenBtn.className = 'group-video-open';
-    videoOpenBtn.textContent = '▶ Watch';
-    videoOpenBtn.title = watchTarget() === 'self' ? 'Open video in the same tab' : 'Open video in a new tab';
-
-    const videoEditBtn = document.createElement('button');
-    videoEditBtn.type = 'button';
-    videoEditBtn.className = 'group-video-edit';
-
-    function setVideoEditing(editing){
-      if (editing){
-        videoInput.style.display = 'block';
-        videoOpenBtn.style.display = 'none';
-        videoEditBtn.style.display = 'none';
-        setTimeout(() => { videoInput.focus(); videoInput.select(); }, 0);
-      } else {
-        videoInput.style.display = 'none';
-        videoOpenBtn.style.display = group.videoUrl ? 'inline-flex' : 'none';
-        videoEditBtn.style.display = 'inline-flex';
-        videoEditBtn.textContent = group.videoUrl ? '✎' : '+ Video';
-        videoEditBtn.title = group.videoUrl ? 'Edit video link' : 'Add a video link';
-      }
-    }
-
-    videoEditBtn.addEventListener('click', e => { e.stopPropagation(); setVideoEditing(true); });
-    videoInput.addEventListener('click', e => e.stopPropagation());
-    videoInput.addEventListener('input', e => {
-      group.videoUrl = e.target.value.trim();
-      videoInput.title = group.videoUrl;
-      scheduleSave();
-    });
-    videoInput.addEventListener('blur', () => setVideoEditing(false));
-    videoInput.addEventListener('keydown', e => {
-      if (e.key === 'Enter'){ e.preventDefault(); videoInput.blur(); }
-    });
-    preventAutoReplace(videoInput);
-    videoOpenBtn.addEventListener('click', e => {
-      e.stopPropagation();
-      openVideoLink(group.videoUrl);
-    });
-
-    videoSpan.appendChild(videoOpenBtn);
-    videoSpan.appendChild(videoEditBtn);
-    videoSpan.appendChild(videoInput);
-    setVideoEditing(false);
 
     const typeSpan = head.querySelector('.group-type');
     const typeBtn = document.createElement('button');
@@ -1966,7 +2101,17 @@ function renderSidebar(){
         showUndoToastFor(entry);
       });
     });
+    const detailsToggle = head.querySelector('.details-toggle');
+    const isDetailsOpen = detailsOpen.has(group.id);
+    detailsToggle.querySelector('.dt-chev').textContent = isDetailsOpen ? '\u25be' : '\u25b8';
+    detailsToggle.setAttribute('aria-expanded', isDetailsOpen ? 'true' : 'false');
+    detailsToggle.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (detailsOpen.has(group.id)) detailsOpen.delete(group.id); else detailsOpen.add(group.id);
+      renderSidebar();
+    });
     gDiv.appendChild(head);
+    if (isDetailsOpen) gDiv.appendChild(buildDetailsPanel(group, gDiv));
 
     if (isExpanded){
       const list = document.createElement('div');
@@ -2073,8 +2218,9 @@ function renderSearchResults(el){
     if (group.id !== lastGroupId){
       const label = document.createElement('div');
       label.className = 'search-result-song';
+      const searchArtists = displayArtists(group);
       label.innerHTML = escapeHtml(group.name || 'Untitled Song') +
-        (group.artist ? ` <span class="artist">— ${escapeHtml(group.artist)}</span>` : '');
+        (searchArtists ? ` <span class="artist">— ${escapeHtml(searchArtists)}</span>` : '');
       el.appendChild(label);
       lastGroupId = group.id;
     }
@@ -2103,8 +2249,9 @@ function updateArtistDatalist(){
   const seen = new Set();
   const artists = [];
   state.sectionGroups.forEach(g => {
-    const a = (g.artist || '').trim();
-    if (a && !seen.has(a.toLowerCase())){ seen.add(a.toLowerCase()); artists.push(a); }
+    groupArtists(g).forEach(a => {
+      if (!seen.has(a.toLowerCase())){ seen.add(a.toLowerCase()); artists.push(a); }
+    });
   });
   artists.sort((a,b) => a.localeCompare(b));
   datalist.innerHTML = artists.map(a => `<option value="${escapeAttr(a)}"></option>`).join('');
@@ -2390,7 +2537,7 @@ function buildCoachCard(){
     <button type="button" class="coach-dismiss" aria-label="Dismiss">✕</button>
     <h3>Start your first song</h3>
     <ol>
-      <li><strong>Name it</strong> — click the song title in the library list and type a title and artist.</li>
+      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> under the song for artists (one per line), tags, and a video link.</li>
       <li><strong>Add sections</strong> — a song is its sections in playing order; add them with <strong>+ Add section</strong> under the song in the library.</li>
       <li><strong>Write rows</strong> — pick a section, then type chords on each row's top line and lyrics underneath. The preview below keeps them lined up.</li>
     </ol>`;
@@ -2574,66 +2721,18 @@ function renderMain(){
   const nameType = sec.nameType || 'custom';
   head.innerHTML = `
     <div class="editor-head-titles">
-      <div class="group-label">${escapeHtml(group.name || 'Untitled song')}${group.artist ? ' <span class="artist">— ' + escapeHtml(group.artist) + '</span>' : ''}</div>
+      <div class="group-label">${escapeHtml(group.name || 'Untitled song')}${displayArtists(group) ? ' <span class="artist">— ' + escapeHtml(displayArtists(group)) + '</span>' : ''}</div>
       <div class="section-name-row">
         <select class="section-type-select" title="Section type">
           ${SECTION_TYPES.map(t => `<option value="${t.id}"${t.id === nameType ? ' selected' : ''}>${t.label}</option>`).join('')}
         </select>
         <input class="section-custom-input" placeholder="Custom name" value="${escapeAttr(sec.customName || '')}"${nameType === 'custom' ? '' : ' style="display:none"'}>
-        <input class="section-suffix-input" placeholder="Tag, e.g. (guitar solo)" value="${escapeAttr(sec.nameSuffix || '')}" title="Informational tag shown after the section name">
+        <input class="section-suffix-input" placeholder="Label, e.g. (guitar solo)" value="${escapeAttr(sec.nameSuffix || '')}" title="Informational label shown after the section name">
       </div>
       <div class="section-name-preview">Shows as: <strong>${escapeHtml(displaySectionName(sec))}</strong></div>
     </div>
   `;
-  // Song tags: removable pills plus an add box, tucked under the song title.
-  // Enter or comma commits a tag; duplicates (case-insensitive) are ignored.
-  const tagsRow = document.createElement('div');
-  tagsRow.className = 'song-tags-row';
-  tagsRow.setAttribute('aria-label', 'Song tags');
-  head.querySelector('.group-label').after(tagsRow);
-  function buildTagPill(tag){
-    const pill = document.createElement('span');
-    pill.className = 'tag-pill';
-    const label = document.createElement('span');
-    label.textContent = tag;
-    const x = document.createElement('button');
-    x.type = 'button';
-    x.textContent = '\u00d7';
-    x.title = 'Remove tag';
-    x.setAttribute('aria-label', 'Remove tag ' + tag);
-    x.addEventListener('click', () => {
-      removeTagFromGroup(group, tag);
-      scheduleSave();
-      pill.remove();
-      if (!groupTags(group).length) tagInput.placeholder = 'Add tags, e.g. rock, singalong';
-      renderSidebar(); // the tag picker options may have shrunk
-    });
-    pill.append(label, x);
-    return pill;
-  }
-  groupTags(group).forEach(tag => tagsRow.appendChild(buildTagPill(tag)));
-  const tagInput = document.createElement('input');
-  tagInput.className = 'tag-add-input';
-  tagInput.placeholder = groupTags(group).length ? '+ Add tag' : 'Add tags, e.g. rock, singalong';
-  tagInput.title = 'Type a tag and press Enter (a comma works too)';
-  tagInput.setAttribute('aria-label', 'Add a tag to this song');
-  preventAutoReplace(tagInput);
-  const commitTag = (keepFocus) => {
-    const tag = tagInput.value.trim();
-    if (tag && addTagToGroup(group, tag)){
-      scheduleSave();
-      tagsRow.insertBefore(buildTagPill(tag), tagInput);
-      tagInput.placeholder = '+ Add tag';
-      renderSidebar(); // the tag picker options may have grown
-    }
-    tagInput.value = '';
-    if (keepFocus) tagInput.focus();
-  };
-  tagInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ','){ e.preventDefault(); commitTag(true); }
-  });
-  tagInput.addEventListener('blur', () => commitTag(false));
-  tagsRow.appendChild(tagInput);
+
 
   const typeSel = head.querySelector('.section-type-select');
   const customInput = head.querySelector('.section-custom-input');
@@ -3200,7 +3299,8 @@ function diffRowCounts(aLines, bLines){
   return { added, removed };
 }
 function diffSongLabel(g){
-  return `\u201c${g.name || 'Untitled'}\u201d` + (g.artist ? ` \u2014 ${g.artist}` : '');
+  const da = displayArtists(g);
+  return `\u201c${g.name || 'Untitled'}\u201d` + (da ? ` \u2014 ${da}` : '');
 }
 function diffSectionLabel(sec){
   try{ return displaySectionName(sec) || sec.name || 'Untitled section'; }
@@ -3226,7 +3326,7 @@ function sectionNameKey(sec){
 function diffOneSong(ag, bg, a, b){
   const details = [];
   if ((ag.name || '') !== (bg.name || '')) details.push(`renamed to \u201c${bg.name || 'Untitled'}\u201d`);
-  if ((ag.artist || '') !== (bg.artist || '')) details.push(`artist: ${bg.artist || '(none)'}`);
+  if ((ag.artist || '') !== (bg.artist || '')) details.push(`artist: ${displayArtists(bg) || '(none)'}`);
   if ((ag.readyStatus || 'not-ready') !== (bg.readyStatus || 'not-ready'))
     details.push(bg.readyStatus === 'ready' ? 'marked Ready' : 'marked not ready');
   if ((ag.type || 'cover') !== (bg.type || 'cover'))
@@ -3518,6 +3618,97 @@ async function doSave(){
     updateSaveStatus('error');
   }
 }
+// The linked file's handle is persisted in IndexedDB so "Restore my work"
+// can re-link the last open file after a reload. Handles are origin-scoped,
+// but the browser still requires a permission grant on re-link — the restore
+// click is the user gesture that allows the permission prompt.
+const HANDLE_DB = 'setbook-handle-db';
+const HANDLE_STORE = 'handles';
+const HANDLE_KEY = 'lastFile';
+function idbOpenHandles(){
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(HANDLE_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(HANDLE_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function persistFileHandle(){
+  if (!supportsFsApi || typeof indexedDB === 'undefined') return;
+  try{
+    const db = await idbOpenHandles();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readwrite');
+      const store = tx.objectStore(HANDLE_STORE);
+      const op = fileHandle
+        ? store.put({ handle: fileHandle, name: currentFileName, savedAt: Date.now() }, HANDLE_KEY)
+        : store.delete(HANDLE_KEY);
+      op.onsuccess = () => resolve();
+      op.onerror = () => reject(op.error);
+      tx.oncomplete = () => db.close();
+    });
+  }catch(err){ /* private mode etc. — the recovery snapshot remains the fallback */ }
+}
+async function readPersistedFileHandle(){
+  if (!supportsFsApi || typeof indexedDB === 'undefined') return null;
+  try{
+    const db = await idbOpenHandles();
+    const rec = await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readonly');
+      const get = tx.objectStore(HANDLE_STORE).get(HANDLE_KEY);
+      get.onsuccess = () => resolve(get.result);
+      get.onerror = () => reject(get.error);
+      tx.oncomplete = () => db.close();
+    });
+    return rec || null;
+  }catch(err){ return null; }
+}
+// Re-link the last open file. Call from a user gesture (the restore click);
+// the browser shows its permission prompt only if it needs to. Like the
+// Snapshots modal's restore, the file's current on-disk contents are
+// snapshotted first ("Before re-linking \u2026") so the overwrite is undoable.
+// Resolves to { ok, snapshotLabel }.
+async function relinkLastFile(){
+  const none = { ok: false, snapshotLabel: null };
+  const rec = await readPersistedFileHandle();
+  if (!rec || !rec.handle) return none;
+  const label = rec.name || rec.handle.name || 'the last file';
+  try{
+    let perm = await rec.handle.queryPermission({ mode: 'readwrite' });
+    if (perm !== 'granted') perm = await rec.handle.requestPermission({ mode: 'readwrite' });
+    if (perm !== 'granted'){
+      showToast(`Couldn\u2019t re-link \u201c${label}\u201d \u2014 use File \u2192 Open to pick it again.`);
+      return none;
+    }
+    // The file may have been moved or deleted; read its current contents so
+    // the re-link save below doesn't silently clobber something unexpected.
+    let diskState = null;
+    try{
+      const diskText = await (await rec.handle.getFile()).text();
+      const parsed = JSON.parse(diskText);
+      if (parsed && Array.isArray(parsed.sectionGroups) && Array.isArray(parsed.sections)) diskState = parsed;
+    }catch(err){ /* unreadable or not a library — nothing to preserve */ }
+    let snapshotLabel = null;
+    if (diskState && JSON.stringify(diskState) !== JSON.stringify(state)){
+      snapshotLabel = `Before re-linking \u201c${label}\u201d`;
+      snapshots.unshift({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+        label: snapshotLabel,
+        savedAt: Date.now(),
+        state: diskState,
+      });
+      if (snapshots.length > MAX_SNAPSHOTS) snapshots.length = MAX_SNAPSHOTS;
+    }
+    fileHandle = rec.handle;
+    currentFileName = label;
+    updateFileLabel();
+    scheduleSave(); // write the restored work back to the re-linked file
+    return { ok: true, snapshotLabel };
+  }catch(err){
+    showToast(`Couldn\u2019t re-open \u201c${label}\u201d \u2014 it may have moved. Use File \u2192 Open to pick it again.`);
+    return none;
+  }
+}
 const RECOVERY_KEY = 'setbook-recovery-v1';
 let recoveryTimer = null;
 function scheduleRecoverySave(){
@@ -3551,22 +3742,26 @@ function recoveryHasContent(s){
 // modal — the one gate every launch passes through.
 // Set when the person restores a recovery snapshot at boot.
 let recoveryRestoredThisBoot = false;
-function maybeOfferRecovery(){
+async function maybeOfferRecovery(){
   const snap = readRecoverySnapshot();
   if (!snap || !recoveryHasContent(snap.state)) return;
   const when = new Date(snap.savedAt).toLocaleString(undefined, { weekday:'short', hour:'numeric', minute:'2-digit' });
   const ctaLabel = document.querySelector('#welcomeModalOverlay .welcome-cta-label');
   if (!ctaLabel) return;
+  const linkRec = await readPersistedFileHandle();
+  const linkNote = (linkRec && linkRec.name)
+    ? ` It was last linked to \u201c${escapeHtml(linkRec.name)}\u201d \u2014 restoring will re-link it.`
+    : '';
   const banner = document.createElement('div');
   banner.className = 'recovery-banner';
   banner.innerHTML = `
-    <div class="recovery-banner-text"><strong>Pick up where you left off?</strong><span>Your songbook from ${escapeHtml(when)} was saved automatically on this device.</span></div>
+    <div class="recovery-banner-text"><strong>Pick up where you left off?</strong><span>Your songbook from ${escapeHtml(when)} was saved automatically on this device.${linkNote}</span></div>
     <div class="recovery-banner-actions">
       <button type="button" class="primary small" id="recoveryRestoreBtn">Restore my work</button>
       <button type="button" class="ghost small" id="recoveryDiscardBtn">Start fresh</button>
     </div>`;
   ctaLabel.before(banner);
-  banner.querySelector('#recoveryRestoreBtn').addEventListener('click', () => {
+  banner.querySelector('#recoveryRestoreBtn').addEventListener('click', async () => {
     try{
       loadParsedState(JSON.parse(JSON.stringify(snap.state)));
       takeSnapshot('Recovered session');
@@ -3574,7 +3769,10 @@ function maybeOfferRecovery(){
       document.getElementById('welcomeModalOverlay').classList.remove('open');
       updateFileLabel();
       renderAll();
-      showToast('Work restored from your last session.');
+      const relink = await relinkLastFile();
+      showToast(relink.ok
+        ? `Work restored and re-linked to \u201c${currentFileName}\u201d.` + (relink.snapshotLabel ? ' Previous file contents kept in Snapshots.' : '')
+        : 'Work restored from your last session.');
     }catch(err){
       showErrorToast('Could not restore the saved work — starting fresh.');
       clearRecoverySnapshot();
@@ -3685,6 +3883,7 @@ async function openFile(){
     takeSnapshot('Opened ' + file.name);
     fileHandle = handle;
     currentFileName = file.name;
+    persistFileHandle();
     updateFileLabel();
     updateSaveStatus('saved');
     renderAll();
@@ -3709,6 +3908,7 @@ async function saveAs(){
     const handle = await window.showSaveFilePicker(opts);
     fileHandle = handle;
     currentFileName = handle.name;
+    persistFileHandle();
     updateFileLabel();
     state.lastBackupAt = Date.now(); // Save-as writes a separate copy: that's a backup
     await doSave();
@@ -3953,7 +4153,7 @@ function renderCopySongChecklist(){
     const checked = copySelectedGroupIds.has(group.id);
     row.innerHTML = `
       <input type="checkbox" ${checked ? 'checked' : ''}>
-      <span>${escapeHtml(group.name || 'Untitled Song')}${group.artist ? ` <span class="artist">— ${escapeHtml(group.artist)}</span>` : ''}</span>
+      <span>${escapeHtml(group.name || 'Untitled Song')}${displayArtists(group) ? ` <span class="artist">— ${escapeHtml(displayArtists(group))}</span>` : ''}</span>
     `;
     row.querySelector('input').addEventListener('change', (e) => {
       if (e.target.checked) copySelectedGroupIds.add(group.id);
@@ -4119,7 +4319,7 @@ function renderPdfSongChecklist(){
     const checked = pdfSelectedSongIds.has(group.id);
     row.innerHTML = `
       <input type="checkbox" ${checked ? 'checked' : ''}>
-      <span>${escapeHtml(group.name || 'Untitled Song')}${group.artist ? ` <span class="artist">— ${escapeHtml(group.artist)}</span>` : ''}</span>
+      <span>${escapeHtml(group.name || 'Untitled Song')}${displayArtists(group) ? ` <span class="artist">— ${escapeHtml(displayArtists(group))}</span>` : ''}</span>
     `;
     row.querySelector('input').addEventListener('change', (e) => {
       if (e.target.checked) pdfSelectedSongIds.add(group.id);
@@ -4238,12 +4438,24 @@ document.getElementById('pdfDeviceSelect').addEventListener('change', (e) => {
   pdfDevice = e.target.value;
 });
 
-let pdfBlobUrl = null; // revoke the previous one each time a new PDF is generated
+let pdfBlobUrl = null; // object URL of the last started download — revoked when the next one starts
+let generatedPdfBlob = null;   // blob from the most recent Generate
+let generatedPdfFilename = ''; // base filename from the most recent Generate
 // Downloads with an identical filename can fail instead of being
-// auto-renumbered by the browser, so each generated name is made unique
+// auto-renumbered by the browser, so every download claims a unique name
 // for the session: the first keeps its plain name, later ones get
 // " (1)", " (2)", … before the extension.
 const pdfFilenameCounts = {};
+function claimUniquePdfName(filename){
+  const seen = (pdfFilenameCounts[filename] || 0) + 1;
+  pdfFilenameCounts[filename] = seen;
+  return seen > 1 ? filename.replace(/\.pdf$/i, ` (${seen - 1}).pdf`) : filename;
+}
+// what the next download will be named, without consuming the number yet
+function previewUniquePdfName(filename){
+  const seen = pdfFilenameCounts[filename] || 0;
+  return seen > 0 ? filename.replace(/\.pdf$/i, ` (${seen}).pdf`) : filename;
+}
 
 document.getElementById('pdfGenerateBtn').addEventListener('click', async () => {
   const btn = document.getElementById('pdfGenerateBtn');
@@ -4256,14 +4468,9 @@ document.getElementById('pdfGenerateBtn').addEventListener('click', async () => 
     const { blob, filename } = pdfType === 'print-friendly'
       ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, pdfSelectedSongIds)
       : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, pdfSelectedSongIds);
-    const seen = (pdfFilenameCounts[filename] || 0) + 1;
-    pdfFilenameCounts[filename] = seen;
-    const uniqueName = seen > 1 ? filename.replace(/\.pdf$/i, ` (${seen - 1}).pdf`) : filename;
-    if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-    pdfBlobUrl = URL.createObjectURL(blob);
-    link.href = pdfBlobUrl;
-    link.download = uniqueName;
-    link.textContent = `↓ Download ${uniqueName}`;
+    generatedPdfBlob = blob;
+    generatedPdfFilename = filename;
+    link.textContent = `↓ Download ${previewUniquePdfName(filename)}`;
     link.style.display = 'block';
   } catch(err){
     console.error(err);
@@ -4272,6 +4479,23 @@ document.getElementById('pdfGenerateBtn').addEventListener('click', async () => 
     btn.textContent = original;
     btn.disabled = false;
   }
+});
+
+// Every tap on the download link mints a fresh blob URL and claims the next
+// unique filename, so downloading the same generated PDF twice (or ten
+// times) always works — browsers that refuse a repeat download with an
+// identical name get a numbered one instead. Changing the song selection
+// and tapping Generate replaces the generated file; the numbering keeps
+// counting so the new file can't collide with earlier downloads either.
+document.getElementById('pdfDownloadLink').addEventListener('click', () => {
+  if (!generatedPdfBlob) return;
+  const link = document.getElementById('pdfDownloadLink');
+  if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
+  pdfBlobUrl = URL.createObjectURL(generatedPdfBlob);
+  const uniqueName = claimUniquePdfName(generatedPdfFilename);
+  link.href = pdfBlobUrl;
+  link.download = uniqueName;
+  link.textContent = `↓ Download ${uniqueName}`;
 });
 
 /* ---------------------------------------------------------
@@ -4629,8 +4853,8 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       }
       doc.textWithLink(titleTxt, MARGIN, baseY, { pageNumber: meta.firstPageNumber });
       const labelW = doc.getTextWidth(titleTxt);
-      if (s.group.artist){
-        let artistTxt = '— ' + s.group.artist;
+      if (displayArtists(s.group)){
+        let artistTxt = '— ' + displayArtists(s.group);
         doc.setFont('helvetica','normal'); doc.setFontSize(sc(12));
         doc.setTextColor(...palette.muted);
         const maxArtistW = pageNumLeft - sc(8) - (MARGIN + labelW + sc(10));
@@ -4706,7 +4930,7 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       doc.link(MARGIN - sc(8), sc(22), sc(150), sc(40), { pageNumber: meta.tocPageNumber });
 
       const songTitle = p.song.group.name || 'Untitled Song';
-      const artist = p.song.group.artist || '';
+      const artist = displayArtists(p.song.group);
       const maxTitleWidth = (PAGE_W - 2 * MARGIN) * 0.9;
       // the title should read clearly bigger than any lyric page — shrink
       // toward that floor first, and only wrap to a second line if it
@@ -4969,11 +5193,11 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
     doc.setTextColor(...palette.text);
     const songLabel = s.group.name || 'Untitled Song';
     doc.text(songLabel, MARGIN, y);
-    if (s.group.artist){
+    if (displayArtists(s.group)){
       const labelW = doc.getTextWidth(songLabel);
       doc.setFont('helvetica','normal'); doc.setFontSize(sc(11));
       doc.setTextColor(...palette.muted);
-      doc.text('— ' + s.group.artist, MARGIN + labelW + sc(8), y);
+      doc.text('— ' + displayArtists(s.group), MARGIN + labelW + sc(8), y);
     }
     y += pdfLineHeight(songTitleSize) + sc(8);
 
@@ -5086,6 +5310,7 @@ function resetToNewFile(){
   expandedGroups = new Set();
   fileHandle = null;
   currentFileName = null;
+  persistFileHandle();
   updateFileLabel();
   updateSaveStatus('nofile');
   updateLastFolderHint();
@@ -5177,8 +5402,9 @@ function showArtistSuggestions(anchorEl, query, onPick){
   const seen = new Set();
   const allArtists = [];
   state.sectionGroups.forEach(g => {
-    const a = (g.artist || '').trim();
-    if (a && !seen.has(a.toLowerCase())){ seen.add(a.toLowerCase()); allArtists.push(a); }
+    groupArtists(g).forEach(a => {
+      if (!seen.has(a.toLowerCase())){ seen.add(a.toLowerCase()); allArtists.push(a); }
+    });
   });
   const q = query.trim().toLowerCase();
   const matches = allArtists
