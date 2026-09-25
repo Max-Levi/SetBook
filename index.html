@@ -1280,7 +1280,7 @@
         <section id="help-pdf">
           <h3>7. PDF export</h3>
           <ul>
-            <li><strong>Performance PDF.</strong> One page per song section (long sections paginate across pages). The page is sized for a target device — picked from a grouped dropdown of iPad models (10.2", 10.9"/11", Pro 11", Pro 12.9"/13", mini 7.9", mini 8.3"), iPhones (SE, 14/15/16, Pro Max), Android tablets and phones by screen size, or US Letter/A4 paper — in portrait or landscape, rendered in dark or light mode. It includes a tappable table of contents — each song row shows a tappable page-number indicator and long artists are trimmed so they never collide with it; when the contents span multiple pages, previous/next navigation appears at the bottom and later pages get a small "Contents · page X of Y" header — one title page per song, a "back to Contents" link and the song title on every page, and previous/next-section navigation links at the bottom of each section page. The body font size is unified per song — every section page within one song uses the same size, the largest at which all of that song's sections still fit on their pages (the minimum of the per-section best-fit sizes, picked from fixed tiers so content fits without overflow); the layout is designed for use with Bluetooth page-turner pedals.</li>
+            <li><strong>Performance PDF.</strong> One page per song section (long sections paginate across pages). The page is sized for a target device — picked from a grouped dropdown of iPad models (10.2", 10.9"/11", Pro 11", Pro 12.9"/13", mini 7.9", mini 8.3"), iPhones (SE, 14/15/16, Pro Max), Android tablets and phones by screen size, or US Letter/A4 paper — in portrait or landscape, rendered in dark or light mode. It includes a tappable table of contents — each song row is a full-width, finger-sized tap target (capped at 10 songs per page; long titles and artists trim with an ellipsis so they never collide with the page indicator); when the contents span multiple pages, previous/next navigation appears at the bottom and later pages get a small "Contents · page X of Y" header — one title page per song, a "back to Contents" link and the song title on every page, and previous/next-section navigation links at the bottom of each section page. All tappable links use generous tap targets sized for fingers on a phone screen. The body font size is unified per song — every section page within one song uses the same size, the largest at which all of that song's sections still fit on their pages (the minimum of the per-section best-fit sizes, picked from fixed tiers so content fits without overflow); the layout is designed for use with Bluetooth page-turner pedals.</li>
             <li><strong>Print-Friendly PDF.</strong> A continuous document stacking all selected songs and sections with page numbers. The body font size is auto-selected once for the whole document.</li>
             <li>Both pipelines use the embedded IBM Plex Mono typeface so chord alignment is exact in any PDF viewer.</li>
             <li>Export scope: all songs in the library, one saved subset, or a manual per-song checklist. The checklist offers bulk selection — Select all, Select none, and Ready only (songs whose ready status is Ready). Like a manual checkbox change, a bulk selection clears the subset dropdown so the selection is clearly custom.</li>
@@ -1343,7 +1343,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), and <code>setbook-qa/snapshot-test.js</code> (33 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), and <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks). A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -4163,13 +4163,25 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
   const MARGIN = sc(40);
   const CONTENT_TOP = sc(100);
   const TOC_TOP = sc(132);
-  const TOC_ROW_H = sc(30);
+  // tall rows: each song is a comfortable finger-sized tap target
+  const TOC_ROW_H = sc(42);
 
   const palette = PDF_PALETTES[isDark ? 'dark' : 'light'];
   const songs = collectPdfSongs(selectedGroupIds);
 
-  const rowsPerTocPage = Math.max(1, Math.floor((PAGE_H - TOC_TOP - MARGIN) / TOC_ROW_H));
-  const numTocPages = Math.ceil(songs.length / rowsPerTocPage);
+  // Roomy rows cost vertical space, so the contents run to more pages —
+  // capped at 10 songs per page even when more would fit.
+  let rowsPerTocPage = Math.min(10, Math.max(1, Math.floor((PAGE_H - TOC_TOP - MARGIN) / TOC_ROW_H)));
+  let numTocPages = Math.ceil(songs.length / rowsPerTocPage);
+  if (numTocPages > 1){
+    // multi-page contents get bottom prev/next links — if the last row's
+    // tap target would run into their tap zone, drop a row per page
+    const tocNavTop = PAGE_H - sc(28) - sc(14) * 1.6;
+    if (TOC_TOP + rowsPerTocPage * TOC_ROW_H > tocNavTop){
+      rowsPerTocPage = Math.max(1, rowsPerTocPage - 1);
+      numTocPages = Math.ceil(songs.length / rowsPerTocPage);
+    }
+  }
 
   const fillBg = () => { doc.setFillColor(...palette.bg); doc.rect(0, 0, PAGE_W, PAGE_H, 'F'); };
 
@@ -4339,16 +4351,29 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       const s = songs[i];
       const meta = songMeta.get(s.group.id);
       const label = s.group.name || 'Untitled Song';
+      const rowTop = y;
+      // the baseline sits near the bottom of the tall row so the tap
+      // target gets padding above the text as well as below it
+      const baseY = rowTop + TOC_ROW_H - sc(14);
       // right-aligned page indicator: tappable, jumps to the song's title page.
       // Its left edge reserves space first, so a long title + artist never
       // runs into it — the artist is trimmed with an ellipsis when needed.
       const pageLabel = String(meta.firstPageNumber);
-      doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(15));
       const pageNumLeft = PAGE_W - MARGIN - doc.getTextWidth(pageLabel);
-      doc.setFont('helvetica','bold'); doc.setFontSize(sc(16));
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(18));
       doc.setTextColor(...palette.text);
-      doc.textWithLink(label, MARGIN, y, { pageNumber: meta.firstPageNumber });
-      const labelW = doc.getTextWidth(label);
+      // long titles trim with an ellipsis before they can run into the
+      // page indicator — same treatment the artist already gets
+      let titleTxt = label;
+      const maxTitleW = pageNumLeft - sc(8) - MARGIN;
+      if (doc.getTextWidth(titleTxt) > maxTitleW){
+        let titleTrimmed = false;
+        while (titleTxt.length > 1 && doc.getTextWidth(titleTxt + '\u2026') > maxTitleW){ titleTxt = titleTxt.slice(0, -1); titleTrimmed = true; }
+        if (titleTrimmed) titleTxt += '\u2026';
+      }
+      doc.textWithLink(titleTxt, MARGIN, baseY, { pageNumber: meta.firstPageNumber });
+      const labelW = doc.getTextWidth(titleTxt);
       if (s.group.artist){
         let artistTxt = '— ' + s.group.artist;
         doc.setFont('helvetica','normal'); doc.setFontSize(sc(12));
@@ -4358,14 +4383,15 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
           let trimmed = false;
           while (artistTxt.length > 1 && doc.getTextWidth(artistTxt + '…') > maxArtistW){ artistTxt = artistTxt.slice(0, -1); trimmed = true; }
           if (trimmed) artistTxt += '…';
-          doc.text(artistTxt, MARGIN + labelW + sc(10), y);
+          doc.text(artistTxt, MARGIN + labelW + sc(10), baseY);
         }
         // no room even for an ellipsis: the artist is dropped, the title stays
       }
-      doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(15));
       doc.setTextColor(...palette.accent);
-      doc.textWithLink(pageLabel, PAGE_W - MARGIN, y, { align:'right', pageNumber: meta.firstPageNumber });
-      doc.link(MARGIN, y - sc(16), PAGE_W - 2 * MARGIN, sc(22), { pageNumber: meta.firstPageNumber });
+      doc.textWithLink(pageLabel, PAGE_W - MARGIN, baseY, { align:'right', pageNumber: meta.firstPageNumber });
+      // the whole row is the tap target — full width, nearly full row height
+      doc.link(MARGIN, rowTop + sc(3), PAGE_W - 2 * MARGIN, TOC_ROW_H - sc(6), { pageNumber: meta.firstPageNumber });
       y += TOC_ROW_H;
     }
     // When the contents run to several pages, bottom-of-page prev/next
@@ -4373,8 +4399,8 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     // navigation at the bottom of song pages. (ToC pages are PDF pages
     // 1..numTocPages, so the previous page from tp is tp, 1-based.)
     if (numTocPages > 1){
-      const tocNavSize = sc(11);
-      const tocNavY = PAGE_H - sc(26); // baseline — matches the section nav position
+      const tocNavSize = sc(14);
+      const tocNavY = PAGE_H - sc(28); // baseline — matches the section nav position
       const tocNavGap = sc(7);
       const tocArrowHW = tocNavSize * 0.5;  // arrow triangle half-width
       const tocArrowHH = tocNavSize * 0.42; // arrow triangle half-height
@@ -4387,7 +4413,7 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
         else doc.triangle(cx + tocArrowHW, tocArrowCy, cx - tocArrowHW, tocArrowCy - tocArrowHH, cx - tocArrowHW, tocArrowCy + tocArrowHH, 'F');
       };
       const tocNavLinkRect = (x, w, pageNumber) => {
-        doc.link(x - sc(4), tocNavY - tocNavSize * 1.25, w + sc(8), tocNavSize * 1.7, { pageNumber });
+        doc.link(x - sc(8), tocNavY - tocNavSize * 1.6, w + sc(16), tocNavSize * 2.2, { pageNumber });
       };
       doc.setFont('helvetica','bold');
       doc.setFontSize(tocNavSize);
@@ -4418,10 +4444,11 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     const meta = songMeta.get(p.song.group.id);
 
     if (p.type === 'title'){
-      doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+      doc.setFont('helvetica','bold'); doc.setFontSize(sc(16));
       doc.setTextColor(...palette.accent);
-      doc.textWithLink('<< Contents', MARGIN, sc(40), { pageNumber: meta.tocPageNumber });
-      doc.link(MARGIN - sc(6), sc(25), sc(110), sc(22), { pageNumber: meta.tocPageNumber });
+      doc.textWithLink('<< Contents', MARGIN, sc(44), { pageNumber: meta.tocPageNumber });
+      // generous tap target around the link text
+      doc.link(MARGIN - sc(8), sc(22), sc(150), sc(40), { pageNumber: meta.tocPageNumber });
 
       const songTitle = p.song.group.name || 'Untitled Song';
       const artist = p.song.group.artist || '';
@@ -4470,10 +4497,11 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     doc.setTextColor(...palette.text);
     doc.text(p.song.group.name || 'Untitled Song', PAGE_W - MARGIN, sc(40), { align:'right' });
 
-    doc.setFont('helvetica','bold'); doc.setFontSize(sc(13));
+    doc.setFont('helvetica','bold'); doc.setFontSize(sc(16));
     doc.setTextColor(...palette.accent);
-    doc.textWithLink('<< Contents', MARGIN, sc(40), { pageNumber: meta.tocPageNumber });
-    doc.link(MARGIN - sc(6), sc(25), sc(110), sc(22), { pageNumber: meta.tocPageNumber });
+    doc.textWithLink('<< Contents', MARGIN, sc(44), { pageNumber: meta.tocPageNumber });
+    // generous tap target around the link text
+    doc.link(MARGIN - sc(8), sc(22), sc(150), sc(40), { pageNumber: meta.tocPageNumber });
 
     doc.setFont('helvetica','bold'); doc.setFontSize(sc(20));
     doc.setTextColor(...palette.text);
@@ -4529,8 +4557,8 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     // [End] marker on the song's last section page) on the right. Tapping
     // an arrow or a name jumps straight to that section's page. Title
     // pages get none of this.
-    const navSize = sc(11);
-    const navY = PAGE_H - sc(26); // baseline — sits below the content area with clear padding from the page edge
+    const navSize = sc(14);
+    const navY = PAGE_H - sc(28); // baseline — sits below the content area with clear padding from the page edge
     const navGap = sc(7);
     const arrowHW = navSize * 0.5;  // arrow triangle half-width
     const arrowHH = navSize * 0.42; // arrow triangle half-height
@@ -4553,7 +4581,7 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       else doc.triangle(cx + arrowHW, arrowCy, cx - arrowHW, arrowCy - arrowHH, cx - arrowHW, arrowCy + arrowHH, 'F');
     };
     const navLinkRect = (x, w, pageNumber) => {
-      doc.link(x - sc(4), navY - navSize * 1.25, w + sc(8), navSize * 1.7, { pageNumber });
+      doc.link(x - sc(8), navY - navSize * 1.6, w + sc(16), navSize * 2.2, { pageNumber });
     };
 
     if (p.prevNav){
