@@ -468,6 +468,10 @@
     .recovery-banner-actions .ghost.small, .recovery-banner-actions .primary.small{
       min-height:44px;
     }
+    /* open-file conflict modal: both choice buttons are full touch targets */
+    #openConflictModalOverlay .modal-actions .ghost.small, #openConflictModalOverlay .modal-actions .primary.small{
+      min-height:44px;
+    }
     /* In the PDF exporter the Generate button can scroll far out of sight
        on phones: pin the action footer to the bottom of the visible modal.
        Solid panel background (plus a divider) so content slides under it. */
@@ -1068,6 +1072,9 @@
   .diff-list .diff-add{ color:var(--success); }
   .diff-list .diff-del{ color:var(--danger); }
   .diff-list .diff-more{ color:var(--text-muted); font-style:italic; }
+  .diff-list .diff-time{ color:var(--text-muted); font-size:12px; margin:1px 0 6px 14px; }
+  .diff-list .diff-time-side{ white-space:nowrap; }
+  .diff-list .diff-time-later{ color:var(--gold); }
   @media (max-width:760px){
     .snapshot-actions button{ min-height:44px; }
     .snapshot-top-actions button{ min-height:44px; }
@@ -1378,6 +1385,20 @@
   </div>
 </div>
 
+<!-- Open-file conflict: restored crash-recovery data vs. a file being opened -->
+<div class="modal-overlay" id="openConflictModalOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Keep which version?</h2>
+    <p class="modal-sub" id="openConflictSub"></p>
+    <ul id="openConflictDiffList" class="diff-list" aria-live="polite"></ul>
+    <div class="modal-actions">
+      <button type="button" class="primary small" id="openConflictKeepBtn">Keep restored work</button>
+      <button type="button" class="ghost small" id="openConflictOpenBtn">Open the file</button>
+    </div>
+  </div>
+</div>
+
 <!-- Technical documentation / Help modal -->
 <div class="modal-overlay" id="helpModalOverlay">
   <div class="modal modal-help">
@@ -1418,8 +1439,8 @@
           <h3>3. Data model</h3>
           <p>All persistent data is a JSON serialization of the <code>state</code> object:</p>
           <ul>
-            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>).</li>
-            <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
+            <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (optional reference link), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
+            <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, <code>updatedAt</code> (ms-epoch timestamp of the section's last edit; <code>null</code> on older files, shown as "unknown"), and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
             <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>autoNumberSections</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
@@ -1480,8 +1501,8 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked.</li>
-            <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff.</li>
+            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered.</li>
+            <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
             <li>The File menu is grouped under small labels: File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Export filtered songs: File → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
@@ -1504,7 +1525,7 @@
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
             <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
             <li>Mobile UX is a standing requirement on every change, not a separate pass: any UI addition or alteration must also be adapted and verified at phone width (≤760px). New header controls need ≥44px touch targets; new modals must pick up the compact mobile styling (94vw sheet, tightened type, enlarged action buttons); drawer interactions must hand the full screen to the editor (close the drawer when a section, search result, or "+ Add section" is chosen, keep it open while naming a new song). Verify with the mobile Playwright suite (<code>setbook-qa/mobile-drawer-test.js</code>) plus a 390px visual pass.</li>
-            <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. Section renames are detected by comparing the <code>(nameType, customName, nameSuffix)</code> triple rather than the display name, so auto-numbering shifts ("Chorus" → "Chorus 1") don't read as renames; <code>songIsEmpty()</code> keeps contentless placeholder songs out of the diff. It is a pure function of two states; the Snapshots modal is the only caller.</li>
+            <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. Section renames are detected by comparing the <code>(nameType, customName, nameSuffix)</code> triple rather than the display name, so auto-numbering shifts ("Chorus" → "Chorus 1") don't read as renames; <code>songIsEmpty()</code> keeps contentless placeholder songs out of the diff. It is a pure function of two states; the Snapshots modal and the open-file conflict modal are the callers. <code>renderDiffInto()</code> accepts <code>{ showTimes: true }</code> to append each song's and section's last-modified time on both sides (the later highlighted), used by the conflict modal; the Snapshots Compare view renders without it and is unchanged.</li>
             <li>When adding, changing, or removing a feature, update this documentation to describe it and refresh the "Last updated" date above.</li>
           </ul>
         </section>
@@ -1533,7 +1554,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks) — 21 suites, 476 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (14 checks) — 24 suites, 543 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -1732,11 +1753,17 @@ function addTagToGroup(group, raw){
   const tags = groupTags(group);
   if (tags.some(t => t.toLowerCase() === tag.toLowerCase())) return false;
   group.tags = [...tags, tag];
+  touchGroup(group);
   return true;
 }
 function removeTagFromGroup(group, raw){
   const tag = (raw || '').trim().toLowerCase();
-  group.tags = groupTags(group).filter(t => t.toLowerCase() !== tag);
+  const tags = groupTags(group);
+  const kept = tags.filter(t => t.toLowerCase() !== tag);
+  if (kept.length === tags.length) return false;
+  group.tags = kept;
+  touchGroup(group);
+  return true;
 }
 // A song can credit several artists — one per line in the artist field.
 // Matching is case-insensitive; the original casing is kept for display.
@@ -2073,6 +2100,7 @@ function buildDetailsPanel(group, gDiv){
   };
   artistInput.addEventListener('input', () => {
     group.artist = artistInput.value;
+    touchGroup(group);
     scheduleSave();
     syncArtistUI();
     const cur = currentLineOf(artistInput);
@@ -2081,6 +2109,7 @@ function buildDetailsPanel(group, gDiv){
       c2.lines[c2.idx] = name;
       artistInput.value = c2.lines.join('\n');
       group.artist = artistInput.value;
+      touchGroup(group);
       const upto = c2.lines.slice(0, c2.idx + 1).join('\n').length;
       try{ artistInput.setSelectionRange(upto, upto); }catch(_){}
       scheduleSave();
@@ -2182,6 +2211,7 @@ function buildDetailsPanel(group, gDiv){
   videoEditBtn.addEventListener('click', () => setVideoEditing(true));
   videoInput.addEventListener('input', () => {
     group.videoUrl = videoInput.value.trim();
+    touchGroup(group);
     videoInput.title = group.videoUrl;
     scheduleSave();
   });
@@ -2248,12 +2278,12 @@ function renderSidebar(){
       <div class="group-head-main">
         ${focusGroup ? '' : `<span class="chev">${isExpanded ? '▾' : '▸'}</span>`}
         <div class="group-titles">
-          <span class="group-name" data-gid="${group.id}"></span>
+          <span class="group-name" data-gid="${escapeAttr(group.id)}"></span>
           <span class="group-artist-summary"></span>
         </div>
         <span class="group-count">${secs.length}</span>
-        ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${group.id}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
-        <button class="icon danger" data-action="del-group" data-gid="${group.id}" title="Delete song">✕</button>
+        ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${escapeAttr(group.id)}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
+        <button class="icon danger" data-action="del-group" data-gid="${escapeAttr(group.id)}" title="Delete song">✕</button>
       </div>
       <div class="group-badges"><span class="group-type"></span></div>
     `;
@@ -2267,6 +2297,7 @@ function renderSidebar(){
     nameInput.addEventListener('click', e => e.stopPropagation());
     nameInput.addEventListener('input', e => {
       group.name = e.target.value;
+      touchGroup(group);
       nameInput.title = group.name || 'Untitled song';
       autoGrowTextarea(nameInput);
       scheduleSave();
@@ -2293,6 +2324,7 @@ function renderSidebar(){
     typeBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       group.type = (group.type || 'cover') === 'cover' ? 'original' : 'cover';
+      touchGroup(group);
       renderTypeBadge();
       scheduleSave();
       renderSidebar();
@@ -2312,6 +2344,7 @@ function renderSidebar(){
     readyBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       group.readyStatus = isSongReady(group) ? 'not-ready' : 'ready';
+      touchGroup(group);
       renderReadyBadge();
       scheduleSave();
       renderSidebar();
@@ -2408,6 +2441,7 @@ function renderSidebar(){
             const wasSelSec = selectedSectionId === sec.id;
             state.sections = state.sections.filter(s => s.id !== sec.id);
             if (selectedSectionId === sec.id) selectedSectionId = null;
+            touchGroup(group);
             scheduleSave();
             renderAll();
             const entry = pushUndo(`Deleted "${removedName}"`, () => {
@@ -2430,8 +2464,9 @@ function renderSidebar(){
         const newOrder = secs.length ? Math.max(...secs.map(s=>s.order)) + 1 : 0;
         const sourceSection = secs.length ? secs[secs.length - 1] : null;
         const newType = defaultNewSectionType(sourceSection);
-        const sec = { id: uid('sec'), groupId: group.id, nameType: newType, customName: '', nameSuffix: '', name: '', order: newOrder, lines: [] };
+        const sec = { id: uid('sec'), groupId: group.id, nameType: newType, customName: '', nameSuffix: '', name: '', order: newOrder, lines: [], updatedAt: Date.now() };
         state.sections.push(sec);
+        touchGroup(group);
         selectedGroupId = group.id;
         selectedSectionId = sec.id;
         scheduleSave();
@@ -2449,9 +2484,9 @@ function renderSidebar(){
   addGroupBtn.className = 'add-group-btn';
   addGroupBtn.textContent = '+ New song';
   addGroupBtn.addEventListener('click', () => {
-    const g = { id: uid('grp'), name: '', artist: '' };
+    const g = { id: uid('grp'), name: '', artist: '', updatedAt: Date.now() };
     state.sectionGroups.push(g);
-    const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [] };
+    const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [], updatedAt: Date.now() };
     state.sections.push(introSec);
     selectedGroupId = g.id;
     selectedSectionId = introSec.id;
@@ -2459,7 +2494,7 @@ function renderSidebar(){
     scheduleSave();
     renderAll();
     setTimeout(() => {
-      const input = el.querySelector(`.group-name[data-gid="${g.id}"] textarea`);
+      const input = el.querySelector(`.group-name[data-gid="${CSS.escape(g.id)}"] textarea`);
       input?.focus();
     }, 0);
   });
@@ -2565,6 +2600,8 @@ function moveSection(sec, dir){
   if (swapIdx < 0 || swapIdx >= secs.length) return;
   const a = secs[idx], b = secs[swapIdx];
   const tmp = a.order; a.order = b.order; b.order = tmp;
+  touchSection(a);
+  touchSection(b);
   scheduleSave();
   renderAll();
 }
@@ -2708,7 +2745,8 @@ function duplicateSection(sec){
     lines: sec.lines.map(l => ({
       text: l.text,
       symbols: l.symbols.map(s => ({ pos: s.pos, value: s.value }))
-    }))
+    })),
+    updatedAt: Date.now()
   };
   // duplicates always go at the end of the song's section list, then
   // renumber the whole group so order stays clean, sequential integers
@@ -2716,6 +2754,7 @@ function duplicateSection(sec){
   secs.push(newSec);
   secs.forEach((s, i) => { s.order = i; });
   state.sections.push(newSec);
+  touchSection(newSec); // stamps the duplicate and its song
 
   selectedSectionId = newSec.id;
   scheduleSave();
@@ -2759,6 +2798,7 @@ function attachVerticalLineNav(input, row, isChordField, sec){
 
     if (growAtEnd){
       sec.lines.push({ text:'', symbols:[] });
+      touchSection(sec);
       scheduleSave();
       renderMain();
       setTimeout(() => {
@@ -2895,9 +2935,11 @@ function attachRowDrag(handle, row, sec, linesWrap){
         const changed = reordered.some((l, i) => l !== st.sec.lines[i]);
         st.sec.lines = reordered;
         if (changed){
+          touchSection(st.sec);
           scheduleSave();
           const entry = pushUndo('Moved row', () => {
             st.sec.lines = before;
+            touchSection(st.sec);
             scheduleSave();
             renderMain();
           });
@@ -3011,6 +3053,7 @@ function renderMain(){
   const refreshNameUI = () => {
     customInput.style.display = sec.nameType === 'custom' ? '' : 'none';
     previewStrong.textContent = displaySectionName(sec);
+    touchSection(sec);
     scheduleSave();
     renderSidebar();
     renderPreview(sec);
@@ -3074,6 +3117,7 @@ function renderMain(){
 
     row.querySelector('.chord-entry').addEventListener('input', e => {
       line.symbols = parseChordLine(e.target.value);
+      touchSection(sec);
       scheduleSave();
       renderPreview(sec);
     });
@@ -3092,10 +3136,12 @@ function renderMain(){
       const prevSymbols = line.symbols;
       line.symbols = [];
       row.querySelector('.chord-entry').value = '';
+      touchSection(sec);
       scheduleSave();
       renderPreview(sec);
       const entry = pushUndo('Cleared chords', () => {
         line.symbols = prevSymbols;
+        touchSection(sec);
         scheduleSave();
         renderMain();
       });
@@ -3107,10 +3153,12 @@ function renderMain(){
       const prevText = line.text;
       line.text = '';
       row.querySelector('.text').value = '';
+      touchSection(sec);
       scheduleSave();
       renderPreview(sec);
       const entry = pushUndo('Cleared lyrics', () => {
         line.text = prevText;
+        touchSection(sec);
         scheduleSave();
         renderMain();
       });
@@ -3119,6 +3167,7 @@ function renderMain(){
 
     row.querySelector('.text').addEventListener('input', e => {
       line.text = e.target.value;
+      touchSection(sec);
       scheduleSave();
       renderPreview(sec);
     });
@@ -3129,6 +3178,7 @@ function renderMain(){
       if (trimmed !== e.target.value){
         e.target.value = trimmed;
         line.text = trimmed;
+        touchSection(sec);
         scheduleSave();
         renderPreview(sec);
       }
@@ -3137,11 +3187,13 @@ function renderMain(){
     attachVerticalLineNav(row.querySelector('.text'), row, false, sec);
     row.querySelector('[data-action="up"]')?.addEventListener('click', () => {
       [sec.lines[idx-1], sec.lines[idx]] = [sec.lines[idx], sec.lines[idx-1]];
+      touchSection(sec);
       scheduleSave();
       renderMain();
     });
     row.querySelector('[data-action="down"]')?.addEventListener('click', () => {
       [sec.lines[idx+1], sec.lines[idx]] = [sec.lines[idx], sec.lines[idx+1]];
+      touchSection(sec);
       scheduleSave();
       renderMain();
     });
@@ -3150,6 +3202,7 @@ function renderMain(){
         text: line.text,
         symbols: line.symbols.map(s => ({ pos: s.pos, value: s.value }))
       });
+      touchSection(sec);
       scheduleSave();
       renderMain();
       document.querySelector('.lines-wrap .line-row:last-child')?.scrollIntoView({ block:'nearest' });
@@ -3158,10 +3211,12 @@ function renderMain(){
       const removedLine = line;
       const removedIdx = idx;
       sec.lines.splice(idx, 1);
+      touchSection(sec);
       scheduleSave();
       renderMain();
       const entry = pushUndo('Deleted line', () => {
         sec.lines.splice(Math.min(removedIdx, sec.lines.length), 0, removedLine);
+        touchSection(sec);
         scheduleSave();
         renderMain();
       });
@@ -3182,6 +3237,7 @@ function renderMain(){
   addLineBtn.textContent = '+ Add line';
   addLineBtn.addEventListener('click', () => {
     sec.lines.push({ text:'', symbols:[] });
+    touchSection(sec);
     scheduleSave();
     renderMain();
     setTimeout(() => {
@@ -3254,6 +3310,7 @@ Looking back at the years gone by like so many summer fields"></textarea>
       const newLines = parseMultiLineBlock(bulkTextarea.value);
       if (newLines.length){
         sec.lines.push(...newLines);
+        touchSection(sec);
         scheduleSave();
       }
       bulkPasteOpen = false;
@@ -3606,13 +3663,19 @@ function sectionNameKey(sec){
   return [(sec.nameType || ''), (sec.customName || ''), (sec.nameSuffix || '')].join('\u0001');
 }
 function diffOneSong(ag, bg, a, b){
+  // Each detail is { text, section }: song-level changes carry section:null,
+  // section-level changes carry { kind:'added'|'removed'|'changed',
+  // sectionA, sectionB } so the open-file conflict comparison can show each
+  // side's last-modified time for every song and section in the diff.
   const details = [];
-  if ((ag.name || '') !== (bg.name || '')) details.push(`renamed to \u201c${bg.name || 'Untitled'}\u201d`);
-  if ((ag.artist || '') !== (bg.artist || '')) details.push(`artist: ${displayArtists(bg) || '(none)'}`);
+  const songDetail = (text) => details.push({ text, section: null });
+  const secDetail = (text, kind, sectionA, sectionB) => details.push({ text, section: { kind, sectionA, sectionB } });
+  if ((ag.name || '') !== (bg.name || '')) songDetail(`renamed to \u201c${bg.name || 'Untitled'}\u201d`);
+  if ((ag.artist || '') !== (bg.artist || '')) songDetail(`artist: ${displayArtists(bg) || '(none)'}`);
   if ((ag.readyStatus || 'not-ready') !== (bg.readyStatus || 'not-ready'))
-    details.push(bg.readyStatus === 'ready' ? 'marked Ready' : 'marked not ready');
+    songDetail(bg.readyStatus === 'ready' ? 'marked Ready' : 'marked not ready');
   if ((ag.type || 'cover') !== (bg.type || 'cover'))
-    details.push(bg.type === 'original' ? 'marked as Original' : 'marked as Cover');
+    songDetail(bg.type === 'original' ? 'marked as Original' : 'marked as Cover');
   const aSecs = (a.sections || []).filter(s => s.groupId === ag.id);
   const bSecs = (b.sections || []).filter(s => s.groupId === bg.id);
   const aById = new Map(), bById = new Map();
@@ -3634,18 +3697,18 @@ function diffOneSong(ag, bg, a, b){
     if (q && q.length){ const t = q.shift(); pairs.push([s, t]); matchedA.add(s); matchedB.add(t); }
   });
   aSecs.filter(s => !matchedA.has(s))
-    .forEach(s => details.push(`\u2212 [${diffSectionLabel(s)}] section`));
+    .forEach(s => secDetail(`\u2212 [${diffSectionLabel(s)}] section`, 'removed', s, null));
   bSecs.filter(s => !matchedB.has(s))
-    .forEach(s => details.push(`+ [${diffSectionLabel(s)}] section`));
+    .forEach(s => secDetail(`+ [${diffSectionLabel(s)}] section`, 'added', null, s));
   pairs.forEach(([as, bs]) => {
     if (sectionNameKey(as) !== sectionNameKey(bs))
-      details.push(`[${diffSectionLabel(as)}] renamed to [${diffSectionLabel(bs)}]`);
+      secDetail(`[${diffSectionLabel(as)}] renamed to [${diffSectionLabel(bs)}]`, 'changed', as, bs);
     const { added, removed } = diffRowCounts(as.lines, bs.lines);
     if (added || removed){
       const bits = [];
       if (added) bits.push(`+${added} row${added === 1 ? '' : 's'}`);
       if (removed) bits.push(`\u2212${removed} row${removed === 1 ? '' : 's'}`);
-      details.push(`[${diffSectionLabel(bs)}]: ${bits.join(', ')}`);
+      secDetail(`[${diffSectionLabel(bs)}]: ${bits.join(', ')}`, 'changed', as, bs);
     }
   });
   return details;
@@ -3675,32 +3738,86 @@ function diffStates(a, b){
   // Empty songs are never listed: a song only appears if it has content in
   // at least one of the two states, so placeholder songs (a fresh session's
   // "Untitled song") don't pollute the diff.
-  aSongs.filter(g => !matchedA.has(g) && !songIsEmpty(g, a)).forEach(g => res.removed.push(diffSongLabel(g)));
-  bSongs.filter(g => !matchedB.has(g) && !songIsEmpty(g, b)).forEach(g => res.added.push(diffSongLabel(g)));
+  aSongs.filter(g => !matchedA.has(g) && !songIsEmpty(g, a)).forEach(g => res.removed.push({ label: diffSongLabel(g), song: g }));
+  bSongs.filter(g => !matchedB.has(g) && !songIsEmpty(g, b)).forEach(g => res.added.push({ label: diffSongLabel(g), song: g }));
   pairs.forEach(([ag, bg]) => {
     if (songIsEmpty(ag, a) && songIsEmpty(bg, b)) return;
     const details = diffOneSong(ag, bg, a, b);
-    if (details.length) res.changed.push({ label: diffSongLabel(bg), details });
+    if (details.length) res.changed.push({ label: diffSongLabel(bg), details, songA: ag, songB: bg });
   });
   return res;
 }
 const MAX_DIFF_ITEMS = 80;
-function renderDiffInto(listEl, a, b, labelA, labelB){
+// Last-modified rendering for the open-file conflict comparison.
+// Missing/invalid stamps render as "unknown" — never backfilled.
+function fmtUpdatedAt(ts){
+  if (typeof ts !== 'number' || !isFinite(ts)) return 'unknown';
+  return new Date(ts).toLocaleString(undefined, { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+function laterSide(aTs, bTs){
+  const a = (typeof aTs === 'number' && isFinite(aTs)) ? aTs : -1;
+  const b = (typeof bTs === 'number' && isFinite(bTs)) ? bTs : -1;
+  if (a === b) return null;
+  return b > a ? 'b' : 'a';
+}
+// A "last modified" line for the conflict comparison. Pass `undefined` for
+// a side that doesn't have the song/section at all (only one side shown);
+// null means "has it, but the time is unknown". The later side's time is
+// emphasized so it's easy to tell which was modified last.
+function timeItem(aTs, bTs, labelA, labelB){
+  const showA = aTs !== undefined, showB = bTs !== undefined;
+  const later = (showA && showB) ? laterSide(aTs, bTs) : null;
+  const part = (label, ts, isLater) => {
+    const t = escapeHtml(fmtUpdatedAt(ts));
+    const inner = isLater ? `<strong class="diff-time-later">${t}</strong>` : t;
+    return `<span class="diff-time-side">${escapeHtml(label)}: ${inner}</span>`;
+  };
+  const bits = [];
+  if (showA) bits.push(part(labelA, aTs, later === 'a'));
+  if (showB) bits.push(part(labelB, bTs, later === 'b'));
+  return { cls: 'diff-time', html: bits.join(' · ') };
+}
+function renderDiffInto(listEl, a, b, labelA, labelB, opts){
   listEl.innerHTML = '';
+  // opts.showTimes: after every song and every section in the diff, show
+  // each side's last-modified time (the open-file conflict comparison).
+  // Without it the rendering is exactly as before.
+  const showTimes = !!(opts && opts.showTimes);
   const d = diffStates(a, b);
   const items = [];
-  d.removed.forEach(l => items.push({ cls: 'diff-del', text: `\u2212 ${l} (only in ${labelA})` }));
-  d.added.forEach(l => items.push({ cls: 'diff-add', text: `+ ${l} (only in ${labelB})` }));
+  d.removed.forEach(r => {
+    items.push({ cls: 'diff-del', text: `\u2212 ${r.label} (only in ${labelA})` });
+    if (showTimes) items.push(timeItem(r.song ? (r.song.updatedAt ?? null) : null, undefined, labelA, labelB));
+  });
+  d.added.forEach(ad => {
+    items.push({ cls: 'diff-add', text: `+ ${ad.label} (only in ${labelB})` });
+    if (showTimes) items.push(timeItem(undefined, ad.song ? (ad.song.updatedAt ?? null) : null, labelA, labelB));
+  });
   d.changed.forEach(c => {
     items.push({ cls: 'diff-sub', text: c.label });
-    c.details.forEach(t => items.push({ cls: '', text: t }));
+    if (showTimes) items.push(timeItem(c.songA ? (c.songA.updatedAt ?? null) : null, c.songB ? (c.songB.updatedAt ?? null) : null, labelA, labelB));
+    const seenSecs = new Set();
+    c.details.forEach(dt => {
+      items.push({ cls: '', text: dt.text });
+      const sec = dt.section;
+      if (showTimes && sec){
+        const key = sec.sectionA || sec.sectionB;
+        if (key && !seenSecs.has(key)){
+          seenSecs.add(key);
+          items.push(timeItem(
+            sec.sectionA ? (sec.sectionA.updatedAt ?? null) : undefined,
+            sec.sectionB ? (sec.sectionB.updatedAt ?? null) : undefined,
+            labelA, labelB));
+        }
+      }
+    });
   });
   if (!items.length) items.push({ cls: 'diff-more', text: 'No differences.' });
   const shown = items.slice(0, MAX_DIFF_ITEMS);
   shown.forEach(it => {
     const li = document.createElement('li');
     if (it.cls) li.className = it.cls;
-    li.textContent = it.text;
+    if (it.html != null) li.innerHTML = it.html; else li.textContent = it.text;
     listEl.appendChild(li);
   });
   if (items.length > shown.length){
@@ -3804,6 +3921,30 @@ function restoreSnapshot(id){
 }
 wireModal({ overlayId: 'snapshotModalOverlay', openBtnId: 'btnSnapshots', closeBtnId: 'snapshotCloseBtn',
   onOpen: showSnapshotList });
+/* Open-file conflict modal: opened programmatically (no menu button), so
+   only the overlay (click-outside) is wired — the ✕ is auto-wired by the
+   .modal-close handler, and both it and Escape behave like "Keep restored
+   work" (the modal just closes; nothing is discarded). */
+const openConflictModal = wireModal({ overlayId: 'openConflictModalOverlay' });
+document.getElementById('openConflictKeepBtn').addEventListener('click', closeOpenConflictModal);
+document.getElementById('openConflictOpenBtn').addEventListener('click', () => {
+  const parsed = openConflictParsed, name = openConflictFileName, handle = openConflictHandle;
+  closeOpenConflictModal();
+  if (!parsed) return;
+  loadParsedState(parsed);
+  takeSnapshot('Opened ' + name);
+  fileHandle = handle;
+  currentFileName = name;
+  persistFileHandle();
+  // The restored work was deliberately discarded: clear its recovery
+  // snapshot and flag so it isn't re-offered on the next boot.
+  clearRecoverySnapshot();
+  recoveryRestoredThisBoot = false;
+  updateFileLabel();
+  updateSaveStatus('saved');
+  renderAll();
+  scrollSelectedSongIntoView();
+});
 document.getElementById('snapshotTakeBtn').addEventListener('click', () => {
   takeSnapshot('Manual snapshot');
   showToast('Snapshot saved.');
@@ -3857,11 +3998,31 @@ function updateFileLabel(){
   document.getElementById('fileNameLabel').textContent = currentFileName || 'No file open';
 }
 
+let lastDiskSaveAt = 0;   // ms epoch of the last moment memory matched the linked file
+let currentSaveStatus = 'nofile';
+
+// Relative save age for the header indicator:
+// "just now" / "45 sec ago" / "5 min ago" / "2 hours ago" / "3 days ago".
+function saveAgeText(){
+  if (!lastDiskSaveAt) return '';
+  const s = Math.max(0, Math.floor((Date.now() - lastDiskSaveAt) / 1000));
+  if (s < 10) return 'just now';
+  if (s < 60) return s + ' sec ago';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + ' min ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + (h === 1 ? ' hour ago' : ' hours ago');
+  const d = Math.floor(h / 24);
+  return d + (d === 1 ? ' day ago' : ' days ago');
+}
+
 function updateSaveStatus(status){
+  currentSaveStatus = status;
   const dot = document.getElementById('saveDot');
   const text = document.getElementById('saveText');
   dot.className = 'save-dot' + (status ? ' ' + status : '');
   const toFile = !!(supportsFsApi && fileHandle);
+  if (status === 'saved' && toFile) lastDiskSaveAt = Date.now();
   const messages = {
     saved: toFile ? 'saved to disk' : 'not linked to a file yet',
     saving: 'saving\u2026',
@@ -3869,7 +4030,36 @@ function updateSaveStatus(status){
     error: 'save failed \u2014 will retry',
     nofile: supportsFsApi ? 'not linked to a file yet' : 'download to save (browser has no file access)',
   };
-  text.textContent = messages[status] || messages.nofile;
+  let msg = messages[status] || messages.nofile;
+  if (status === 'saved' && toFile && lastDiskSaveAt){
+    const age = saveAgeText();
+    if (age) msg += ' \u00b7 ' + age;
+  }
+  text.textContent = msg;
+}
+
+// Keep the "x min ago" text fresh as time passes. This writes the label
+// directly — it must not go through updateSaveStatus, which would re-stamp
+// the save time.
+setInterval(() => {
+  if (currentSaveStatus !== 'saved' || !lastDiskSaveAt) return;
+  if (!(supportsFsApi && fileHandle)) return;
+  const age = saveAgeText();
+  document.getElementById('saveText').textContent = 'saved to disk' + (age ? ' \u00b7 ' + age : '');
+}, 30000);
+
+/* ---- last-modified stamps for the open-file conflict comparison ----
+   Every song (sectionGroup) and section carries `updatedAt` (ms epoch),
+   stamped on creation and on every content mutation (row edits/adds/
+   deletes/clears, section add/delete/rename/reorder, song add/delete/
+   rename/artist/tags/ready/type changes). Old files miss the field
+   entirely — loadParsedState migrates those to null, which renders as
+   "unknown" (never backfilled with a fake time). */
+function touchGroup(g){ if (g) g.updatedAt = Date.now(); }
+function touchSection(sec){
+  if (!sec) return;
+  sec.updatedAt = Date.now();
+  touchGroup((state.sectionGroups || []).find(g => g.id === sec.groupId));
 }
 
 function scheduleSave(){
@@ -4102,16 +4292,23 @@ async function maybeOfferRecovery(){
   });
 }
 
-function loadParsedState(parsed){
-  if (!Array.isArray(parsed.sectionGroups) || !Array.isArray(parsed.sections)){
+function assertParsedState(parsed){
+  if (!parsed || !Array.isArray(parsed.sectionGroups) || !Array.isArray(parsed.sections)){
     throw new Error('Missing sectionGroups or sections arrays');
   }
+}
+function loadParsedState(parsed){
+  assertParsedState(parsed);
   state = parsed;
   state.sections.forEach(migrateSectionName);
   state.sections.forEach(migrateMultilineLyrics);
+  // updatedAt: old files predate the field — migrate to null ("unknown"),
+  // never a backfilled time. Present-but-invalid values are nulled too.
+  state.sections.forEach(s => { if (typeof s.updatedAt !== 'number' || !isFinite(s.updatedAt)) s.updatedAt = null; });
   state.sectionGroups.forEach(g => {
     if (!Array.isArray(g.tags)) g.tags = [];
     else g.tags = g.tags.filter(t => typeof t === 'string' && t.trim()).map(t => t.trim());
+    if (typeof g.updatedAt !== 'number' || !isFinite(g.updatedAt)) g.updatedAt = null;
   });
   if (typeof state.tagFilter !== 'string') state.tagFilter = '';
   if (typeof state.artistFilter !== 'string') state.artistFilter = '';
@@ -4178,6 +4375,38 @@ async function parseJsonFile(file){
   return parseJsonText(await file.text(), file.name);
 }
 
+/* ---- open-file conflict resolution ----
+   Trigger scenario only: the user restored crash-recovery data at boot
+   (recoveryRestoredThisBoot), no file was re-linked (fileHandle is null),
+   and now opens a JSON file via openFile(). Loading it silently would
+   discard the restored work, so when the file's content differs a modal
+   offers a snapshot comparison — each song and section showing when it
+   was last modified on each side — and the choice of which to keep.
+   Identical content loads straight through, exactly as before. */
+let openConflictParsed = null;
+let openConflictFileName = '';
+let openConflictHandle = null;
+function statesIdentical(a, b){
+  const d = diffStates(a, b);
+  return !d.added.length && !d.removed.length && !d.changed.length;
+}
+function showOpenConflictModal(parsed, fileName, handle){
+  openConflictParsed = parsed;
+  openConflictFileName = fileName;
+  openConflictHandle = handle;
+  document.getElementById('openConflictSub').textContent =
+    `You restored work from your last session, and \u201c${fileName}\u201d is different. ` +
+    `Your restored work was stashed in Snapshots first, so nothing is lost either way. ` +
+    `Each song and section below shows when it was last modified on each side (the later time is highlighted) — then choose which to keep.`;
+  renderDiffInto(document.getElementById('openConflictDiffList'), state, parsed, 'Restored work', 'File', { showTimes: true });
+  openConflictModal.open();
+}
+function closeOpenConflictModal(){
+  openConflictModal.close();
+  openConflictParsed = null;
+  openConflictHandle = null;
+}
+
 async function openFile(){
   if (!supportsFsApi){
     document.getElementById('fileInput').click();
@@ -4197,6 +4426,17 @@ async function openFile(){
     const [handle] = await window.showOpenFilePicker(opts);
     const file = await handle.getFile();
     const parsed = await parseJsonFile(file);
+    // Validate before comparing: an invalid file must error out exactly
+    // as it does on the normal path (loadParsedState would throw).
+    assertParsedState(parsed);
+    // Restored crash-recovery data is in memory with no linked file:
+    // opening a different file would silently discard it. Stash the
+    // restored work and offer a comparison + choice instead.
+    if (recoveryRestoredThisBoot && !fileHandle && !statesIdentical(state, parsed)){
+      takeSnapshot('Restored work (before opening ' + file.name + ')');
+      showOpenConflictModal(parsed, file.name, handle);
+      return;
+    }
     if ((state.sectionGroups || []).length) takeSnapshot('Before opening ' + file.name);
     loadParsedState(parsed);
     takeSnapshot('Opened ' + file.name);
@@ -4617,7 +4857,7 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   copySelectedGroupIds.forEach(gid => {
     const srcGroup = copySourceState.sectionGroups.find(g => g.id === gid);
     if (!srcGroup) return;
-    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready', tags: [...groupTags(srcGroup)] };
+    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready', tags: [...groupTags(srcGroup)], updatedAt: Date.now() };
     state.sectionGroups.push(newGroup);
     const srcSections = copySourceState.sections
       .filter(s => s.groupId === gid)
@@ -4636,7 +4876,8 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
         lines: (srcSec.lines || []).map(l => ({
           text: l.text || '',
           symbols: (l.symbols || []).map(s => ({ pos: s.pos, value: s.value }))
-        }))
+        })),
+        updatedAt: Date.now()
       });
     });
   });
@@ -4722,7 +4963,7 @@ function populateSubsetSelect(){
   const sel = document.getElementById('pdfSubsetSelect');
   const subsets = state.songSubsets || [];
   sel.innerHTML = '<option value="">All songs</option>' +
-    subsets.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('');
+    subsets.map(s => `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('');
 }
 
 document.getElementById('pdfSubsetSelect').addEventListener('change', (e) => {
@@ -5766,6 +6007,10 @@ function openVideoLink(url){
   const trimmed = (url || '').trim();
   if (!trimmed) return;
   const normalized = /^[a-z][a-z0-9+.-]*:\/\//i.test(trimmed) ? trimmed : 'https://' + trimmed;
+  // Only real web addresses may be opened — a "javascript:" URL (which the
+  // scheme test above lets through, e.g. "javascript://…") must never reach
+  // location.href / window.open.
+  if (!/^https?:\/\//i.test(normalized)){ showErrorToast('That link is not a web address.'); return; }
   if (watchTarget() === 'self') window.location.href = normalized;
   else window.open(normalized, '_blank', 'noopener,noreferrer');
 }
@@ -5775,7 +6020,7 @@ function scrollSelectedSongIntoView(){
   // wait a tick for the just-rendered sidebar DOM (and its expanded
   // accordion) to actually be laid out before measuring where to scroll
   setTimeout(() => {
-    const rowEl = document.querySelector(`.group[data-gid="${selectedGroupId}"]`);
+    const rowEl = document.querySelector(`.group[data-gid="${CSS.escape(selectedGroupId)}"]`);
     if (rowEl) rowEl.scrollIntoView({ block: 'center' });
   }, 0);
 }
@@ -6077,9 +6322,9 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
    Seed with one empty song so the app isn't blank on load
 --------------------------------------------------------- */
 (function seed(){
-  const g = { id: uid('grp'), name: '', artist: '' };
+  const g = { id: uid('grp'), name: '', artist: '', updatedAt: Date.now() };
   state.sectionGroups.push(g);
-  const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [] };
+  const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [], updatedAt: Date.now() };
   state.sections.push(introSec);
   selectedGroupId = g.id;
   selectedSectionId = introSec.id;
