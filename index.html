@@ -1533,7 +1533,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (67 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), and <code>setbook-qa/section-numbering-test.js</code> (18 checks) — 20 suites, 464 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (27 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), and <code>setbook-qa/section-numbering-test.js</code> (18 checks) — 20 suites, 465 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -1557,10 +1557,6 @@
         <span class="filters-toggle-chev" id="filtersToggleChev">▸</span>
       </button>
       <button type="button" id="filtersClearBtn" class="ghost small filters-clear" title="Clear search and all filters" aria-label="Clear search and all filters" hidden>Clear all</button>
-      </div>
-      <div class="tools-buttons expand-collapse-row">
-        <button class="ghost small sort-btn" id="expandAllBtn">Expand all</button>
-        <button class="ghost small sort-btn" id="collapseAllBtn">Collapse all</button>
       </div>
       <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
@@ -1597,6 +1593,10 @@
         </div>
       </div>
       </div><!-- /filtersPanel -->
+      <div class="tools-buttons expand-collapse-row">
+        <button class="ghost small sort-btn" id="expandAllBtn">Expand all</button>
+        <button class="ghost small sort-btn" id="collapseAllBtn">Collapse all</button>
+      </div>
     </div>
     <div id="sidebarList" class="sidebar-list"></div>
     <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
