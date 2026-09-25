@@ -1019,11 +1019,20 @@
   }
   .mass-block-shows{ font-size:12px; color:var(--text-muted); }
   .mass-del-block{ margin-left:auto; }
-  .mass-line-row{ display:flex; gap:6px; align-items:center; margin-bottom:4px; }
+  .mass-line-row{ display:flex; gap:6px; align-items:flex-start; margin-bottom:4px; }
+  .mass-line-stack{ flex:1; min-width:0; display:flex; flex-direction:column; }
+  .mass-chord-input{
+    width:100%; background:var(--panel-2); border:1px solid var(--border);
+    border-bottom:none; color:var(--gold); font-weight:600;
+    border-radius:6px 6px 0 0; padding:10px; font-size:13px; box-sizing:border-box;
+    min-height:44px;
+  }
+  .mass-chord-input:focus{ outline:none; border-color:var(--focus-border); }
+  .mass-chord-input::placeholder{ color:var(--placeholder); font-weight:400; }
   .mass-line-input{
-    flex:1; min-width:0; font-size:13px; padding:10px; border-radius:6px;
+    width:100%; font-size:13px; padding:10px;
     border:1px solid var(--border); background:var(--panel); color:var(--text);
-    min-height:44px; box-sizing:border-box;
+    border-radius:0 0 6px 6px; min-height:44px; box-sizing:border-box;
   }
   .mass-line-input:focus{ outline:none; border-color:var(--focus-border); }
   .mass-line-row .ghost.small{ min-height:44px; flex:none; }
@@ -1512,7 +1521,7 @@
             <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (album-version link, optional), <code>videoUrlLive</code> (live-performance link, optional), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
             <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, <code>updatedAt</code> (ms-epoch timestamp of the section's last edit; <code>null</code> on older files, shown as "unknown"), and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
-            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryBlocks[]</code> — each block <code>{ id, nameType, lines[] }</code> holding raw text strings, one per line. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
+            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryBlocks[]</code> — each block <code>{ id, nameType, lines[] }</code> holding <code>{chords, text}</code> pairs, one per scraped line, rendered as a chord-over-lyric stacked row like section editor rows. Lines that look like chord lines land in the <code>chords</code> box automatically; everything else lands in <code>text</code>. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
             <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>autoNumberSections</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
           </ul>
@@ -1553,7 +1562,7 @@
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
-            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor. It starts as a single block typed Intro holding every scraped line as an editable raw-text row. Each block has its own section-type picker ("becomes: X" previews what the block will turn into); every row has <strong>Split</strong> (divides the block above that row — blocks can be split again and again) and <strong>✕</strong> (deletes the row), and a whole block can be deleted. <strong>Reset to scraped text</strong> restores the original text as one Intro block after a two-tap confirmation; <strong>Create sections</strong> turns every non-empty block into a real section in block order (each block's lines pass through the normal chord/lyric parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text.</li>
+            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor. Tab sites get special handling on import: <code>[Verse 1]</code>/<code>[Chorus]</code>-style header lines split the text into blocks that arrive already typed (Verse, Chorus, Intro, Bridge, Outro, Pre-Chorus, Instrumental — <code>[Solo]</code> and <code>[Interlude]</code> map to Instrumental) and the header lines themselves are dropped; chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. Every scraped line becomes an editable row stacking a gold <strong>chord</strong> input above its <strong>lyric</strong> input, just like section editor rows (and the + Enter multiple lines box) — a chord-looking line pairs with the lyric line under it into one row, chord-only lines stay chord-only, blank lines are separators rather than empty rows, and lines that are not chord-looking land in the lyric box. Each block has its own section-type picker ("becomes: X" previews what the block will turn into); every row has <strong>Split</strong> (divides the block above that row — blocks can be split again and again) and <strong>✕</strong> (deletes the row), and a whole block can be deleted. <strong>Reset to scraped text</strong> restores the original text as one Intro block after a two-tap confirmation; <strong>Create sections</strong> turns every non-empty block into a real section in block order (each row's chord box is parsed into positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text.</li>
           </ul>
         </section>
         <section id="help-preview">
@@ -1639,7 +1648,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (36 checks), and <code>setbook-qa/setbook-ext-test.js</code> (31 checks) — 27 suites, 641 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (53 checks), and <code>setbook-qa/setbook-ext-test.js</code> (31 checks) — 27 suites, 658 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -2629,6 +2638,7 @@ function renderSidebar(){
   el.appendChild(addGroupBtn);
   const addUrlBtn = document.createElement('button');
   addUrlBtn.className = 'add-group-btn';
+  addUrlBtn.id = 'addSongFromUrlBtn';
   addUrlBtn.textContent = '+ Add song from URL';
   addUrlBtn.addEventListener('click', () => { urlImportModal.open(); });
   el.appendChild(addUrlBtn);
@@ -3139,7 +3149,7 @@ function printableSections(groupId){
 }
 
 function normalizeScrapedText(text){
-  return (text || '').split('\n')
+  return (text || '').replace(/\r\n?/g, '\n').split('\n')
     .map(l => l.replace(/[ \t\u00a0]+$/, ''))
     .join('\n')
     .replace(/^\n+|\n+$/g, '')
@@ -3198,6 +3208,101 @@ async function fetchUrlText(rawUrl){
   return normalizeScrapedText(body);
 }
 
+/* Mass-entry staging rows are chord-over-lyric pairs, like section editor rows:
+   { chords, text }. On import, lines that look like chord lines land in the
+   chord box automatically; everything else lands in the lyric box. */
+const MASS_CHORD_TOKEN_RE = /^[A-G][#b]?(?:m(?!aj)|maj|min|dim|aug|sus|add)?\d*[#b]?(?:sus|add)?\d*(?:\/[A-G][#b]?)?$/;
+function looksLikeChordLine(line){
+  const t = (line || '').trim();
+  if (!t) return false;
+  const tokens = t.split(/\s+/);
+  return tokens.length > 0 && tokens.every(tok => MASS_CHORD_TOKEN_RE.test(tok));
+}
+function asMassPair(p){
+  if (p && typeof p === 'object') return { chords: p.chords || '', text: p.text || '' };
+  return { chords: '', text: (p == null ? '' : String(p)) };
+}
+/* Chord-diagram lines from tab sites (e.g. "Am7/G     302013") carry chord
+   fingerings, not song content — dropped on import. */
+function looksLikeChordDiagramLine(line){
+  const t = (line || '').trim();
+  if (!/[\dxX]{6}\s*$/.test(t)) return false;
+  const core = t.replace(/[\dxX]{6}\s*$/, '').trim();
+  return !!core && core.split(/\s+/).every(tok => MASS_CHORD_TOKEN_RE.test(tok));
+}
+
+/* Section-header lines from tab sites: "[Verse 1]" -> verse, "[Chorus]" ->
+   chorus, etc. "[Solo]"/"[Interlude]" map to instrumental. */
+function massHeaderSectionType(headerText){
+  const mapped = sectionTypeFromCustomName(headerText);
+  if (mapped) return mapped;
+  const norm = (headerText || '').trim().toLowerCase();
+  if (norm === 'solo' || norm === 'interlude') return 'instrumental';
+  return null;
+}
+
+/* Split scraped text into mass-entry blocks, applying tab-site formatting
+   rules: [Section] header lines start a new typed block (the header line is
+   dropped); chord-diagram lines (and their "Chords:" introducer) are dropped;
+   a standalone xN repeat becomes SetBook's (xN) shorthand. Then, like the
+   + Enter multiple lines box, a chord-looking line pairs with the lyric line
+   under it into a single row (chord box over lyric box); blank lines are
+   separators, not empty rows. */
+function splitMassEntryBlocks(text){
+  const blocks = [{ id: uid('blk'), nameType: 'intro', lines: [] }];
+  let cur = blocks[0];
+  const rawLines = (text || '').split('\n');
+  // First pass: classify each raw line.
+  const items = [];
+  rawLines.forEach((rawLine, idx) => {
+    const t = (rawLine || '').replace(/[ \t\u00a0]+$/, '');
+    if (t.trim() === '') return;
+    const hm = t.match(/^\[(.+)\]$/);
+    if (hm){
+      const mapped = massHeaderSectionType(hm[1]);
+      if (mapped){ items.push({ kind: 'header', nameType: mapped }); return; }
+    }
+    if (/^chords:\s*$/i.test(t)){
+      const next = rawLines.slice(idx + 1).find(l => (l || '').trim() !== '');
+      if (next && looksLikeChordDiagramLine(next)) return;
+    }
+    if (looksLikeChordDiagramLine(t)) return;
+    const repM = t.match(/(?:^|\s)x(\d+)\s*$/);
+    const repN = repM ? repM[1] : null;
+    const core = repN ? t.slice(0, repM.index).replace(/[ \t\u00a0]+$/, '') : t;
+    if ((core && looksLikeChordLine(core)) || (repN && !core)){
+      items.push({ kind: 'chord',
+        chords: repN ? (core ? core + ' (x' + repN + ')' : '(x' + repN + ')') : t, repN });
+    } else {
+      items.push({ kind: 'lyric', text: t });
+    }
+  });
+  // Second pass: pair each chord line with the lyric line under it.
+  for (let i = 0; i < items.length; i++){
+    const it = items[i];
+    if (it.kind === 'header'){
+      if (cur.lines.length){
+        cur = { id: uid('blk'), nameType: it.nameType, lines: [] };
+        blocks.push(cur);
+      } else {
+        cur.nameType = it.nameType;
+      }
+      continue;
+    }
+    if (it.kind === 'chord' && i + 1 < items.length && items[i + 1].kind === 'lyric'){
+      const lyricText = items[i + 1].text;
+      cur.lines.push({ chords: it.chords, text: it.repN ? lyricText + ' (x' + it.repN + ')' : lyricText });
+      i++;
+    } else if (it.kind === 'chord'){
+      cur.lines.push({ chords: it.chords, text: it.repN ? '(x' + it.repN + ')' : '' });
+    } else {
+      cur.lines.push({ chords: '', text: it.text });
+    }
+  }
+  while (blocks.length > 1 && blocks[blocks.length - 1].lines.length === 0) blocks.pop();
+  return blocks;
+}
+
 function createSongFromUrlText(text){
   const g = { id: uid('grp'), name: '', artist: '', updatedAt: Date.now() };
   state.sectionGroups.push(g);
@@ -3205,7 +3310,7 @@ function createSongFromUrlText(text){
     id: uid('sec'), groupId: g.id, nameType: 'custom', customName: 'URL import',
     nameSuffix: '', name: 'URL import', order: 0, lines: [],
     massEntry: true, massEntryOriginal: text,
-    massEntryBlocks: [{ id: uid('blk'), nameType: 'intro', lines: text.split('\n') }],
+    massEntryBlocks: splitMassEntryBlocks(text),
     updatedAt: Date.now()
   };
   state.sections.push(sec);
@@ -3284,7 +3389,7 @@ function massBlockTypeLabel(nameType){
 function renderMassEntryEditor(main, group, sec){
   massResetArmed = false;
   if (!Array.isArray(sec.massEntryBlocks) || !sec.massEntryBlocks.length){
-    sec.massEntryBlocks = [{ id: uid('blk'), nameType: 'intro', lines: (sec.massEntryOriginal || '').split('\n') }];
+    sec.massEntryBlocks = splitMassEntryBlocks(sec.massEntryOriginal || '');
   }
 
   const wrap = document.createElement('div');
@@ -3302,7 +3407,7 @@ function renderMassEntryEditor(main, group, sec){
 
   const hint = document.createElement('div');
   hint.className = 'mass-entry-hint';
-  hint.textContent = 'Each block below becomes one section. Pick a section type per block, use Split to divide a block above any line, and \u2715 to delete lines you don\u2019t need. Reset restores the originally scraped text.';
+  hint.textContent = 'Each block below becomes one section. Pick a section type per block, use Split to divide a block above any line, and \u2715 to delete lines you don\u2019t need. Type chords in the gold box stacked above any lyric line — chord-looking scraped lines land there automatically. Reset restores the originally scraped text.';
   wrap.appendChild(hint);
 
   sec.massEntryBlocks.forEach((block, bi) => {
@@ -3336,20 +3441,39 @@ function renderMassEntryEditor(main, group, sec){
     });
 
     const linesWrap = bdiv.querySelector('.mass-lines');
-    block.lines.forEach((lineText, li) => {
+    block.lines.forEach((rawPair, li) => {
+      const pair = block.lines[li] = asMassPair(rawPair);
       const row = document.createElement('div');
       row.className = 'mass-line-row';
-      const input = document.createElement('input');
-      input.className = 'mass-line-input';
-      input.value = lineText || '';
-      input.setAttribute('aria-label', `Block ${bi + 1} line ${li + 1}`);
-      preventAutoReplace(input);
-      input.addEventListener('input', () => {
-        block.lines[li] = input.value;
+      // Chord-over-lyric stack, like a section editor row: gold chord input
+      // on top, lyric input below. Only ever assigned via input.value.
+      const stack = document.createElement('div');
+      stack.className = 'mass-line-stack';
+      const chordInput = document.createElement('input');
+      chordInput.className = 'mass-chord-input mono-edit';
+      chordInput.value = pair.chords || '';
+      chordInput.placeholder = 'Chords';
+      chordInput.setAttribute('aria-label', `Block ${bi + 1} line ${li + 1} chords`);
+      preventAutoReplace(chordInput);
+      chordInput.addEventListener('input', () => {
+        pair.chords = chordInput.value;
         touchSection(sec);
         scheduleSave();
       });
-      row.appendChild(input);
+      const lyricInput = document.createElement('input');
+      lyricInput.className = 'mass-line-input';
+      lyricInput.value = pair.text || '';
+      lyricInput.placeholder = 'Lyrics';
+      lyricInput.setAttribute('aria-label', `Block ${bi + 1} line ${li + 1} lyrics`);
+      preventAutoReplace(lyricInput);
+      lyricInput.addEventListener('input', () => {
+        pair.text = lyricInput.value;
+        touchSection(sec);
+        scheduleSave();
+      });
+      stack.appendChild(chordInput);
+      stack.appendChild(lyricInput);
+      row.appendChild(stack);
       if (li > 0){
         const splitBtn = document.createElement('button');
         splitBtn.type = 'button';
@@ -3402,7 +3526,7 @@ function renderMassEntryEditor(main, group, sec){
       return;
     }
     massResetArmed = false;
-    sec.massEntryBlocks = [{ id: uid('blk'), nameType: 'intro', lines: (sec.massEntryOriginal || '').split('\n') }];
+    sec.massEntryBlocks = splitMassEntryBlocks(sec.massEntryOriginal || '');
     touchSection(sec);
     scheduleSave();
     renderMain();
@@ -3413,9 +3537,14 @@ function renderMassEntryEditor(main, group, sec){
     const newSecs = [];
     sec.massEntryBlocks.forEach((block) => {
       const rows = block.lines
-        .map(t => (t || '').replace(/[ \t\u00a0]+$/, ''))
-        .filter(t => t.trim() !== '')
-        .map(t => ({ text: t, symbols: [] }));
+        .map(p => {
+          const pair = asMassPair(p);
+          return {
+            text: (pair.text || '').replace(/[ \t\u00a0]+$/, ''),
+            symbols: parseChordLine((pair.chords || '').replace(/[ \t\u00a0]+$/, ''))
+          };
+        })
+        .filter(r => r.text.trim() !== '' || r.symbols.length > 0);
       if (!rows.length) return; // skip blocks left completely empty
       newSecs.push({
         id: uid('sec'), groupId: sec.groupId,
