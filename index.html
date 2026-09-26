@@ -1603,7 +1603,7 @@
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
-            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines are ordinary text — never interpreted as section breaks; delete the ones you don't need. Lines are classified by position, not by looks: the first content line of each field is always chords, then lines strictly alternate chord/lyric/chord/lyric (blank and dropped lines don't disturb the rhythm). The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); the page stays exactly where it is when you split or delete a field — no scroll jump. Each field sizes itself to its text: fields grow as you type and shrink when you delete, so a field with two lines takes two lines' worth of space. Each field's naming row matches the normal section editor — <strong>Section type</strong> picker (including <strong>Custom</strong>, which reveals a free-text name input; typing a real section-type name there, e.g. <code>Chorus 2</code>, converts it to that picked type when you leave the field), a suffix input for informational tags like <code>(guitar solo)</code>, and a <strong>Shows as</strong> line previewing the derived name with auto-numbering across the fields. <strong>Auto-split on [headers]</strong> splits every field at its recognized <code>[Verse]</code>/<code>[Chorus]</code>-style header lines at once \u2014 each new field takes the header's type (Solo/Interlude map to Instrumental) and the header line itself is dropped, while unrecognized <code>[Name]</code> lines stay ordinary text; the × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text.</li>
+            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines are ordinary text — never interpreted as section breaks; delete the ones you don't need. Lines are classified by content, not by position: a line of pure chord symbols is chords, a line containing lyric words is lyrics — so doubled lines (two chord lines or two lyric lines in a row, common after deglueing) can't flip the phase for everything below them. Ambiguous lines (a lone <code>Am</code>, an exotic chord spelling) fall back to strict positional alternation, with the first content line of each field counted as chords; blank and dropped lines don't disturb the rhythm. The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); the page stays exactly where it is when you split or delete a field — no scroll jump. Each field sizes itself to its text: fields grow as you type and shrink when you delete, so a field with two lines takes two lines' worth of space. Each field's naming row matches the normal section editor — <strong>Section type</strong> picker (including <strong>Custom</strong>, which reveals a free-text name input; typing a real section-type name there, e.g. <code>Chorus 2</code>, converts it to that picked type when you leave the field), a suffix input for informational tags like <code>(guitar solo)</code>, and a <strong>Shows as</strong> line previewing the derived name with auto-numbering across the fields. <strong>Auto-split on [headers]</strong> splits every field at its recognized <code>[Verse]</code>/<code>[Chorus]</code>-style header lines at once \u2014 each new field takes the header's type (Solo/Interlude map to Instrumental) and the header line itself is dropped, while unrecognized <code>[Name]</code> lines stay ordinary text; the × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text. Before the staging section is built, the text is deglued: chord symbols glued to lyric text get their line breaks back — a chord at the start of a lyric (<code>GSlowin'</code>), a chord run into the next lyric (<code>D&nbsp;&nbsp;&nbsp;CSuch a fine sight</code>), and chords trailing a lyric line (<code>…Arizona&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;C</code>, <code>…mindG</code>) each split onto their own lines, while chord grids (<code>| G | D |</code>) and lyric words that merely start like chords (<code>Amazing</code>, <code>Email</code>) are left alone.</li>
           </ul>
         </section>
         <section id="help-preview">
@@ -1691,7 +1691,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (27 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (14 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (99 checks), and <code>setbook-qa/setbook-ext-test.js</code> (38 checks) — 27 suites, 718 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (27 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (14 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (117 checks), and <code>setbook-qa/setbook-ext-test.js</code> (38 checks) — 27 suites, 736 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -3212,12 +3212,79 @@ function printableSections(groupId){
   return groupSections(groupId).filter(s => !s.massEntry);
 }
 
+/* Chord/lyric deglue for URL imports. Scraped chord sheets often glue chord
+   symbols to lyric text: a chord at the start of a lyric ("GSlowin'"), a
+   chord run into the next lyric ("D   CSuch a fine sight"), or chords
+   trailing a lyric line ("…Arizona   D   C", "…mindG"). The mass-entry
+   classifier alternates chord/lyric strictly by position, so glued lines
+   misclassify wholesale — this pass inserts the missing line breaks before
+   the text reaches the staging section. Chord grids ("| G | D |") are
+   untouched: "|" never triggers a split. */
+const DEGLUE_CHORD_SRC = '[A-G][#b]?(?:m(?!aj)|maj|min|dim|aug|sus|add)?\\d*(?:[#b]\\d+)?(?:sus[24])?(?:\\/[A-G][#b]?)?';
+const DEGLUE_CHORD_RE = new RegExp('^(?:' + DEGLUE_CHORD_SRC + ')$');
+const DEGLUE_LEAD_RE = new RegExp('^(' + DEGLUE_CHORD_SRC + ')(?=[A-Z])');
+const DEGLUE_MID_RE = new RegExp('([ \\t])(' + DEGLUE_CHORD_SRC + ')(?=[A-Z])', 'g');
+const DEGLUE_TRAIL_GLUED_RE = new RegExp('([a-z])(' + DEGLUE_CHORD_SRC + ')$');
+
+// A line ending in whitespace-separated chord tokens after lyric text gets
+// its chord tail moved to its own line: "…Arizona   D   C" -> "…Arizona" /
+// "D   C". Pure chord lines (and bar grids) are returned unchanged.
+function deglueTrailingTail(line){
+  const parts = line.split(/([ \t]+)/);
+  let cut = parts.length;
+  while (cut > 0){
+    const t = parts[cut - 1];
+    if (/^[ \t]+$/.test(t) || DEGLUE_CHORD_RE.test(t)) cut--;
+    else break;
+  }
+  if (cut === 0 || cut === parts.length) return null;
+  const head = parts.slice(0, cut).join('').replace(/[ \t]+$/, '');
+  const tail = parts.slice(cut).join('').replace(/^[ \t]+/, '');
+  if (!head || !tail) return null;
+  const headHasLyric = head.split(/[ \t]+/).some(tok => tok && !DEGLUE_CHORD_RE.test(tok) && !/^\|+$/.test(tok));
+  if (!headHasLyric) return null;
+  return [head, tail];
+}
+
+function deglueChordLyricLines(text){
+  const out = [];
+  (text || '').split('\n').forEach(rawLine => {
+    // 1. Leading chord glued to a lyric word: "GSlowin'" -> "G" / "Slowin'".
+    // The uppercase-next-letter rule keeps lyric words like "Amazing" whole.
+    let pieces = [rawLine];
+    pieces = pieces.flatMap(p => {
+      const segs = [];
+      let rest = p, guard = 0;
+      while (guard++ < 8){
+        const m = rest.match(DEGLUE_LEAD_RE);
+        if (!m) break;
+        segs.push(m[1]);
+        rest = rest.slice(m[1].length);
+      }
+      segs.push(rest);
+      return segs;
+    });
+    // 2. Mid-line: chord glued to the next lyric word: "D   CSuch" -> "D   C" / "Such".
+    pieces = pieces.flatMap(p => p.replace(DEGLUE_MID_RE, '$1$2\n').split('\n'));
+    // 3. Trailing: chord glued to a lyric ending ("mindG") or a chord tail
+    // after lyric text ("…Arizona   D   C") moves to its own line.
+    pieces = pieces.flatMap(p => {
+      const g = p.match(DEGLUE_TRAIL_GLUED_RE);
+      const lines = g ? [p.slice(0, g.index + 1), g[2]] : [p];
+      return lines.flatMap(l => deglueTrailingTail(l) || [l]);
+    });
+    out.push(...pieces);
+  });
+  return out.join('\n');
+}
+
 function normalizeScrapedText(text){
-  return (text || '').replace(/\r\n?/g, '\n').split('\n')
+  const cleaned = (text || '').replace(/\r\n?/g, '\n').split('\n')
     .map(l => l.replace(/[ \t\u00a0]+$/, ''))
     .join('\n')
     .replace(/^\n+|\n+$/g, '')
     .replace(/\n{3,}/g, '\n\n');
+  return deglueChordLyricLines(cleaned);
 }
 
 const MASS_BLOCK_TAGS = new Set(['P','DIV','LI','TR','H1','H2','H3','H4','H5','H6','PRE','BLOCKQUOTE','SECTION','ARTICLE','HR','TABLE','UL','OL','DT','DD','FIGCAPTION']);
@@ -3351,6 +3418,15 @@ function autoSplitMassFields(sec){
   return created;
 }
 
+function massLineTokens(t){
+  return t.split(/[ \t\u00a0]+/).filter(Boolean);
+}
+// A token counts as chord-side when it's a chord symbol, a bar separator,
+// or an xN repeat marker.
+function massTokIsChordish(tok){
+  return DEGLUE_CHORD_RE.test(tok) || /^\|+$/.test(tok) || /^x\d+$/i.test(tok);
+}
+
 function classifyMassEntryLines(text){
   const rawLines = (text || '').split('\n');
   let expectChord = true; // top row of each field is chords
@@ -3362,8 +3438,16 @@ function classifyMassEntryLines(text){
       if (next && looksLikeChordDiagramLine(next)) return { line: rawLine, type: 'dropped' };
     }
     if (looksLikeChordDiagramLine(t)) return { line: rawLine, type: 'dropped' };
-    const type = expectChord ? 'chord' : 'lyric';
-    expectChord = !expectChord;
+    // Content-aware classification: an unambiguous chord line is chords even
+    // in lyric position (and vice versa), so deglued imports and doubled
+    // lines (two chord lines or two lyric lines in a row) can't flip the
+    // phase for everything below them. Ambiguous lines (a lone "Am", exotic
+    // chord spellings) fall back to strict positional alternation.
+    const toks = massLineTokens(t);
+    const isChordLine = toks.length > 0 && toks.every(massTokIsChordish);
+    const isLyricLine = toks.some(tok => /[a-z]/.test(tok) && !massTokIsChordish(tok));
+    const type = isChordLine ? 'chord' : (isLyricLine ? 'lyric' : (expectChord ? 'chord' : 'lyric'));
+    expectChord = (type !== 'chord');
     if (type === 'lyric') return { line: rawLine, type, text: t };
     const repM = t.match(/(?:^|\s)x(\d+)\s*$/);
     const repN = repM ? repM[1] : null;
@@ -3554,7 +3638,7 @@ function renderMassEntryEditor(main, group, sec){
 
   const hint = document.createElement('div');
   hint.className = 'mass-entry-hint';
-  hint.innerHTML = 'One field per section. Press <strong>Split</strong> on any empty line to divide a field in two, and pick each field\u2019s type above it \u2014 or press <strong>Auto-split on [headers]</strong> below to split at every <code>[Chorus]</code>-style line at once. Lines alternate between chords (<span class="bp-hint-chord">gold</span>) and lyrics (white), starting with chords.';
+  hint.innerHTML = 'One field per section. Press <strong>Split</strong> on any empty line to divide a field in two, and pick each field\u2019s type above it \u2014 or press <strong>Auto-split on [headers]</strong> below to split at every <code>[Chorus]</code>-style line at once. Lines are read as chords (<span class="bp-hint-chord">gold</span>) or lyrics (white) by their content: a line of chord symbols is chords, a line with words is lyrics.';
   wrap.appendChild(hint);
 
   const fieldsBox = document.createElement('div');
