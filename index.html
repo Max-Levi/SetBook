@@ -180,7 +180,7 @@
   button.primary:hover{ background: var(--gold-hover); }
   button.ghost{ background:transparent; }
   button.small{ padding:4px 9px; font-size:12px; }
-  /* Roomier header controls: the share/help icons, File menu, and
+  /* Roomier header controls: the share/help icons, menu buttons, and
      Export PDF buttons were all `small` (12px) and felt lost next to
      the 17px brand. The header gets its own comfortable control size;
      `button.small` elsewhere (modals, rows) is untouched. */
@@ -200,34 +200,37 @@
   button.danger:hover{ border-color: var(--danger); color: var(--danger-hover-text); }
   input[type=file]{ display:none; }
 
-  /* ---------- file menu ---------- */
-  .file-menu-wrap{ position:relative; }
+  /* ---------- menus ---------- */
+  .menu-wrap{ position:relative; }
   /* inline-SVG chevron (not the ▾ text glyph, whose line box varies by
      platform font and inflated the button height unpredictably) */
-  #btnFileMenu{ display:inline-flex; align-items:center; }
+  .menu-btn{ display:inline-flex; align-items:center; }
   .menu-chev{ display:inline-flex; margin-left:4px; }
   .menu-chev svg{ width:10px; height:6px; stroke:currentColor; stroke-width:1.8;
     fill:none; stroke-linecap:round; stroke-linejoin:round; }
-  .file-menu-dropdown{
+  .menu-dropdown{
     display:none; position:absolute; top:calc(100% + 6px); right:0;
     background: var(--panel-2); border:1px solid var(--border); border-radius:10px;
     padding:5px; width:230px; z-index:50;
     box-shadow: 0 12px 30px rgba(0,0,0,.45);
   }
-  .file-menu-dropdown.open{ display:block; }
-  .file-menu-item{
+  .menu-dropdown.open{ display:block; }
+  .menu-item{
     white-space:normal; word-wrap:break-word; line-height:1.35;
     display:flex; align-items:center; width:100%; text-align:left;
     background:transparent; border:none; color: var(--text); font-family:inherit;
     padding:8px 9px; font-size:12.5px; border-radius:6px; cursor:pointer;
   }
-  .file-menu-item:hover{ background: var(--hover-bg); border-color:transparent; }
-  .file-menu-item-hint{ margin-left:auto; padding-left:10px; font-size:11px; color: var(--text-muted); }
-  .file-menu-group-label{
+  .menu-item:hover{ background: var(--hover-bg); border-color:transparent; }
+  .menu-item-hint{ margin-left:auto; padding-left:10px; font-size:11px; color: var(--text-muted); }
+  .menu-sep{ height:1px; background:var(--border); margin:5px 9px; }
+  .menu-group-label{
     font-size:10px; text-transform:uppercase; letter-spacing:.08em;
     color:var(--text-muted); padding:8px 9px 3px; user-select:none;
   }
-  .file-menu-group-label:first-child{ padding-top:2px; }
+  .menu-group-label:first-child{ padding-top:2px; }
+  /* the single grouped Menu replaces the menu bar on phones */
+  .menu-all-wrap{ display:none; }
   /* keyboard-shortcut hint on the Export PDF button (hidden on phones,
      where the button truncates to its label) */
   .pdf-shortcut-hint{ margin-left:8px; font-size:11px; font-weight:400; opacity:.7; }
@@ -557,9 +560,12 @@
       min-width:44px; min-height:44px; padding:6px;
     }
     #btnSidebarToggle svg{ width:22px; height:22px; }
-    /* the File / Export PDF text buttons get the same 44px target;
-       tighter padding and gap keep the header fitting at 390px */
-    #btnFileMenu, #btnPdf{
+    /* the menu bar / Export PDF text buttons get the same 44px target;
+       tighter padding and gap keep the header fitting at 390px.
+       On phones the four menus collapse into the single Menu button. */
+    .menu-wrap:not(.menu-all-wrap){ display:none; }
+    .menu-all-wrap{ display:block; }
+    .menu-btn, #btnPdf{
       min-height:44px;
       padding:10px 9px;
     }
@@ -862,7 +868,9 @@
   }
   .editor-head .group-label .artist{ color: var(--text-muted); }
   .section-name-row{ display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap; }
-  .section-type-select{
+  /* The mass-entry field picker shares the normal section picker's
+     look: 15px semibold, custom chevron, natural height. */
+  .section-type-select, .mass-field-type{
     font-size:15px; font-weight:600; font-family:inherit; color:var(--text);
     background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
     padding:7px 30px 7px 10px; max-width:200px; cursor:pointer;
@@ -1007,14 +1015,14 @@
   .mass-entry-hint{ font-size:12px; color:var(--text-muted); line-height:1.55; margin:2px 0 14px; }
   .mass-hint-header{ color:var(--gold); font-weight:700; text-decoration:underline; }
   .mass-hint-dropped{ color:var(--text-muted); text-decoration:line-through; }
-  .mass-entry-textarea{ min-height:300px; }
+  /* Fields size themselves to their text: autogrowField() sets each
+     textarea's height from its scrollHeight on render and on input, so
+     the floor here is just enough for an empty field (~3 lines). */
+  .mass-entry-textarea{ min-height:76px; }
   .mass-fields{ display:flex; flex-direction:column; gap:12px; margin:0 0 4px; }
-  .mass-field-head{ display:flex; align-items:center; gap:8px; margin:0 0 8px; }
+  .mass-field-head{ display:flex; align-items:center; gap:8px; margin:0 0 2px; flex-wrap:wrap; }
   .mass-field-label{ font-size:12px; color:var(--text-muted); font-weight:600; }
-  .mass-field-type{
-    min-height:44px; font-size:13px; padding:6px 10px; border-radius:6px;
-    border:1px solid var(--border); background:var(--panel); color:var(--text);
-  }
+  .mass-field-showsas{ margin:0 0 8px; }
   .mass-field-del{
     min-width:44px; min-height:44px; border-radius:8px; border:1px solid var(--border);
     background:transparent; color:var(--text-muted); font-size:22px; line-height:1; cursor:pointer;
@@ -1174,27 +1182,59 @@
     </div>
   </div>
   <div class="actions">
-    <div class="file-menu-wrap">
-      <button class="ghost small" id="btnFileMenu">File <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
-      <div class="file-menu-dropdown" id="fileMenuDropdown">
-        <div class="file-menu-group-label">Edit</div>
-        <button class="file-menu-item" id="btnUndo">Undo<span class="file-menu-item-hint">Ctrl+Z</span></button>
-        <div class="file-menu-group-label">File</div>
-        <button class="file-menu-item" id="btnNewFile">New file</button>
-        <button class="file-menu-item" id="btnOpen">Open…</button>
-        <button class="file-menu-item" id="btnSaveAs">Save as…<span class="file-menu-item-hint" id="saveShortcutHint"></span></button>
-        <button class="file-menu-item" id="btnSnapshots">Snapshots…</button>
-        <button class="file-menu-item" id="btnExportFiltered">Export filtered songs…<span class="file-menu-item-hint" id="exportFilteredHint"></span></button>
-        <div class="file-menu-group-label">Folders</div>
-        <button class="file-menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="file-menu-item-hint"></span></button>
-        <button class="file-menu-item" id="btnRevealFolder">Open enclosing folder…</button>
-        <div class="file-menu-group-label">Songs</div>
-        <button class="file-menu-item" id="btnCopySongs">Import songs</button>
-        <div class="file-menu-group-label">Settings</div>
-        <button class="file-menu-item" id="btnConfigureLayout">Configuration…</button>
-        <div class="file-menu-group-label">Help</div>
-        <button class="file-menu-item" id="btnShareHelp">Getting PDFs onto your devices…</button>
-        <button class="file-menu-item" id="btnHelp">Help & documentation</button>
+    <div class="menu-wrap">
+      <button class="ghost small menu-btn" id="btnMenuFile">File <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
+      <div class="menu-dropdown" id="menuFileDropdown">
+        <button class="menu-item" id="btnNewFile">New file</button>
+        <button class="menu-item" id="btnOpen">Open…</button>
+        <button class="menu-item" id="btnSaveAs">Save as…<span class="menu-item-hint" id="saveShortcutHint"></span></button>
+        <button class="menu-item" id="btnSnapshots">Snapshots…</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="menu-item-hint"></span></button>
+        <button class="menu-item" id="btnRevealFolder">Open enclosing folder…</button>
+        <div class="menu-sep"></div>
+        <button class="menu-item" id="btnConfigureLayout">Configuration…</button>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button class="ghost small menu-btn" id="btnMenuEdit">Edit <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
+      <div class="menu-dropdown" id="menuEditDropdown">
+        <button class="menu-item" id="btnUndo">Undo<span class="menu-item-hint">Ctrl+Z</span></button>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button class="ghost small menu-btn" id="btnMenuSongs">Songs <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
+      <div class="menu-dropdown" id="menuSongsDropdown">
+        <button class="menu-item" id="btnCopySongs">Import songs</button>
+        <button class="menu-item" id="btnExportFiltered">Export filtered songs…<span class="menu-item-hint" id="exportFilteredHint"></span></button>
+      </div>
+    </div>
+    <div class="menu-wrap">
+      <button class="ghost small menu-btn" id="btnMenuHelp">Help <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
+      <div class="menu-dropdown" id="menuHelpDropdown">
+        <button class="menu-item" id="btnShareHelp">Getting PDFs onto your devices…</button>
+        <button class="menu-item" id="btnHelp">Help & documentation</button>
+      </div>
+    </div>
+    <div class="menu-wrap menu-all-wrap">
+      <button class="ghost small menu-btn" id="btnMenuAll">Menu <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
+      <div class="menu-dropdown" id="menuAllDropdown">
+        <div class="menu-group-label">File</div>
+        <button class="menu-item" data-delegate="btnNewFile">New file</button>
+        <button class="menu-item" data-delegate="btnOpen">Open…</button>
+        <button class="menu-item" data-delegate="btnSaveAs">Save as…</button>
+        <button class="menu-item" data-delegate="btnSnapshots">Snapshots…</button>
+        <button class="menu-item" data-delegate="btnSetFolder">Set folder…</button>
+        <button class="menu-item" data-delegate="btnRevealFolder">Open enclosing folder…</button>
+        <button class="menu-item" data-delegate="btnConfigureLayout">Configuration…</button>
+        <div class="menu-group-label">Edit</div>
+        <button class="menu-item" data-delegate="btnUndo">Undo</button>
+        <div class="menu-group-label">Songs</div>
+        <button class="menu-item" data-delegate="btnCopySongs">Import songs</button>
+        <button class="menu-item" data-delegate="btnExportFiltered">Export filtered songs…</button>
+        <div class="menu-group-label">Help</div>
+        <button class="menu-item" data-delegate="btnShareHelp">Getting PDFs onto your devices…</button>
+        <button class="menu-item" data-delegate="btnHelp">Help & documentation</button>
       </div>
     </div>
     <input type="file" id="fileInput" accept="application/json">
@@ -1527,7 +1567,7 @@
             <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (album-version link, optional), <code>videoUrlLive</code> (live-performance link, optional), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
             <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, <code>updatedAt</code> (ms-epoch timestamp of the section's last edit; <code>null</code> on older files, shown as "unknown"), and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
-            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryFields</code> — a list of <code>{ id, text, nameType }</code> fields, one per future section, each with its own section-type picker. Every field shows a live preview overlay: lines are classified strictly by position — the first content line of each field is always chords, then chord/lyric strictly alternate — with chords gold, lyrics white, and dropped chord-diagram lines dimmed and struck. The preview and the Create-sections parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
+            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryFields</code> — a list of <code>{ id, text, nameType, customName, nameSuffix }</code> fields, one per future section, each with its own section-naming row (type picker incl. Custom, suffix input, "Shows as" preview) carried through to the created sections. Every field shows a live preview overlay: lines are classified strictly by position — the first content line of each field is always chords, then chord/lyric strictly alternate — with chords gold, lyrics white, and dropped chord-diagram lines dimmed and struck. The preview and the Create-sections parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
             <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>autoNumberSections</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
           </ul>
@@ -1562,13 +1602,13 @@
             <li>Numbering is automatic and always derived from the current sections: a lone Chorus is shown as <code>Chorus</code>, but two Choruses in one song become <code>Chorus 1</code> and <code>Chorus 2</code> — deleting or retyping one renumbers the rest. Custom names are counted as well. Typing a section-type name into the Custom field — even with a trailing number, e.g. <code>Chorus 2</code> — converts it to that picked type when you leave the field: the number is discarded and the app's own numbering takes over. The <strong>Number single sections</strong> setting (File → Configuration…) numbers lone sections too (<code>Chorus 1</code>); it is saved per file and defaults to off. The <strong>Auto-number sections</strong> master switch above it turns all automatic numbering off entirely. The derived name is used everywhere: sidebar, preview, search, and both PDF pipelines.</li>
             <li>"+ Add section" picks its type from the bottom section's name: after a Verse comes a Chorus; after a Chorus, Bridge, or Instrumental comes a Verse; a Pre-Chorus leads into a Chorus; anything else (Intro, Outro, Custom, untitled) starts a Verse. Matching is by name prefix, so "Chorus 2" and a custom "Chorus (reprise)" count as choruses. "Create copy of section" copies the section's type along with its lyrics.</li>
             <li>Row actions: each row has <strong>Clear chords</strong> and <strong>Clear lyrics</strong> buttons above its fields (these clear one input only), plus icon buttons at the right edge to move the row up, move it down, copy it (duplicate icon), and delete it. Copying duplicates the row's chords and lyrics and appends the copy at the bottom of the section, then scrolls it into view. Rows can also be reordered by <strong>dragging the line-number gutter</strong> at the left edge (grip icon): the row follows the pointer with a dimmed ghost and the other rows make room live; dropping writes the new order, Escape cancels, and a press without moving does nothing. At phone width (≤760px) the four icon buttons collapse into a <strong>⋯ menu</strong> with the same labeled actions (Move up, Move down, Copy row, Delete row), and the gutter widens to a 40px touch target.</li>
-            <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the File menu's Edit group, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
+            <li>Undo: clearing chords/lyrics, deleting a row, drag-moving a row, and deleting a section or song are all undoable — via the Edit menu, Ctrl/Cmd+Z (not while typing in a text field, where the browser's own text undo applies), or the Undo button on the toast that follows each action. Up to 30 actions are kept; each undo entry is consumed once.</li>
             <li>Keyboard shortcuts: Ctrl/Cmd+S saves — straight to the linked file when one is open, otherwise through the Save-as flow; Ctrl/Cmd+E opens the PDF exporter. Shortcuts never fire while typing in a text field. Escape backs out in layers: it cancels an in-progress row drag first, then closes the confirm popover, then the topmost modal, then the mobile drawer. Modals return focus to the control that opened them.</li>
             <li>New (content-less) songs show a short coaching card in the editor — name the song from the library title field, open Details for artists, tags, and video links (multiple artists go one per line), then add sections and type chords over lyrics — which disappears once the song has rows and can be dismissed per device. On narrow screens the hint row above each row wraps, so the hint text drops above the Clear pills instead of colliding with them.</li>
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
-            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines are ordinary text — never interpreted as section breaks; delete the ones you don't need. Lines are classified by position, not by looks: the first content line of each field is always chords, then lines strictly alternate chord/lyric/chord/lyric (blank and dropped lines don't disturb the rhythm). The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); <strong>Auto-split on [headers]</strong> splits every field at its recognized <code>[Verse]</code>/<code>[Chorus]</code>-style header lines at once \u2014 each new field takes the header's type (Solo/Interlude map to Instrumental) and the header line itself is dropped, while unrecognized <code>[Name]</code> lines stay ordinary text; the × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text.</li>
+            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines are ordinary text — never interpreted as section breaks; delete the ones you don't need. Lines are classified by position, not by looks: the first content line of each field is always chords, then lines strictly alternate chord/lyric/chord/lyric (blank and dropped lines don't disturb the rhythm). The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); the page stays exactly where it is when you split or delete a field — no scroll jump. Each field sizes itself to its text: fields grow as you type and shrink when you delete, so a field with two lines takes two lines' worth of space. Each field's naming row matches the normal section editor — <strong>Section type</strong> picker (including <strong>Custom</strong>, which reveals a free-text name input; typing a real section-type name there, e.g. <code>Chorus 2</code>, converts it to that picked type when you leave the field), a suffix input for informational tags like <code>(guitar solo)</code>, and a <strong>Shows as</strong> line previewing the derived name with auto-numbering across the fields. <strong>Auto-split on [headers]</strong> splits every field at its recognized <code>[Verse]</code>/<code>[Chorus]</code>-style header lines at once \u2014 each new field takes the header's type (Solo/Interlude map to Instrumental) and the header line itself is dropped, while unrecognized <code>[Name]</code> lines stay ordinary text; the × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text.</li>
           </ul>
         </section>
         <section id="help-preview">
@@ -1592,15 +1632,15 @@
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
-            <li>The File menu is grouped under small labels: Edit (Undo), File (New file, Open…, Save as…, Snapshots…, Export filtered songs…), Folders (Set folder…, Open enclosing folder…), Songs (Import songs), Settings (Configuration…), Help (Getting PDFs onto your devices…, Help & documentation). The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
-            <li>Export filtered songs: File → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
+            <li>The header holds four menus: <strong>File</strong> (New file, Open…, Save as…, Snapshots…, then Set folder… and Open enclosing folder…, then Configuration…), <strong>Edit</strong> (Undo), <strong>Songs</strong> (Import songs, Export filtered songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the four menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>Export filtered songs: Songs → Export filtered songs… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
-            <li>Import: songs can be copied from another SetBook JSON file via the File menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
+            <li>Import: songs can be copied from another SetBook JSON file via the Songs menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
           </ul>
         </section>
         <section id="help-transfer">
           <h3>9. Device transfer</h3>
-          <p>File → <strong>Getting PDFs onto your devices…</strong> (in the Help group) opens step-by-step guides for transferring exported PDFs to reading devices. Current guides: Apple Books on iPhone/iPad, and Files by Google on Android. The guide set is extensible — additional destinations can be added to the built-in hub.</p>
+          <p>Help → <strong>Getting PDFs onto your devices…</strong> opens step-by-step guides for transferring exported PDFs to reading devices. Current guides: Apple Books on iPhone/iPad, and Files by Google on Android. The guide set is extensible — additional destinations can be added to the built-in hub.</p>
         </section>
         <section id="help-requirements">
           <h3>10. Requirements</h3>
@@ -1647,7 +1687,7 @@
             <li><strong>Create content:</strong> add a song (title + artist), set its section type via the picker, add rows, type chords and lyrics. The live preview must reflect every edit.</li>
             <li><strong>Focus mode:</strong> click the ◎ button on a song header and confirm the search box, sort/filter controls, "+ New song", and other songs are hidden while the focused song's sections stay listed and selectable, and confirm the editor opens the focused song's top section (not whatever section was open in the previous song); click "← All songs" and confirm everything returns; reload and confirm the focus choice is restored.</li>
             <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); toggle <strong>Auto-number sections</strong> off and confirm all numbering disappears and the singles checkbox disables, then toggle it back on; open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
-            <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the File menu (Edit group), or Ctrl/Cmd+Z. No console errors.</li>
+            <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the Edit menu, or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
@@ -1656,7 +1696,7 @@
             <li><strong>Snapshots & diff:</strong> open File → Snapshots… and confirm a snapshot exists for the last file load; take a manual snapshot, edit a song (add a row, rename, toggle Ready), then Compare the earlier snapshot against Current and confirm the diff lists the changes; restore the earlier snapshot (confirm the popover) and confirm the edits are gone while a "Before restoring…" snapshot was kept; use "Compare with a file…" on another JSON and confirm added/removed songs appear.</li>
             <li><strong>Narrow layout (mobile UX):</strong> at phone width (≤760px) the sidebar is a drawer opened by the 44px hamburger button and closes when a section, search result, or "+ Add section" is chosen (it stays open while naming a new song); header icon buttons and modal action buttons meet the 44px touch target; the welcome and PDF modals use the compact mobile styling with no horizontal overflow; row icon buttons collapse into a ⋯ menu with labeled actions; the PDF dialog keeps Generate visible in a sticky footer; the hint row wraps instead of colliding with the Clear pills; the preview paper scrolls horizontally instead of clipping; no console errors.</li>
           </ul>
-          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (22 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (82 checks), and <code>setbook-qa/setbook-ext-test.js</code> (38 checks) — 27 suites, 694 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
+          <p><strong>C. Record the result.</strong> Note what was checked, the date, and any failures or limitations (e.g. a CDN dependency being unreachable in the test environment). Automated Playwright scripts covering the browser pass live alongside this checklist: <code>setbook-qa/regression-test.js</code> (56 checks), <code>setbook-qa/section-names-test.js</code> (32 checks), <code>setbook-qa/ux-top5-test.js</code> (28 checks), <code>setbook-qa/row-drag-test.js</code> (24 checks), <code>setbook-qa/polish4-test.js</code> (26 checks), <code>setbook-qa/mobile-drawer-test.js</code> (14 checks), <code>setbook-qa/snapshot-test.js</code> (33 checks), <code>setbook-qa/pdf-toc-links-test.js</code> (10 checks), <code>setbook-qa/tag-filter-test.js</code> (18 checks), <code>setbook-qa/export-filtered-test.js</code> (12 checks), <code>setbook-qa/song-details-test.js</code> (30 checks), <code>setbook-qa/pdf-redownload-test.js</code> (11 checks), and <code>setbook-qa/recovery-relink-test.js</code> (13 checks), <code>setbook-qa/filter-panel-test.js</code> (68 checks), <code>setbook-qa/pull-refresh-test.js</code> (12 checks), <code>setbook-qa/welcome-compact-test.js</code> (13 checks), <code>setbook-qa/section-numbering-test.js</code> (18 checks), and <code>setbook-qa/recovery-stale-test.js</code> (11 checks), <code>setbook-qa/recovery-open-conflict-test.js</code> (38 checks), <code>setbook-qa/save-age-test.js</code> (15 checks), and <code>setbook-qa/security-test.js</code> (17 checks), and <code>setbook-qa/video-links-test.js</code> (25 checks), and <code>setbook-qa/url-import-test.js</code> (99 checks), and <code>setbook-qa/setbook-ext-test.js</code> (38 checks) — 27 suites, 715 checks in total. A refactor that changes no user-visible behavior does not require a documentation update beyond this checklist's own "Last updated" date.</p>
         </section>
       </div>
     </div>
@@ -2823,6 +2863,27 @@ function displaySectionName(sec){
   if (suffix) name += ' ' + suffix;
   return name;
 }
+// Derived display name for a mass-entry staging field, numbered across the
+// field list the same way displaySectionName() numbers real sections. The
+// staging editor's per-field "Shows as" preview uses this; sectionBaseName
+// and sectionNumberBase only read nameType/customName, so field objects
+// work directly.
+function massFieldDisplayName(field, fields){
+  const base = sectionBaseName(field);
+  if (!base) return 'Untitled section';
+  const numBase = sectionNumberBase(field);
+  const key = numBase.toLowerCase();
+  const sibs = (fields || []).filter(f => sectionNumberBase(f).toLowerCase() === key);
+  let name;
+  if (state.autoNumberSections && (sibs.length > 1 || state.numberSingleSections)){
+    name = numBase + ' ' + (sibs.indexOf(field) + 1);
+  } else {
+    name = base;
+  }
+  const suffix = (field.nameSuffix || '').trim();
+  if (suffix) name += ' ' + suffix;
+  return name;
+}
 // Smart default for "+ Add section": songs usually alternate verse and
 // chorus, so a bottom section whose name starts with Verse is followed by
 // a Chorus, and one starting with Chorus, Bridge, or Instrumental by a
@@ -3283,7 +3344,11 @@ function autoSplitMassFields(sec){
     const kept = chunks.filter(c => c.text !== '');
     const final = kept.length ? kept : chunks.slice(0, 1);
     final.forEach((c, i) => {
-      out.push({ id: i === 0 ? field.id : uid('mf'), text: c.text, nameType: c.nameType });
+      // The first chunk continues the original field, so it keeps its name;
+      // later chunks start fresh.
+      out.push({ id: i === 0 ? field.id : uid('mf'), text: c.text, nameType: c.nameType,
+        customName: i === 0 ? (field.customName || '') : '',
+        nameSuffix: i === 0 ? (field.nameSuffix || '') : '' });
     });
     created += final.length - 1;
   });
@@ -3369,7 +3434,7 @@ function createSongFromUrlText(text){
     id: uid('sec'), groupId: g.id, nameType: 'custom', customName: 'URL import',
     nameSuffix: '', name: 'URL import', order: 0, lines: [],
     massEntry: true, massEntryOriginal: text || '',
-    massEntryFields: [{ id: uid('mf'), text: text || '', nameType: 'intro' }],
+    massEntryFields: [{ id: uid('mf'), text: text || '', nameType: 'intro', customName: '', nameSuffix: '' }],
     updatedAt: Date.now()
   };
   state.sections.push(sec);
@@ -3471,13 +3536,13 @@ function renderMassEntryEditor(main, group, sec){
     if (typeof sec.massEntryText === 'string') t = sec.massEntryText;
     else if (Array.isArray(sec.massEntryBlocks) && sec.massEntryBlocks.length) t = massBlocksToText(sec.massEntryBlocks);
     else t = sec.massEntryOriginal || '';
-    sec.massEntryFields = [{ id: uid('mf'), text: t, nameType: 'intro' }];
+    sec.massEntryFields = [{ id: uid('mf'), text: t, nameType: 'intro', customName: '', nameSuffix: '' }];
     delete sec.massEntryBlocks;
     delete sec.massEntryText;
     touchSection(sec);
     scheduleSave();
   }
-  if (!sec.massEntryFields.length) sec.massEntryFields.push({ id: uid('mf'), text: '', nameType: 'intro' });
+  if (!sec.massEntryFields.length) sec.massEntryFields.push({ id: uid('mf'), text: '', nameType: 'intro', customName: '', nameSuffix: '' });
 
   const wrap = document.createElement('div');
   wrap.className = 'mass-entry';
@@ -3501,8 +3566,16 @@ function renderMassEntryEditor(main, group, sec){
   fieldsBox.className = 'mass-fields';
   wrap.appendChild(fieldsBox);
 
-  const typeOptions = SECTION_TYPES.filter(st => st.id !== 'custom');
   const fieldSyncs = []; // run after main.appendChild(wrap): layout must exist
+  const fieldNameUIs = []; // per-field { field, customInput, showsAs } for Shows-as refreshes
+  // Renaming one field can renumber its siblings' "Shows as" previews
+  // (two Choruses become "Chorus 1" / "Chorus 2"), so refresh them all.
+  const refreshAllFieldNames = () => {
+    fieldNameUIs.forEach(u => {
+      u.customInput.style.display = u.field.nameType === 'custom' ? '' : 'none';
+      u.showsAs.textContent = massFieldDisplayName(u.field, sec.massEntryFields);
+    });
+  };
 
   // Resize can change content width, so re-measure every field textarea.
   if (massAutogrowCleanup) massAutogrowCleanup();
@@ -3522,29 +3595,61 @@ function renderMassEntryEditor(main, group, sec){
       <div class="mass-field-head">
         <label class="mass-field-label">Section type</label>
         <select class="mass-field-type" aria-label="Section type"></select>
+        <input class="section-custom-input mass-field-custom" placeholder="Custom name" aria-label="Custom section name" style="display:none">
+        <input class="section-suffix-input mass-field-suffix" placeholder="Suffix, e.g. (guitar solo)" title="Extra text appended after the section name" aria-label="Section name suffix">
         <span class="spacer"></span>
         <button type="button" class="mass-field-del" aria-label="Delete field" title="Delete field (text merges with the neighbor)">\u00d7</button>
       </div>
+      <div class="section-name-preview mass-field-showsas">Shows as: <strong></strong></div>
       <div class="bulk-paste-editor">
         <pre class="bulk-paste-backdrop mono-edit" aria-hidden="true"></pre>
-        <textarea class="bulk-paste-textarea mono-edit mass-entry-textarea" rows="8" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Scraped song text"></textarea>
+        <textarea class="bulk-paste-textarea mono-edit mass-entry-textarea" rows="2" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Scraped song text"></textarea>
         <div class="mass-split-layer"></div>
       </div>`;
     const typeSel = fwrap.querySelector('.mass-field-type');
-    typeOptions.forEach(st => {
+    SECTION_TYPES.forEach(st => {
       const o = document.createElement('option');
       o.value = st.id; o.textContent = st.label;
       typeSel.appendChild(o);
     });
     // The picker's value is the field's stored type — no caret scanning, so
     // changing it can never move the caret or the viewport.
-    typeSel.value = typeOptions.some(st => st.id === field.nameType) ? field.nameType : 'verse';
+    typeSel.value = SECTION_TYPES.some(st => st.id === field.nameType) ? field.nameType : 'verse';
     field.nameType = typeSel.value;
-    typeSel.addEventListener('change', () => {
-      field.nameType = typeSel.value;
+    // Custom names + suffixes, mirroring the normal section editor: the
+    // custom input only shows for the Custom type, and a "Shows as" line
+    // previews the derived name (with auto-numbering across fields).
+    const customInput = fwrap.querySelector('.mass-field-custom');
+    const suffixInput = fwrap.querySelector('.mass-field-suffix');
+    const showsAs = fwrap.querySelector('.mass-field-showsas strong');
+    preventAutoReplace(customInput);
+    preventAutoReplace(suffixInput);
+    customInput.value = field.customName || '';
+    suffixInput.value = field.nameSuffix || '';
+    fieldNameUIs.push({ field, customInput, showsAs });
+    const fieldNameChanged = () => {
+      refreshAllFieldNames();
       touchSection(sec);
       scheduleSave();
+    };
+    typeSel.addEventListener('change', () => {
+      field.nameType = typeSel.value;
+      fieldNameChanged();
     });
+    customInput.addEventListener('input', e => { field.customName = e.target.value; fieldNameChanged(); });
+    // A custom name that is really a section-type name ("Chorus", "verse 2")
+    // converts to that picked type on blur — the app owns numbering.
+    customInput.addEventListener('blur', () => {
+      const t = sectionTypeFromCustomName(customInput.value);
+      if (t && field.nameType === 'custom'){
+        field.nameType = t;
+        field.customName = '';
+        customInput.value = '';
+        typeSel.value = t;
+        fieldNameChanged();
+      }
+    });
+    suffixInput.addEventListener('input', e => { field.nameSuffix = e.target.value; fieldNameChanged(); });
     const delBtn = fwrap.querySelector('.mass-field-del');
     if (sec.massEntryFields.length < 2) delBtn.hidden = true;
     delBtn.addEventListener('click', () => {
@@ -3563,10 +3668,16 @@ function renderMassEntryEditor(main, group, sec){
       fields.splice(at, 1);
       touchSection(sec);
       scheduleSave();
+      // Keep the viewport exactly where it is: the re-render collapses and
+      // rebuilds main's content (moving the scroll position), and focusing
+      // the surviving field would scroll again — prevent both.
+      const scroller = document.getElementById('main');
+      const st = scroller.scrollTop;
       renderMain();
+      scroller.scrollTop = st;
       const tas = document.querySelectorAll('.mass-entry-textarea');
       const focusTa = tas[Math.max(0, at - 1)];
-      if (focusTa) focusTa.focus();
+      if (focusTa) focusTa.focus({ preventScroll: true });
     });
 
     fieldsBox.appendChild(fwrap);
@@ -3627,14 +3738,25 @@ function renderMassEntryEditor(main, group, sec){
       field.text = lines.slice(0, lineIdx).join('\n').replace(/\s+$/, '');
       const lower = lines.slice(lineIdx + 1).join('\n').replace(/^\s+/, '');
       fields.splice(at + 1, 0, {
-        id: uid('mf'), text: lower, nameType: massSplitDefaultType(field.nameType)
+        id: uid('mf'), text: lower, nameType: massSplitDefaultType(field.nameType),
+        customName: '', nameSuffix: ''
       });
       touchSection(sec);
       scheduleSave();
+      // Keep the user exactly where they were: renderMain() rebuilds main's
+      // contents (collapsing the scroll position) and focusing the fresh
+      // textarea would then scroll somewhere unexpected. Anchor the viewport
+      // to the clicked Split button's on-screen position instead.
+      const scroller = document.getElementById('main');
+      const anchorTop = btn.getBoundingClientRect().top;
       renderMain();
       const tas = document.querySelectorAll('.mass-entry-textarea');
       const newTa = tas[at + 1];
-      if (newTa){ newTa.focus(); newTa.setSelectionRange(0, 0); }
+      if (newTa){
+        scroller.scrollTop += newTa.getBoundingClientRect().top - anchorTop;
+        newTa.focus({ preventScroll: true });
+        newTa.setSelectionRange(0, 0);
+      }
     });
     fieldSyncs.push(() => { autogrowField(); syncBackdrop(); });
   });
@@ -3658,7 +3780,7 @@ function renderMassEntryEditor(main, group, sec){
       return;
     }
     massResetArmed = false;
-    sec.massEntryFields = [{ id: uid('mf'), text: sec.massEntryOriginal || '', nameType: 'intro' }];
+    sec.massEntryFields = [{ id: uid('mf'), text: sec.massEntryOriginal || '', nameType: 'intro', customName: '', nameSuffix: '' }];
     touchSection(sec);
     scheduleSave();
     renderMain();
@@ -3687,7 +3809,7 @@ function renderMassEntryEditor(main, group, sec){
       if (!rows.length) return; // skip fields left completely empty
       newSecs.push({
         id: uid('sec'), groupId: sec.groupId,
-        nameType: f.nameType || 'intro', customName: '', nameSuffix: '',
+        nameType: f.nameType || 'intro', customName: f.customName || '', nameSuffix: f.nameSuffix || '',
         name: '', order: 0, lines: rows, updatedAt: Date.now()
       });
     });
@@ -3707,6 +3829,7 @@ function renderMassEntryEditor(main, group, sec){
   });
 
   main.appendChild(wrap);
+  refreshAllFieldNames(); // initial "Shows as" previews + custom-input visibility
   fieldSyncs.forEach(fn => fn());
 }
 
@@ -4697,22 +4820,37 @@ document.getElementById('compareFileInput').addEventListener('change', async (e)
 });
 
 /* ---------------------------------------------------------
-   File menu (consolidates New/Open/Save as/Set folder/
-   Import songs into one dropdown)
+   Menu bar (File / Edit / Songs / Help dropdowns, plus a
+   single grouped Menu dropdown on phones)
 --------------------------------------------------------- */
-const fileMenuDropdown = document.getElementById('fileMenuDropdown');
-document.getElementById('btnFileMenu').addEventListener('click', (e) => {
-  e.stopPropagation();
+function closeAllMenus(){
+  document.querySelectorAll('.menu-dropdown.open').forEach(d => d.classList.remove('open'));
+}
+function updateExportFilteredHint(){
   const n = filteredSongGroups().length;
   document.getElementById('exportFilteredHint').textContent = n ? `(${n})` : '';
-  fileMenuDropdown.classList.toggle('open');
+}
+document.querySelectorAll('.menu-wrap').forEach(wrap => {
+  const btn = wrap.querySelector('.menu-btn');
+  const dd = wrap.querySelector('.menu-dropdown');
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const wasOpen = dd.classList.contains('open');
+    closeAllMenus();
+    updateExportFilteredHint();
+    if (!wasOpen) dd.classList.add('open');
+  });
+  dd.addEventListener('click', (e) => {
+    if (e.target.closest('.menu-item')) closeAllMenus();
+  });
 });
 document.getElementById('btnExportFiltered').addEventListener('click', exportFilteredSongs);
-fileMenuDropdown.addEventListener('click', (e) => {
-  if (e.target.closest('.file-menu-item')) fileMenuDropdown.classList.remove('open');
+// The phone Menu mirrors the menu bar: each item delegates to its desktop twin.
+document.querySelectorAll('#menuAllDropdown [data-delegate]').forEach(b => {
+  b.addEventListener('click', () => document.getElementById(b.dataset.delegate).click());
 });
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.file-menu-wrap')) fileMenuDropdown.classList.remove('open');
+  if (!e.target.closest('.menu-wrap')) closeAllMenus();
 });
 
 let fileHandle = null;
@@ -6917,7 +7055,7 @@ document.querySelectorAll('.modal-overlay').forEach((overlay) => {
 });
 /* ---------- undo ----------
    Discrete destructive actions (clear/delete at row level, deletes at
-   section and song level) push an entry here. The File menu's Undo item,
+   section and song level) push an entry here. The Edit menu's Undo item,
    Ctrl/Cmd+Z, and each toast's Undo button all consume the same entry
    exactly once, so they can never double-apply. */
 const undoStack = [];
