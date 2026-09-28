@@ -120,7 +120,10 @@ globalThis.__sb = {
   recordSongViewed, viewedAgoText, createSongFromUrlText, autoSplitMassFields,
   massRowsToText, parseMassFieldRows, classifyMassEntryLines, parseChordLine,
   buildSymbolsLine, displaySectionName, massSplitDefaultType, sectionTypeFromCustomName,
-  defaultState, uid, touchGroup, touchSection
+  defaultState, uid, touchGroup, touchSection,
+  sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
+  transposeSymbolsValue, transposeChordToken, stepTransposeKey, groupLinesForDisplay,
+  TRANSPOSE_KEYS, TRANSPOSE_KEY_LABELS
 };
 `, sandbox, { filename: 'shim.js' });
 const sb = sandbox.__sb;
@@ -324,6 +327,68 @@ suite('naming');
   check('header names map to section types',
     sb.sectionTypeFromCustomName('Chorus') === 'chorus' && sb.sectionTypeFromCustomName('verse 2') === 'verse' &&
     sb.massHeaderTypeCheck === undefined); // massHeaderSectionType covered via auto-split above
+}
+
+/* ================= 8. transposition ================= */
+suite('transpose');
+{
+  // token-level: chords shift, non-chords stay, bar pipes preserved
+  const tok = (t, s, f) => sb.transposeChordToken(t, s, f);
+  check('G +4 → B', tok('G', 4) === 'B');
+  check('G +4 in flat key → B (B has no flat)', tok('G', 4, true) === 'B');
+  check('C +3 in flat key → Eb', tok('C', 3, true) === 'Eb');
+  check('A +1 in flat key → Bb', tok('A', 1, true) === 'Bb');
+  check('F# +3 → A (default sharps)', tok('F#', 3) === 'A');
+  check('minor quality kept: Em +2 → F#m', tok('Em', 2) === 'F#m');
+  check('extensions kept: Cmaj7 +2 → Dmaj7', tok('Cmaj7', 2) === 'Dmaj7');
+  check('sus kept: Asus4 +5 → Dsus4', tok('Asus4', 5) === 'Dsus4');
+  check('slash bass moves too: D/F# +2 → E/G#', tok('D/F#', 2) === 'E/G#');
+  check('bar pipe preserved: |D +2 → |E', tok('|D', 2) === '|E');
+  check('repeat token untouched: (x2)', tok('(x2)', 4) === '(x2)');
+  check('bar token untouched: |', tok('|', 4) === '|');
+  check('annotation untouched: (ring out)', tok('(ring', 3) === '(ring' && tok('out)', 3) === 'out)');
+  check('full line: chords move, extras stay',
+    sb.transposeSymbolsValue('|G      |D  A (x2)', 2) === '|A      |E  B (x2)',
+    sb.transposeSymbolsValue('|G      |D  A (x2)', 2));
+}
+{
+  // section-level: info, line copy, originals untouched
+  const sec = { key: 'G', transposeTo: 'B', lines: [row('|G      D', 'word'), row('', 'lyric only')] };
+  const info = sb.sectionTransposeInfo(sec);
+  check('info: G→B is +4, sharp spelling', info && info.semis === 4 && info.flats === false);
+  const view = sb.transposedSectionLines(sec);
+  check('lines shift: |G D → |B F#', sb.buildSymbolsLine(view[0].symbols) === '|B      F#', sb.buildSymbolsLine(view[0].symbols));
+  check('lyric-only line untouched', view[1].text === 'lyric only' && view[1].symbols.length === 0);
+  check('originals untouched', sb.buildSymbolsLine(sec.lines[0].symbols) === '|G      D');
+  const flat = { key: 'G', transposeTo: 'Bb', lines: [row('C  F  G', '')] };
+  const fv = sb.transposedSectionLines(flat);
+  check('flat-key spelling: C F G → Eb Ab Bb', sb.buildSymbolsLine(fv[0].symbols) === 'Eb  Ab  Bb', sb.buildSymbolsLine(fv[0].symbols));
+  check('same target key = no transpose', sb.sectionTransposeInfo({ key: 'G', transposeTo: 'G' }) === null);
+  check('no key = no transpose', sb.sectionTransposeInfo({ transposeTo: 'B' }) === null);
+  check('key without target = no transpose', sb.sectionTransposeInfo({ key: 'G' }) === null);
+  check('bogus keys = no transpose', sb.sectionTransposeInfo({ key: 'banana', transposeTo: 'B' }) === null);
+}
+{
+  // cannot-transpose flagging
+  const tsec = { key: 'G', transposeTo: 'B', lines: [] };
+  const cantBlock = { symbols: sb.parseChordLine('N.C.  (5th Fret)'), lines: [{ text: '', symbols: [] }], anchorHasSymbols: true, anchorHasText: false };
+  const goodBlock = { symbols: sb.parseChordLine('G   D'), lines: [{ text: '', symbols: [] }], anchorHasSymbols: true, anchorHasText: false };
+  const lyricBlock = { symbols: [], lines: [{ text: 'just words', symbols: [] }], anchorHasSymbols: false, anchorHasText: true };
+  check('chord line with no chords flagged', sb.blockCannotTranspose(cantBlock) === true);
+  check('normal chord line not flagged', sb.blockCannotTranspose(goodBlock) === false);
+  check('lyric-only block not flagged', sb.blockCannotTranspose(lyricBlock) === false);
+  // through the display grouping (transposed view)
+  const tview = sb.transposedSectionLines({ ...tsec, lines: [row('N.C.  (5th Fret)', ''), row('G  D', 'words')] });
+  const blocks = sb.groupLinesForDisplay(tview);
+  check('flag travels through display grouping', sb.blockCannotTranspose(blocks[0]) === true && sb.blockCannotTranspose(blocks[1]) === false);
+}
+{
+  // stepper wraps both directions across the 12-key list
+  check('step up from B wraps to C', sb.stepTransposeKey('B', 1) === 'C');
+  check('step down from C wraps to B', sb.stepTransposeKey('C', -1) === 'B');
+  check('step up from G is G# (chromatic list)', sb.stepTransposeKey('G', 1) === 'G#');
+  check('12 keys in the list', sb.TRANSPOSE_KEYS.length === 12);
+  check('spelled labels for shared-key spellings', sb.TRANSPOSE_KEY_LABELS['F#'] === 'F# / Gb');
 }
 
 /* ================= summary ================= */

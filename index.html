@@ -1069,6 +1069,25 @@
   .mass-preview-accordion[open] summary::before{ content:'▾'; }
   .mass-preview-accordion summary:hover{ color:var(--gold); }
   .mass-preview-accordion .preview-block{ max-width:none; margin:4px 0 0; }
+  /* Key + transpose controls (both editors) */
+  .transpose-wrap{ display:inline-flex; align-items:center; gap:4px; }
+  .transpose-wrap select{
+    font-family:inherit; font-size:12px; color:var(--text);
+    background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
+    padding:5px 6px; cursor:pointer;
+  }
+  .transpose-wrap select:focus-visible{ outline:none; border-color:var(--gold); }
+  .transpose-to-wrap{ display:inline-flex; align-items:center; gap:4px; }
+  .transpose-arrow{ color:var(--text-muted); font-size:12px; }
+  .transpose-step{
+    min-width:26px; min-height:26px; padding:0 4px; border-radius:6px;
+    border:1px solid var(--border); background:transparent; color:var(--text-muted);
+    font-size:10px; line-height:1; cursor:pointer;
+  }
+  .transpose-step:hover{ color:var(--gold); border-color:var(--gold); }
+  .p-key-note{ font-size:11px; color:var(--text-muted); margin:2px 0 8px; }
+  .p-cannot-transpose{ font-size:10px; color:#e08080; font-style:italic; margin-top:2px; }
+  .p-line-cant .p-symbols{ text-decoration:underline dotted; text-decoration-color:#e08080; }
   .recent-song-row{
     display:flex; align-items:center; gap:10px; width:100%; text-align:left;
     padding:10px 12px; border:1px solid var(--border); border-radius:8px;
@@ -1714,6 +1733,7 @@
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
             <li>Import: songs can be copied from another SetBook JSON file via the Songs menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
             <li>Recently viewed songs: Songs → Recently viewed songs… lists the last six songs you had open, most recent first, each with how long ago you viewed it ("just now", "5 min ago", "2 hours ago", … — the same cadence as the header's save-age display). Tapping a row opens that song; the list is saved with the file, so it survives closing and reopening.</li>
+            <li>Transpose: each section can define the key its chords are written in — pick it from the key dropdown in the section header (legacy row editor) or the field header (mass-entry editor); both editors share the same controls, stored per section. Once a key is set, a second dropdown appears with up/down steppers that step through the twelve keys; choosing a different key transposes that section's chords in the on-screen preview and in both exported PDFs, with a "Key: G → A" note shown beside the section title. Only chord symbols move — a chord's quality and extensions stay attached (Em7 → F#m7, D/F# → E/G#), slash basses move with the chord, bar-line pipes (|) and extras like (x2), (5th Fret), or N.C. are kept verbatim, and chord positions over lyrics are re-aligned when spellings change width. Flat keys (Bb, Eb, Ab, Db, Gb) get flat spellings; others use sharps. A chord line with no recognizable chords at all can't be moved — preview and PDFs flag it with a dotted underline and a "cannot transpose" note while the rest of the section still transposes. The editors themselves always show and store the original chords, so transposing is display-only and reversible; set the target back to the section's key (or clear the key) to return.</li>
             <li>Close current file: File → Close current file (shown only while a file is linked) unlinks the open JSON after writing any unsaved changes to disk. The file itself stays where it is — only the link between it and SetBook is dropped — and the songs stay on screen as unsaved work; Save as… then links a new file without losing anything.</li>
             <li>Renaming a song re-sorts the list; if the sort moves the song you have open out of view, the sidebar scrolls it to the top of the visible area automatically, so the new sort order is obvious without hunting. A rename that leaves the open song visible doesn't scroll anything.</li>
           </ul>
@@ -4193,6 +4213,7 @@ function renderSectionMassEditor(main, group, sec){
         <input class="section-custom-input mass-field-custom" placeholder="Custom name" aria-label="Custom section name" style="display:none">
         <input class="section-suffix-input mass-field-suffix" placeholder="Suffix, e.g. (guitar solo)" title="Extra text appended after the section name" aria-label="Section name suffix">
         <span class="spacer"></span>
+        <span class="transpose-wrap">${TRANSPOSE_UI_HTML.trim()}</span>
         <button type="button" class="mass-field-focus" title="Focus on this section — hide the other sections" aria-label="Focus on this section">◎</button>
         <button type="button" class="mass-field-del mass-field-del-sec" aria-label="Delete section" title="Delete this section">\u00d7</button>
       </div>
@@ -4234,6 +4255,9 @@ function renderSectionMassEditor(main, group, sec){
     });
     suffixInput.addEventListener('input', e => { s.nameSuffix = e.target.value; refreshName(); touchSection(s); scheduleSave(); });
     fwrap.querySelector('.mass-field-focus').addEventListener('click', () => { sectionFocusId = s.id; renderMain(); });
+    const keySelInit = fwrap.querySelector('.transpose-key-select');
+    keySelInit.value = s.key || '';
+    wireTransposeControls(fwrap, s, () => renderPreviewIfOpen(s));
     fwrap.querySelector('.mass-field-del-sec').addEventListener('click', (e) => {
       showConfirmPopover(e.currentTarget, `Delete section "${displaySectionName(s)}"?`, 'Delete', () => {
         state.sections = state.sections.filter(x => x.id !== s.id);
@@ -4457,7 +4481,7 @@ function renderMain(){
           ${SECTION_TYPES.map(t => `<option value="${t.id}"${t.id === nameType ? ' selected' : ''}>${t.label}</option>`).join('')}
         </select>
         <input class="section-custom-input" placeholder="Custom name" value="${escapeAttr(sec.customName || '')}"${nameType === 'custom' ? '' : ' style="display:none"'}>
-        <input class="section-suffix-input" placeholder="Suffix, e.g. (guitar solo)" value="${escapeAttr(sec.nameSuffix || '')}" title="Extra text appended after the section name">
+        <input class="section-suffix-input" placeholder="Suffix, e.g. (guitar solo)" value="${escapeAttr(sec.nameSuffix || '')}" title="Extra text appended after the section name">${TRANSPOSE_UI_HTML}
       </div>
       <div class="section-name-preview">Shows as: <strong>${escapeHtml(displaySectionName(sec))}</strong></div>
     </div>
@@ -4469,6 +4493,9 @@ function renderMain(){
   const suffixInput = head.querySelector('.section-suffix-input');
   preventAutoReplace(customInput);
   preventAutoReplace(suffixInput);
+  const keySelInit = head.querySelector('.transpose-key-select');
+  keySelInit.value = sec.key || '';
+  wireTransposeControls(head, sec, () => renderPreview(sec));
   const previewStrong = head.querySelector('.section-name-preview strong');
   const refreshNameUI = () => {
     customInput.style.display = sec.nameType === 'custom' ? '' : 'none';
@@ -4912,15 +4939,177 @@ function repeatMarkerOffsetW(doc, monoFont, block, fontSize){
   return { marker, x: lineW + doc.getTextWidth(' ') };
 }
 
+/* ---------------------------------------------------------
+   Transposition: each section may define a key (the key its chords are
+   written in) and, when a key is set, a transpose target. The on-screen
+   preview and both PDF pipelines show chord tokens shifted into the
+   target key; non-chord tokens — (x2) repeats, bar |, annotations like
+   "(ring out)" — are kept verbatim. A chord line with no recognizable
+   chords at all is flagged "cannot transpose" in those outputs. The
+   editors themselves always show/store the original key.
+--------------------------------------------------------- */
+const TRANSPOSE_KEYS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const TRANSPOSE_KEY_LABELS = { 'C#':'C# / Db', 'D#':'D# / Eb', 'F#':'F# / Gb', 'G#':'G# / Ab', 'A#':'A# / Bb' };
+const TRANSPOSE_PC_BASE = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+const TRANSPOSE_FLAT_PCS = new Set([1,3,5,6,8,10]); // Db, Eb, F, Gb, Ab, Bb — spell these keys with flats
+const TRANSPOSE_SHARP_SPELL = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const TRANSPOSE_FLAT_SPELL = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+// Same chord shape as the deglue pass: root + optional quality/extension +
+// optional slash bass. Bar |, xN, and annotation tokens never match.
+const TRANSPOSE_CHORD_RE = /^([A-G][#b]?(?:m(?!aj)|maj|min|dim|aug|sus|add)?\d*(?:[#b]\d+)?(?:sus[24])?)(?:\/([A-G][#b]?))?$/;
+
+function transposeNoteToPc(note){
+  const pc = TRANSPOSE_PC_BASE[note[0]];
+  if (pc == null) return null;
+  if (note[1] === '#') return (pc + 1) % 12;
+  if (note[1] === 'b') return (pc + 11) % 12;
+  return pc;
+}
+function transposeSpellPc(pc, flats){
+  return ((flats ? TRANSPOSE_FLAT_SPELL : TRANSPOSE_SHARP_SPELL)[((pc % 12) + 12) % 12]);
+}
+/* Shift one whitespace-delimited token. Chord tokens move root and slash
+   bass; everything else ((x2), |, (5th, N.C., …) passes through untouched.
+   Leading/trailing bar pipes on a token ("|D") are preserved. */
+function transposeChordToken(tok, semis, flats){
+  const m = String(tok).match(/^(\|*)(.+?)(\|*)$/);
+  if (!m) return tok;
+  const cm = m[2].match(TRANSPOSE_CHORD_RE);
+  if (!cm) return tok;
+  const note = cm[1].match(/^[A-G][#b]?/)[0];
+  const rest = cm[1].slice(note.length);
+  const root = transposeSpellPc(transposeNoteToPc(note) + semis, flats);
+  const bass = cm[2] ? '/' + transposeSpellPc(transposeNoteToPc(cm[2]) + semis, flats) : '';
+  return m[1] + root + rest + bass + m[3];
+}
+function transposeSymbolsValue(value, semis, flats){
+  return String(value).split(/([ \t]+)/)
+    .map(p => (p && !/^[ \t]+$/.test(p)) ? transposeChordToken(p, semis, flats) : p)
+    .join('');
+}
+/* Active only when a key AND a different target are set. Flat keys get
+   flat spellings (G → Bb gives Eb, Ab…); everything else uses sharps. */
+function sectionTransposeInfo(sec){
+  if (!sec || !sec.key || !sec.transposeTo || sec.transposeTo === sec.key) return null;
+  const fromPc = transposeNoteToPc(sec.key);
+  const toPc = transposeNoteToPc(sec.transposeTo);
+  if (fromPc == null || toPc == null) return null;
+  return {
+    from: sec.key, to: sec.transposeTo,
+    semis: (toPc - fromPc + 12) % 12,
+    flats: TRANSPOSE_FLAT_PCS.has(toPc)
+  };
+}
+/* The display form of a section's lines: originals when no transposition
+   is active, otherwise deep-copied lines with every chord symbol's value
+   shifted. Positions drift-corrected so length changes (Bb → B) don't
+   stack chords on top of each other. Never mutates the stored section. */
+function transposedSectionLines(sec){
+  const info = sectionTransposeInfo(sec);
+  if (!info) return sec.lines || [];
+  let delta = 0;
+  return (sec.lines || []).map(l => ({
+    ...l,
+    symbols: (l.symbols || []).map(s => {
+      const before = String(s.value || '');
+      const after = transposeSymbolsValue(before, info.semis, info.flats);
+      const out = { ...s, pos: Math.max(0, (s.pos || 0) + delta), value: after };
+      delta += after.length - before.length;
+      return out;
+    })
+  }));
+}
+/* A chord line (a display block with any symbols content) that holds no
+   recognizable chords at all can't be transposed — flagged in preview and
+   PDFs. Lyric-only blocks are simply not chord lines, so never flagged. */
+function blockCannotTranspose(block){
+  const sym = buildSymbolsLine(block.symbols || []);
+  if (!sym.trim()) return false;
+  return !sym.split(/[ \t]+/).some(tok => tok && DEGLUE_CHORD_RE.test(tok.replace(/^\|+/, '').replace(/\|+$/, '')));
+}
+
+/* ---- Key + transpose controls (shared by both editors) ----
+   Each section may define the key its chords are written in; once set, a
+   transpose dropdown (with up/down steppers) shifts the displayed and
+   printed chords into the chosen key. Arrows step through the key list. */
+function transposeKeyOptions(selected, includeNone){
+  let html = includeNone ? `<option value=""${!selected ? ' selected' : ''}>—</option>` : '';
+  TRANSPOSE_KEYS.forEach(k => {
+    html += `<option value="${k}"${k === selected ? ' selected' : ''}>${TRANSPOSE_KEY_LABELS[k] || k}</option>`;
+  });
+  return html;
+}
+function stepTransposeKey(current, dir){
+  const idx = TRANSPOSE_KEYS.indexOf(current);
+  const next = idx < 0 ? (dir > 0 ? 0 : TRANSPOSE_KEYS.length - 1) : (idx + dir + 12) % 12;
+  return TRANSPOSE_KEYS[next];
+}
+function wireTransposeControls(root, sec, onChange){
+  const keySel = root.querySelector('.transpose-key-select');
+  const toSel = root.querySelector('.transpose-to-select');
+  const up = root.querySelector('.transpose-up');
+  const down = root.querySelector('.transpose-down');
+  const toWrap = root.querySelector('.transpose-to-wrap');
+  const sync = () => {
+    toWrap.style.display = sec.key ? '' : 'none';
+    toSel.innerHTML = transposeKeyOptions(sec.transposeTo || sec.key || 'C', false);
+  };
+  keySel.addEventListener('change', () => {
+    sec.key = keySel.value || null;
+    if (!sec.key) sec.transposeTo = null;
+    else if (!sec.transposeTo) sec.transposeTo = sec.key;
+    touchSection(sec);
+    scheduleSave();
+    sync();
+    onChange();
+  });
+  toSel.addEventListener('change', () => {
+    sec.transposeTo = toSel.value;
+    touchSection(sec);
+    scheduleSave();
+    onChange();
+  });
+  up.addEventListener('click', () => {
+    if (!sec.key) return;
+    sec.transposeTo = stepTransposeKey(sec.transposeTo || sec.key, 1);
+    touchSection(sec);
+    scheduleSave();
+    sync();
+    onChange();
+  });
+  down.addEventListener('click', () => {
+    if (!sec.key) return;
+    sec.transposeTo = stepTransposeKey(sec.transposeTo || sec.key, -1);
+    touchSection(sec);
+    scheduleSave();
+    sync();
+    onChange();
+  });
+  sync();
+}
+const TRANSPOSE_UI_HTML = `
+          <select class="transpose-key-select" title="The key this section's chords are written in">
+            ${transposeKeyOptions('', true)}
+          </select>
+          <span class="transpose-to-wrap" style="display:none">
+            <span class="transpose-arrow">→</span>
+            <button type="button" class="transpose-down transpose-step" title="Transpose down a semitone" aria-label="Transpose down">▾</button>
+            <select class="transpose-to-select" title="Transpose the section's chords to this key"></select>
+            <button type="button" class="transpose-up transpose-step" title="Transpose up a semitone" aria-label="Transpose up">▴</button>
+          </span>`;
+
 function renderPreview(sec, paper){
   paper = paper || document.getElementById('paperPreview');
   if (!paper) return;
-  const titleHtml = `<div class="p-section-title">[${escapeHtml(displaySectionName(sec))}]</div>`;
-  if (!sec.lines.length || sec.lines.every(l => !l.symbols.length && !l.text)){
+  const tinfo = sectionTransposeInfo(sec);
+  const viewLines = transposedSectionLines(sec);
+  const titleHtml = `<div class="p-section-title">[${escapeHtml(displaySectionName(sec))}]</div>` +
+    (tinfo ? `<div class="p-key-note">Key: ${escapeHtml(tinfo.from)} \u2192 ${escapeHtml(tinfo.to)}</div>` : '');
+  if (!viewLines.length || viewLines.every(l => !l.symbols.length && !l.text)){
     paper.innerHTML = titleHtml + `<div class="p-empty"><svg class="p-empty-art" viewBox="0 0 66 54" aria-hidden="true"><path d="M33 13 C26 7, 17 7, 11 10 V42 C17 39, 26 39, 33 45 C40 39, 49 39, 55 42 V10 C49 7, 40 7, 33 13 Z" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round"/><path d="M33 13 V45" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M20 24 h10 M20 29 h10 M36 24 h10 M36 29 h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg><div>Nothing to preview yet — add a line above.</div></div>`;
     return;
   }
-  paper.innerHTML = titleHtml + groupLinesForDisplay(sec.lines).map(b => {
+  paper.innerHTML = titleHtml + groupLinesForDisplay(viewLines).map(b => {
     const symLine = buildSymbolsLine(b.symbols);
     const shownLines = b.lines.filter(l => l.text || !l.symbols.length); // chords-only anchor: skip its empty text row
     const textRows = shownLines
@@ -4932,11 +5121,13 @@ function renderPreview(sec, paper){
       const rightmost = Math.max(symLine.length, ...shownLines.map(l => l.text.trimEnd().length), 0);
       markerHtml = `<span class="p-repeat-marker mono" style="left:${rightmost + 1}ch">(x${b.repeatCount})</span>`;
     }
+    const cantFlag = (tinfo && !pureMarker && blockCannotTranspose(b))
+      ? `<div class="p-cannot-transpose">cannot transpose</div>` : '';
     return `
-    <div class="p-line">
+    <div class="p-line${cantFlag ? ' p-line-cant' : ''}">
       <div class="p-symbols mono">${pureMarker ? `(x${b.repeatCount})` : (escapeHtml(symLine) || '&nbsp;')}</div>
       ${pureMarker ? '' : textRows}
-      ${markerHtml}
+      ${markerHtml}${cantFlag}
     </div>
   `;
   }).join('');
@@ -6802,6 +6993,12 @@ const PDF_PALETTES = {
   light: { bg:[255,255,255], text:[35,32,27],  chord:[141,104,10], muted:[120,115,105], accent:[141,104,10], faint:[150,146,138] }
 };
 
+// The lines a PDF should draw for a section: originals, or the transposed
+// copy when the section defines a key and a different transpose target.
+function pdfSectionLines(section){
+  return transposedSectionLines(section);
+}
+
 // Throws when the jsPDF library failed to load; otherwise builds the document
 // and returns it together with the page geometry both pipelines derive from
 // the chosen device and orientation.
@@ -6919,8 +7116,8 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
   }
 
   function planSectionPages(section){
-    const srcLines = section.lines.length ? section.lines : [{ text:'', symbols:[] }];
-    const lines = groupLinesForDisplay(srcLines); // blocks: { symbols, lines }
+    const srcLines = pdfSectionLines(section);
+    const lines = groupLinesForDisplay(srcLines.length ? srcLines : [{ text:'', symbols:[] }]); // blocks: { symbols, lines }
     const totalHeightAt = (ls, t) => ls.reduce((s,l) => s + pdfBlockHeight(l, t), 0);
 
     for (const t of TIERS){
@@ -7206,6 +7403,12 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     let title = '[' + displaySectionName(p.section) + ']';
     if (p.totalChunks > 1) title += ` (${p.chunkIndex + 1}/${p.totalChunks})`;
     doc.text(title, MARGIN, sc(75));
+    const pTinfo = sectionTransposeInfo(p.section);
+    if (pTinfo){
+      doc.setFont('helvetica','normal'); doc.setFontSize(sc(11));
+      doc.setTextColor(...palette.muted);
+      doc.text(`Key: ${pTinfo.from} \u2192 ${pTinfo.to}`, MARGIN, sc(93));
+    }
 
     // center short sections in the leftover vertical space rather than
     // leaving all the extra room stacked at the bottom of the page
@@ -7222,6 +7425,13 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       doc.text(pureMarker ? `(x${block.repeatCount})` : (symLine || ' '), MARGIN, y);
       const chordBaselineY = y;
       y += pdfLineHeight(fs);
+      if (pTinfo && !pureMarker && blockCannotTranspose(block)){
+        doc.setFont('helvetica','normal'); doc.setFontSize(Math.max(7, Math.round(fs * 0.5)));
+        doc.setTextColor(...palette.muted);
+        doc.text('cannot transpose', MARGIN, y - pdfLineHeight(fs) * 0.22);
+        doc.setFont(monoFont,'bold'); doc.setFontSize(fs);
+        doc.setTextColor(...palette.chord);
+      }
 
       let shownLyricCount = 0;
       if (!pureMarker){
@@ -7358,7 +7568,8 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
   // getting a full page, width (not per-section height) is what matters
   const allBlocks = [];
   songs.forEach(s => s.sections.forEach(section => {
-    groupLinesForDisplay(section.lines.length ? section.lines : [{ text:'', symbols:[] }]).forEach(b => allBlocks.push(b));
+    const srcLines = pdfSectionLines(section);
+    groupLinesForDisplay(srcLines.length ? srcLines : [{ text:'', symbols:[] }]).forEach(b => allBlocks.push(b));
   }));
 
   let bodySize = MIN_BODY_SIZE;
@@ -7421,7 +7632,8 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
     y += pdfLineHeight(songTitleSize) + sc(8);
 
     s.sections.forEach(section => {
-      const blocks = groupLinesForDisplay(section.lines.length ? section.lines : [{ text:'', symbols:[] }]);
+      const srcLines = pdfSectionLines(section);
+      const blocks = groupLinesForDisplay(srcLines.length ? srcLines : [{ text:'', symbols:[] }]);
       // check room for the WHOLE section, not just its title + first line,
       // so a section only starts if it can run without splitting across
       // pages — if it's longer than a full page can ever hold, it still
@@ -7433,6 +7645,12 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
       doc.setFont('helvetica','bold'); doc.setFontSize(sectionTitleSize);
       doc.setTextColor(...palette.text);
       doc.text('[' + displaySectionName(section) + ']', MARGIN, y);
+      const pfTinfo = sectionTransposeInfo(section);
+      if (pfTinfo){
+        doc.setFont('helvetica','normal'); doc.setFontSize(sc(10));
+        doc.setTextColor(...palette.muted);
+        doc.text(`Key: ${pfTinfo.from} \u2192 ${pfTinfo.to}`, MARGIN + doc.getTextWidth('[' + displaySectionName(section) + ']') + sc(10), y);
+      }
       y += pdfLineHeight(sectionTitleSize) + sc(4);
 
       blocks.forEach(block => {
@@ -7442,11 +7660,18 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
         // the block's chord line instead of an empty line with a floating marker.
         const pureMarker = isPureRepeatMarker(block, pdfDisplayText);
 
+      doc.setFont(monoFont, 'bold'); doc.setFontSize(bodySize);
+      doc.setTextColor(...palette.chord);
+      doc.text(pureMarker ? `(x${block.repeatCount})` : (symLine || ' '), MARGIN, y);
+      const chordBaselineY = y;
+      y += pdfLineHeight(bodySize);
+      if (sectionTransposeInfo(section) && !pureMarker && blockCannotTranspose(block)){
+        doc.setFont('helvetica','normal'); doc.setFontSize(Math.max(6, Math.round(bodySize * 0.5)));
+        doc.setTextColor(...palette.muted);
+        doc.text('cannot transpose', MARGIN, y - pdfLineHeight(bodySize) * 0.22);
         doc.setFont(monoFont, 'bold'); doc.setFontSize(bodySize);
         doc.setTextColor(...palette.chord);
-        doc.text(pureMarker ? `(x${block.repeatCount})` : (symLine || ' '), MARGIN, y);
-        const chordBaselineY = y;
-        y += pdfLineHeight(bodySize);
+      }
 
         let shownLyricCount = 0;
         if (!pureMarker){
