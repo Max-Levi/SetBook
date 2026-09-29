@@ -51,7 +51,10 @@ menu hides the Drive items when they're empty). One-time setup:
 3. Fill `DRIVE_CLIENT_ID`, `DRIVE_API_KEY`, and `DRIVE_APP_ID` (the
    project number) at the top of the script in `index.html`.
 
-Users sign in through Google's own picker; SetBook uses the per-file
+Users connect through Google's own pickers: they choose a **folder**
+(Connect) and then a **songbook** in it (existing `.json` or a named new
+one), or open any accessible `.json` via **Open from Google Drive…**;
+SetBook uses the per-file
 `drive.file` scope (non-sensitive — no OAuth verification process), sees
 only the file it creates in the folder the user picked, and keeps access
 tokens in memory only. Uploads are throttled: 15 s after the last edit,

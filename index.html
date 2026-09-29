@@ -502,6 +502,27 @@
   .pdf-download-link:hover{ background: var(--gold-tint-strong); }
   button.pdf-download-link{ display:block; width:100%; cursor:pointer; font-family:inherit; }
   button.pdf-download-link[hidden]{ display:none; }
+  /* Drive connect chooser: existing songbooks in the picked folder + a
+     new-file row with its own name field. */
+  .drive-choose-list{
+    max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:6px;
+    padding:6px; background:var(--panel-2); margin-bottom:12px;
+  }
+  .drive-choose-row{
+    display:flex; flex-direction:column; gap:1px; width:100%; text-align:left;
+    background:transparent; border:1px solid transparent; border-radius:6px;
+    padding:7px 9px; font-size:13px; cursor:pointer; font-family:inherit; color:var(--text);
+  }
+  .drive-choose-row:hover{ background:var(--hover-bg); }
+  .drive-choose-row.selected{ border-color:var(--gold); background:var(--gold-tint); }
+  .drive-choose-row .drive-choose-name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .drive-choose-row .drive-choose-meta{ font-size:11px; color:var(--text-muted); }
+  .drive-choose-newname{ display:flex; gap:6px; align-items:center; }
+  .drive-choose-newname input{
+    flex:1; min-width:0; background:var(--panel); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:6px 8px; font-size:12.5px; font-family:inherit;
+  }
+  .drive-choose-newname input:focus{ outline:none; border-color:var(--focus-border); }
 
   /* ---------- layout ---------- */
   .layout{ flex:1; display:flex; min-height:0; }
@@ -1269,6 +1290,7 @@
         <button class="menu-item" id="btnCloseFile" hidden>Close current file</button>
         <div class="menu-sep"></div>
         <button class="menu-item" id="btnDriveConnect">Connect Google Drive…</button>
+        <button class="menu-item" id="btnDriveOpen" hidden>Open from Google Drive…</button>
         <button class="menu-item" id="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
         <div class="menu-sep"></div>
         <button class="menu-item" id="btnConfigureLayout">Configuration…</button>
@@ -1301,6 +1323,7 @@
         <button class="menu-item" data-delegate="btnSetFolder">Set folder…</button>
         <button class="menu-item" data-delegate="btnCloseFile" hidden>Close current file</button>
         <button class="menu-item" data-delegate="btnDriveConnect">Connect Google Drive…</button>
+        <button class="menu-item" data-delegate="btnDriveOpen" hidden>Open from Google Drive…</button>
         <button class="menu-item" data-delegate="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
         <button class="menu-item" data-delegate="btnConfigureLayout">Configuration…</button>
         <div class="menu-group-label">Songs</div>
@@ -1663,6 +1686,20 @@
   </div>
 </div>
 
+<!-- Drive connect: choose an existing songbook in the picked folder, or name a new one -->
+<div class="modal-overlay" id="driveChooseModalOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Connect to Google Drive</h2>
+    <p class="modal-sub" id="driveChooseSub"></p>
+    <div class="drive-choose-list" id="driveChooseList"></div>
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="driveChooseCancelBtn">Cancel</button>
+      <button type="button" class="primary small" id="driveChooseConnectBtn">Connect</button>
+    </div>
+  </div>
+</div>
+
 <!-- Drive conflict: the cloud copy changed since our last save -->
 <div class="modal-overlay" id="driveConflictModalOverlay">
   <div class="modal">
@@ -1785,7 +1822,7 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a single <code>setbook.json</code> in a Drive folder you pick (via Google's own picker, in folder-select mode). Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links automatically and re-authorizes silently. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
+            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links the same file automatically and re-authorizes silently. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's IndexedDB (with a localStorage fallback and one-time migration from the pre-IndexedDB localStorage store, which had a ~5MB quota large songbooks could silently hit). If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered. A persisted Drive link never auto-applies the remote copy over offered or restored recovery work — the remote copy is only linked on a boot where no recovery offer appeared.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
             <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
@@ -6189,6 +6226,7 @@ let driveFirstPendingAt = 0;   // when the oldest unsynced change happened
 let driveDirty = false;        // unsynced changes since the last upload
 let lastDriveSavedJson = null; // last payload uploaded (skips no-op writes)
 const driveConflictModal = wireModal({ overlayId: 'driveConflictModalOverlay' });
+const driveChooseModal = wireModal({ overlayId: 'driveChooseModalOverlay' });
 
 // Load an external script once; resolves on load, rejects on error.
 function loadScriptOnce(src){
@@ -6274,24 +6312,27 @@ function driveRemoteChanged(lastKnown, current){
   return !!(lastKnown && current && lastKnown !== current);
 }
 
-// The library file in the linked folder: find it or create it.
-async function driveFindLibrary(folderId){
+// JSON songbooks in a folder (any name — the chooser lists them all).
+async function driveListJsonFiles(folderId){
   const q = `'${folderId}' in parents and trashed = false`;
   const res = await driveApi('GET', 'drive/v3/files', {
-    params: { q, fields: 'files(id,name,modifiedTime)', pageSize: '50', spaces: 'drive' },
+    params: { q, fields: 'files(id,name,modifiedTime)', pageSize: '100', spaces: 'drive' },
   });
   if (!res.ok) throw new Error(`Drive list failed: ${res.status}`);
   const json = await res.json();
-  return (json.files || []).find(f => f.name === DRIVE_LIBRARY_NAME) || null;
+  return (json.files || [])
+    .filter(f => f.name.toLowerCase().endsWith('.json'))
+    .sort((a, b) => String(b.modifiedTime || '').localeCompare(String(a.modifiedTime || '')));
 }
-async function driveCreateLibrary(folderId){
-  // Single multipart upload WITH metadata, so setbook.json is born inside
-  // the picked folder. (An earlier create-then-move approach was a trap:
-  // uploadType=media drops the file in My Drive root, and the follow-up
-  // parent PATCH could fail silently — leaving a file the app cheerfully
-  // saved to that never appeared in the folder the user picked.)
+async function driveCreateLibrary(folderId, name){
+  // Single multipart upload WITH metadata, so the songbook is born inside
+  // the picked folder under the chosen name. (An earlier create-then-move
+  // approach was a trap: uploadType=media drops the file in My Drive root,
+  // and the follow-up parent PATCH could fail silently — leaving a file the
+  // app cheerfully saved to that never appeared in the folder.)
+  const fileName = ensureJsonName(name);
   const boundary = 'setbook0000' + Math.random().toString(36).slice(2, 10);
-  const metadata = JSON.stringify({ name: DRIVE_LIBRARY_NAME, parents: [folderId] });
+  const metadata = JSON.stringify({ name: fileName, parents: [folderId] });
   const body =
     `--${boundary}\r\n` +
     `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
@@ -6314,6 +6355,12 @@ async function driveCreateLibrary(folderId){
     console.warn('SetBook: the Drive file was created outside the picked folder:', meta.parents);
   }
   return meta;
+}
+// New songbooks always end in .json so the chooser and the file picker
+// recognize them later.
+function ensureJsonName(name){
+  const clean = String(name || '').trim();
+  return clean.toLowerCase().endsWith('.json') ? clean : clean + '.json';
 }
 async function driveLoadLibrary(fileId){
   const res = await driveApi('GET', `drive/v3/files/${fileId}`, { params: { alt: 'media' } });
@@ -6370,8 +6417,94 @@ function pickDriveFolder(){
   }));
 }
 
-// Connect flow: token → folder picker → find-or-create setbook.json → load
-// (snapshot current work first, exactly like Open) or create it.
+// The connect chooser: existing .json songbooks in the picked folder
+// (newest first) plus a new-file option with its own name field. Resolves
+// {kind:'existing', file} | {kind:'new', name} | null (cancelled).
+function promptDriveChoose(files, folderId){
+  return new Promise((resolve) => {
+    const list = document.getElementById('driveChooseList');
+    const connectBtn = document.getElementById('driveChooseConnectBtn');
+    let selection = null; // {kind, file?, name?}
+    const rows = [];
+    list.innerHTML = '';
+    const finish = (value) => {
+      driveChooseModal.close();
+      resolve(value);
+    };
+    const syncConnectBtn = () => {
+      if (selection && selection.kind === 'new') connectBtn.disabled = !selection.name.trim();
+      else connectBtn.disabled = !selection;
+    };
+    files.forEach((f) => {
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'drive-choose-row';
+      const when = f.modifiedTime ? new Date(f.modifiedTime).toLocaleString(undefined, { month:'short', day:'numeric', hour:'numeric', minute:'2-digit' }) : '';
+      row.innerHTML = `<span class="drive-choose-name"></span>` +
+        (when ? `<span class="drive-choose-meta">modified ${when}</span>` : '');
+      row.querySelector('.drive-choose-name').textContent = f.name;
+      row.addEventListener('click', () => {
+        selection = { kind: 'existing', file: f };
+        rows.forEach(r => r.classList.remove('selected'));
+        row.classList.add('selected');
+        newNameInput.value = '';
+        syncConnectBtn();
+      });
+      rows.push(row);
+      list.appendChild(row);
+    });
+    const newRow = document.createElement('button');
+    newRow.type = 'button';
+    newRow.className = 'drive-choose-row';
+    newRow.innerHTML = '<span class="drive-choose-name">New songbook…</span><span class="drive-choose-meta">create a file in this folder</span>';
+    newRow.addEventListener('click', () => {
+      selection = { kind: 'new', name: newNameInput.value };
+      rows.forEach(r => r.classList.remove('selected'));
+      newRow.classList.add('selected');
+      newNameInput.focus();
+      syncConnectBtn();
+    });
+    rows.push(newRow);
+    list.appendChild(newRow);
+    const newNameWrap = document.createElement('div');
+    newNameWrap.className = 'drive-choose-newname';
+    newNameWrap.style.marginTop = '8px';
+    newNameWrap.innerHTML = '<input type="text" placeholder="Name for a new songbook (e.g. Gig set 2026)">';
+    const newNameInput = newNameWrap.querySelector('input');
+    newNameInput.addEventListener('input', () => {
+      if (newNameInput.value.trim() && (!selection || selection.kind !== 'new')){
+        selection = { kind: 'new', name: newNameInput.value };
+        rows.forEach(r => r.classList.remove('selected'));
+        newRow.classList.add('selected');
+        syncConnectBtn();
+      } else if (selection && selection.kind === 'new'){
+        selection.name = newNameInput.value;
+        syncConnectBtn();
+      }
+    });
+    newNameInput.addEventListener('keydown', (e) => { if (e.key === 'Enter' && selection && selection.kind === 'new' && selection.name.trim()) finish(selection); });
+    list.appendChild(newNameWrap);
+    document.getElementById('driveChooseSub').textContent =
+      `Pick a songbook in this folder, or name a new one. It autosaves to Google Drive.`;
+    connectBtn.disabled = true;
+    connectBtn.onclick = () => {
+      if (!selection) return;
+      if (selection.kind === 'new' && !selection.name.trim()) return;
+      finish(selection);
+    };
+    document.getElementById('driveChooseCancelBtn').onclick = () => finish(null);
+    if (!files.length){
+      selection = { kind: 'new', name: '' };
+      newRow.classList.add('selected');
+      syncConnectBtn();
+      newNameInput.focus();
+    }
+    driveChooseModal.open();
+  });
+}
+
+// Connect flow: token → folder picker → chooser (existing songbook or a
+// named new one) → open/create through the shared link helper.
 async function connectDrive(){
   if (driveConnecting || !driveConfigured()) return;
   driveConnecting = true;
@@ -6379,34 +6512,96 @@ async function connectDrive(){
     await requestDriveToken(true);
     const folderId = await pickDriveFolder();
     if (!folderId) return;
-    let file = await driveFindLibrary(folderId);
-    if (!file){
-      const meta = await driveCreateLibrary(folderId);
-      file = { id: meta.id, name: DRIVE_LIBRARY_NAME, modifiedTime: meta.modifiedTime };
+    // Which songbook in this folder? The chooser lists every .json in it
+    // (newest first) and offers a new-file name; Connect applies the choice
+    // through the shared link/open helper below.
+    const files = await driveListJsonFiles(folderId);
+    const choice = await promptDriveChoose(files, folderId);
+    if (!choice) return;
+    if (choice.kind === 'new'){
+      const meta = await driveCreateLibrary(folderId, choice.name);
+      await linkDriveFile({ id: meta.id, name: meta.name, modifiedTime: meta.modifiedTime }, { created: true });
     } else {
-      const text = await driveLoadLibrary(file.id);
-      const parsed = JSON.parse(text);
-      assertParsedState(parsed);
-      if ((state.sectionGroups || []).length) takeSnapshot('Before opening ' + DRIVE_LIBRARY_NAME + ' (Drive)');
-      loadParsedState(parsed);
-      takeSnapshot('Opened ' + DRIVE_LIBRARY_NAME + ' (Drive)');
+      await driveOpenById(choice.file.id);
     }
-    fileHandle = null; // cloud link replaces any local-file link
-    driveLink = { folderId, folderName: '', fileId: file.id, fileName: file.name, remoteModifiedTime: file.modifiedTime };
-    currentFileName = `${file.name} · Drive`;
-    lastDriveSavedJson = driveFileBody(); // memory now matches the remote copy
-    driveDirty = false;
-    driveFirstPendingAt = 0;
-    persistDriveLink();
-    updateFileLabel();
-    updateSaveStatus('saved');
-    renderAll();
-    showToast(`Linked to ${DRIVE_LIBRARY_NAME} in Google Drive.`);
   } catch(err){
     if (err && err.message === 'drive-conflict') return; // handled by doSave's conflict path
     showErrorToast('Could not connect Google Drive: ' + err.message);
   } finally {
     driveConnecting = false;
+  }
+}
+
+// Apply a Drive file as the active cloud link: snapshot outgoing work if
+// any, load the remote copy when requested (open paths), set link state,
+// and paint the UI. One helper so Connect-new, Connect-existing, Open-from-
+// Drive, and boot re-link all behave identically.
+async function linkDriveFile(file, opts = {}){
+  if (opts.load){
+    const text = await driveLoadLibrary(file.id);
+    const parsed = JSON.parse(text);
+    assertParsedState(parsed);
+    if ((state.sectionGroups || []).length) takeSnapshot('Before opening ' + file.name + ' (Drive)');
+    loadParsedState(parsed);
+    takeSnapshot('Opened ' + file.name + ' (Drive)');
+  }
+  fileHandle = null; // cloud link replaces any local-file link
+  driveLink = { folderId: opts.folderId || null, folderName: '', fileId: file.id, fileName: file.name, remoteModifiedTime: file.modifiedTime };
+  currentFileName = `${file.name} · Drive`;
+  lastDriveSavedJson = opts.load ? null : driveFileBody(); // loaded copy: next edit starts the cadence; created: memory matches remote
+  driveDirty = false;
+  driveFirstPendingAt = 0;
+  persistDriveLink();
+  updateFileLabel();
+  updateSaveStatus('saved');
+  renderAll();
+  showToast(opts.created
+    ? `Created ${file.name} in Google Drive.`
+    : `Linked to ${file.name} in Google Drive.`);
+}
+
+// Open a specific Drive file by id (the file Picker path). Resolves after
+// the link is live; surfaces invalid/non-SetBook JSON cleanly.
+async function driveOpenById(fileId){
+  const meta = await driveApi('GET', `drive/v3/files/${fileId}`, { params: { fields: 'id,name,modifiedTime' } });
+  if (!meta.ok) throw new Error(`Drive load failed: ${meta.status}`);
+  const file = await meta.json();
+  await linkDriveFile(file, { load: true });
+}
+
+// Open from Google Drive: native Picker over ALL accessible .json files
+// (any folder — under drive.file that's files SetBook created or files the
+// user explicitly picks), then open by id.
+async function drivePickAndOpen(){
+  if (!driveConfigured()) return;
+  try{
+    await ensurePickerSdk();
+    await requestDriveToken(true);
+    const view = new google.picker.DocsView();
+    view.setMimeTypes('application/json');
+    view.setMode(google.picker.DocsViewMode.LIST);
+    const fileId = await new Promise((resolve, reject) => {
+      const builder = new google.picker.PickerBuilder()
+        .addView(view)
+        .setTitle('Open a songbook from Drive')
+        .setOAuthToken(driveAccessToken)
+        .setDeveloperKey(DRIVE_API_KEY)
+        .setCallback((data) => {
+          if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED){
+            const doc = (data[google.picker.Response.DOCUMENTS] || [])[0];
+            resolve(doc ? doc[google.picker.Document.ID] : null);
+          } else if (data[google.picker.Response.ACTION] === google.picker.Action.CANCEL){
+            resolve(null);
+          }
+        });
+      if (DRIVE_APP_ID) builder.setAppId(String(DRIVE_APP_ID));
+      builder.build().setVisible(true);
+    });
+    if (!fileId) return;
+    await driveOpenById(fileId);
+  } catch(err){
+    if (err && err.message === 'drive-conflict') return;
+    showErrorToast('Could not open from Google Drive: ' + err.message);
   }
 }
 
@@ -6432,15 +6627,20 @@ function driveConfigured(){ return !!(DRIVE_CLIENT_ID && DRIVE_API_KEY); }
 function updateDriveMenuItems(){
   const hide = !driveConfigured() || !!driveLink;
   const connect = document.getElementById('btnDriveConnect');
+  const openItem = document.getElementById('btnDriveOpen');
   const disconnect = document.getElementById('btnDriveDisconnect');
   if (connect) connect.hidden = hide;
+  if (openItem) openItem.hidden = !driveConfigured();
   if (disconnect) disconnect.hidden = !driveLink;
   // the phone Menu mirrors the desktop items' visibility
   const delegateConnect = document.querySelector('[data-delegate="btnDriveConnect"]');
+  const delegateOpen = document.querySelector('[data-delegate="btnDriveOpen"]');
   const delegateDisconnect = document.querySelector('[data-delegate="btnDriveDisconnect"]');
   if (delegateConnect) delegateConnect.hidden = hide;
+  if (delegateOpen) delegateOpen.hidden = !driveConfigured();
   if (delegateDisconnect) delegateDisconnect.hidden = !driveLink;
 }
+document.getElementById('btnDriveOpen').addEventListener('click', drivePickAndOpen);
 document.getElementById('btnDriveConnect').addEventListener('click', connectDrive);
 // Upload-cadence safety net: if the tab is hidden or closing with unsynced
 // Drive changes, flush them now (skipped mid-conflict — the user is choosing
@@ -9197,6 +9397,7 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
       updateFileLabel();
       updateSaveStatus('saved');
       renderAll();
+      showToast(`Re-linked to ${link.fileName} in Google Drive.`);
     } catch(err){
       // Remote gone or unreachable: stay unlinked and clear the stale link.
       driveLink = null;
