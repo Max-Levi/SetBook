@@ -6820,6 +6820,19 @@ function offerDriveSyncForLocalOpen(fileName){
 
 const driveSaveLocalModal = wireModal({ overlayId: 'driveSaveLocalModalOverlay' });
 const driveSaveAsModal = wireModal({ overlayId: 'driveSaveAsModalOverlay' });
+// The final save before unlinking must never hold Disconnect hostage: a
+// silent token re-request with no live Google session (expired Testing-mode
+// consent) waits on a popup that may never resolve, and an await on that
+// would hang — leaving the badge green and the menus unchanged until a
+// refresh. Race it with a short timeout; if the upload loses the race the
+// next save retries as usual.
+function withSaveTimeout(p, ms = 5000){
+  let t;
+  return Promise.race([
+    p,
+    new Promise(res => { t = setTimeout(res, ms); }),
+  ]).finally(() => clearTimeout(t));
+}
 // Disconnect: offer to carry the work over to a local file (save + link),
 // or just disconnect and leave the work unlinked in memory.
 async function disconnectDrive(){
@@ -6876,7 +6889,7 @@ async function disconnectDrive(){
 // The teardown half of disconnect: final Drive save, revoke, clear link
 // state. Called once the user has chosen what happens to the local copy.
 async function finishDisconnect(){
-  try{ if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; await doSave(); } } catch(err){ /* final save is best-effort */ }
+  try{ if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; await withSaveTimeout(doSave(), 5000); } } catch(err){ /* final save is best-effort */ }
   revokeDriveTokenQuietly();
   driveLink = null;
   driveAccessToken = null;
@@ -6884,11 +6897,15 @@ async function finishDisconnect(){
   driveDirty = false;
   driveFirstPendingAt = 0;
   lastDriveSavedJson = null;
-  persistDriveLink();
-  if (!fileHandle) currentFileName = null; // keep a local file's name if one is linked
-  updateFileLabel();
-  updateSaveStatus(fileHandle ? 'saved' : 'nofile');
-  showToast('Google Drive disconnected — your work stays on screen; Save as… to link a local file.');
+  await persistDriveLink();
+  // The persisted link is gone: reload so the app boots from a genuinely
+  // disconnected state — the badge initializes red, menus re-derive, and
+  // the welcome modal offers the next step. Any in-memory work is safe:
+  // the debounced recovery snapshot is flushed first so the boot offer
+  // appears and can restore it.
+  scheduleRecoverySave();
+  setTimeout(() => { location.reload(); }, 400); // let the toast + snapshot land
+  showToast('Google Drive disconnected.');
 }
 function revokeDriveTokenQuietly(){
   try{ if (driveAccessToken && typeof google !== 'undefined' && google.accounts) google.accounts.oauth2.revoke(driveAccessToken, () => {}); } catch(err){}
