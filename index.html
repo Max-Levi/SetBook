@@ -7108,7 +7108,16 @@ function scheduleRecoverySave(){
   recoveryTimer = setTimeout(writeRecoverySnapshot, 1500);
 }
 function writeRecoverySnapshot(){
-  const payload = JSON.stringify({ savedAt: Date.now(), state });
+  // The snapshot records WHERE its work lived so the welcome banner can say
+  // "from this device" vs "from Google Drive": the link at snapshot time,
+  // plus the remote state at the last Drive upload (a snapshot whose state
+  // matches the last upload has nothing unsynced to mention).
+  const payload = JSON.stringify({
+    savedAt: Date.now(),
+    state,
+    source: driveLink ? { fileId: driveLink.fileId, fileName: driveLink.fileName } : null,
+    lastDriveSavedJson: driveLink ? lastDriveSavedJson : null,
+  });
   idbRecoveryPut('snapshot', payload)
     .catch(() => { try{ localStorage.setItem(RECOVERY_KEY, payload); }catch(err){} });
 }
@@ -7211,14 +7220,25 @@ async function maybeOfferRecovery(){
   const when = new Date(snap.savedAt).toLocaleString(undefined, { weekday:'short', hour:'numeric', minute:'2-digit' });
   const ctaLabel = document.querySelector('#welcomeModalOverlay .welcome-cta-label');
   if (!ctaLabel) return;
-  const linkRec = await readPersistedFileHandle();
-  const linkNote = (linkRec && linkRec.name)
-    ? ` It was last linked to \u201c${escapeHtml(linkRec.name)}\u201d \u2014 restoring will re-link it.`
-    : '';
+  // WHERE did this work live? A snapshot taken while a Drive file was open
+  // says so (and whether everything had already synced); otherwise it was a
+  // local file (or nothing) on this device.
+  let sourceNote = ' It was saved on this device.';
+  if (snap.source && snap.source.fileId){
+    const unsynced = snap.lastDriveSavedJson != null && JSON.stringify(snap.state) !== snap.lastDriveSavedJson;
+    sourceNote = unsynced
+      ? ` It was open from Google Drive \u2014 \u201c${escapeHtml(snap.source.fileName || 'songbook')}\u201d \u2014 with changes not yet uploaded. Restoring keeps them locally until the next save to Drive.`
+      : ` It was open from Google Drive \u2014 \u201c${escapeHtml(snap.source.fileName || 'songbook')}\u201d \u2014 and fully saved there.`;
+  } else {
+    const linkRec = await readPersistedFileHandle();
+    if (linkRec && linkRec.name){
+      sourceNote = ` It was last linked to the local file \u201c${escapeHtml(linkRec.name)}\u201d \u2014 restoring will re-link it.`;
+    }
+  }
   const banner = document.createElement('div');
   banner.className = 'recovery-banner';
   banner.innerHTML = `
-    <div class="recovery-banner-text"><strong>Pick up where you left off?</strong><span>Your songbook from ${escapeHtml(when)} was saved automatically on this device.${linkNote}</span></div>
+    <div class="recovery-banner-text"><strong>Pick up where you left off?</strong><span>Your songbook from ${escapeHtml(when)} was saved automatically.${sourceNote}</span></div>
     <div class="recovery-banner-actions">
       <button type="button" class="primary small" id="recoveryRestoreBtn">Restore my work</button>
       <button type="button" class="ghost small" id="recoveryDiscardBtn">Start a fresh file</button>
