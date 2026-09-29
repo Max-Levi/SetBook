@@ -115,6 +115,10 @@
     --brand-green: #1d6b38;
   }
   *{ box-sizing: border-box; }
+  /* Author display rules (display:flex on .modal-actions, .drive-badge,
+     .welcome-feature, …) otherwise beat the UA's [hidden] { display:none };
+     this restores the expected semantics everywhere. */
+  [hidden]{ display:none !important; }
   html,body{ height:100%; }
   body{
     margin:0;
@@ -403,15 +407,20 @@
     .help-layout{ flex-direction:column; }
     .help-nav{ width:100%; flex-direction:row; flex-wrap:wrap; position:static; max-height:none; }
   }
-  .welcome-tagline{ margin:-8px 0 14px; font-size:13px; color:var(--gold); font-style:italic; padding-right:52px; }
+  .welcome-tagline{ margin:-4px 0 10px; font-size:12.5px; color:var(--gold); font-style:italic; padding-right:52px; }
+  .modal-welcome h2{ margin-bottom:8px; }
   /* Inline SVG icons (no icon-font dependency; all icons are embedded below) */
   svg.svg-icon{ width:1em; height:1em; fill:currentColor; flex:none; }
-  .welcome-features{ display:flex; flex-direction:column; gap:12px; margin:0 0 14px; }
-  .welcome-feature{ display:flex; gap:10px; align-items:flex-start; font-size:12.5px; line-height:1.5; color:var(--text-muted); }
-  .welcome-feature svg{ color:var(--gold); width:18px; height:18px; flex:none; margin-top:2px; }
+  /* Feature tour as a 2×2 grid of compact cards: the whole welcome modal
+     (title, tour, and all six action buttons) fits without scrolling. */
+  .welcome-features{ display:grid; grid-template-columns:1fr 1fr; gap:10px 16px; margin:0 0 10px; }
+  .welcome-feature{ display:flex; gap:8px; align-items:flex-start; font-size:12px; line-height:1.4; color:var(--text-muted); }
+  .welcome-feature svg{ color:var(--gold); width:16px; height:16px; flex:none; margin-top:1px; }
   .welcome-feature strong{ color:var(--text); font-weight:600; }
-  .welcome-use{ font-size:12.5px; font-style:italic; color:var(--text-muted); border-top:1px solid var(--border); padding-top:12px; margin:0 0 14px; line-height:1.5; }
-  .welcome-cta-label{ text-align:center; font-size:12.5px; color:var(--text-muted); margin:0 0 10px; }
+  .welcome-feature-desc{ display:block; font-weight:400; font-size:11px; line-height:1.4; margin-top:1px;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .welcome-use{ font-size:11.5px; font-style:italic; color:var(--text-muted); border-top:1px solid var(--border); padding-top:8px; margin:0 0 8px; line-height:1.4; }
+  .welcome-cta-label{ text-align:center; font-size:12px; color:var(--text-muted); margin:0 0 6px; }
   .share-topics{ display:flex; flex-direction:column; gap:8px; margin-bottom:16px; }
   .share-topic{
     display:flex; align-items:center; gap:12px; width:100%; box-sizing:border-box;
@@ -461,10 +470,10 @@
     .modal-group-label{ margin-bottom:8px; }
     /* welcome modal: compact the feature list so it reads as a sheet,
        not a wall of text */
-    .welcome-tagline{ font-size:13px; margin:8px 0 12px; }
-    .welcome-features{ gap:10px; margin-bottom:14px; }
+    .welcome-tagline{ font-size:12.5px; margin:4px 0 10px; }
+    .welcome-features{ gap:8px; margin-bottom:10px; }
     .welcome-feature{ font-size:12px; }
-    .welcome-feature svg{ width:18px; height:18px; }
+    .welcome-feature svg{ width:16px; height:16px; }
     /* on phones the intro modal must fit without scrolling: show only the
        feature headlines, hide the explanatory sentences (desktop keeps all) */
     .welcome-feature-desc{ display:none; }
@@ -1519,11 +1528,11 @@
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>Welcome to SetBook</h2>
     <p class="welcome-tagline">Lead sheets, organized the way musicians think — by section.</p>
-    <p class="modal-sub">SetBook is a lead-sheet workspace for anyone who needs a chart in a hurry: band leaders, open-mic hosts, recording studios, producers, and music students.</p>
+    <p class="modal-sub">A lead-sheet workspace for band leaders, open mics, studios, and students.</p>
     <div class="welcome-features">
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M256 48 L464 152 L256 256 L48 152 Z"/><path d="M48 216 L256 320 L464 216 L464 264 L256 368 L48 264 Z"/><path d="M48 296 L256 400 L464 296 L464 344 L256 448 L48 344 Z"/></svg>
-        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Every song is stored as its sections — verse, chorus, bridge — in playing order. Sort by title or artist, search instantly, and filter by tag, artist, cover/original, or readiness. Each song's Details panel holds its artists, tags, and video links.</span></div>
+        <div><strong>A song library that thinks in sections.</strong><span class="welcome-feature-desc"> Songs live as verse / chorus / bridge sections — searchable, sortable, filterable by tag or readiness.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M421 38 L474 91 L191 374 L80 432 L139 321 Z"/></svg>
@@ -1531,15 +1540,15 @@
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path fill-rule="evenodd" d="M112 32 h176 l112 112 v336 H112 Z M160 248 h192 v26 H160 Z M160 312 h192 v26 H160 Z M160 376 h120 v26 H160 Z"/></svg>
-        <div><strong>PDFs for the stage and the music stand.</strong><span class="welcome-feature-desc"> Generate section-by-section lead sheets — one section per page, made for Bluetooth page-turner pedals — or a full-song print-friendly chart sized for phone, tablet, or paper.</span></div>
+        <div><strong>PDFs for the stage.</strong><span class="welcome-feature-desc"> One section per page for page-turner pedals, or a full print-friendly chart.</span></div>
       </div>
       <div class="welcome-feature">
         <svg class="svg-icon" viewBox="0 0 512 512" aria-hidden="true"><path d="M240 64 L384 192 L240 320 L384 448 M240 64 V448" stroke="currentColor" stroke-width="46" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <div><strong>Plays nicely with your reading apps.</strong><span class="welcome-feature-desc"> Section PDFs open in Apple Books on iPad and Files by Google on Android — both pair with Bluetooth page turners for hands-free performing.</span></div>
+        <div><strong>Made for reading apps.</strong><span class="welcome-feature-desc"> PDFs open in Apple Books and Files by Google — pair a page-turner pedal.</span></div>
       </div>
     </div>
-    <p class="welcome-use">Built for jam sessions, open mics, band rehearsals, and recording sessions — anywhere a lead sheet is needed.</p>
-    <p class="welcome-cta-label">Open a file you've already started, or begin a new one.</p>
+    <p class="welcome-use">Built for jam sessions, rehearsals, and the stage — anywhere a lead sheet is needed.</p>
+    <p class="welcome-cta-label">Open a file you've started, begin a new one — or keep it in Google Drive.</p>
     <div class="modal-actions" style="justify-content:center; margin-top:6px;">
       <button type="button" class="ghost small" id="welcomeStartNewBtn">Start new file</button>
       <button type="button" class="primary small" id="welcomeOpenBtn">Open existing file…</button>
@@ -1549,9 +1558,8 @@
          Connected: it collapses into two Drive file actions, matching the
          local row above. -->
     <div id="welcomeDriveSection" hidden>
-      <p class="welcome-cta-label" style="margin-top:14px;">— or keep your songbook in Google Drive —</p>
       <div class="modal-actions" id="welcomeDriveConnectRow" hidden style="justify-content:center; margin-top:6px;">
-        <button type="button" class="primary small" id="welcomeDriveConnectBtn">Connect Google Drive…</button>
+        <button type="button" class="primary small" id="welcomeDriveConnectBtn">Keep it in Google Drive…</button>
       </div>
       <div class="modal-actions" id="welcomeDrivePickRow" hidden style="justify-content:center; margin-top:6px;">
         <button type="button" class="ghost small" id="welcomeDriveNewBtn">New file in Drive…</button>
