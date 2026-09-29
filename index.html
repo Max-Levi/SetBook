@@ -1544,6 +1544,20 @@
       <button type="button" class="ghost small" id="welcomeStartNewBtn">Start new file</button>
       <button type="button" class="primary small" id="welcomeOpenBtn">Open existing file…</button>
     </div>
+    <!-- Google Drive entry point (hidden entirely when the credential
+         constants are empty). Not connected: a single Connect button.
+         Connected: it collapses into two Drive file actions, matching the
+         local row above. -->
+    <div id="welcomeDriveSection" hidden>
+      <p class="welcome-cta-label" style="margin-top:14px;">— or keep your songbook in Google Drive —</p>
+      <div class="modal-actions" id="welcomeDriveConnectRow" hidden style="justify-content:center; margin-top:6px;">
+        <button type="button" class="primary small" id="welcomeDriveConnectBtn">Connect Google Drive…</button>
+      </div>
+      <div class="modal-actions" id="welcomeDrivePickRow" hidden style="justify-content:center; margin-top:6px;">
+        <button type="button" class="ghost small" id="welcomeDriveNewBtn">New file in Drive…</button>
+        <button type="button" class="primary small" id="welcomeDriveOpenBtn">Open file in Drive…</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1762,6 +1776,11 @@
     <div class="modal-close-wrap"><button type="button" class="modal-close" id="driveSaveAsCloseBtn" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>Save this copy where?</h2>
     <p class="modal-sub" id="driveSaveAsSub"></p>
+    <!-- Editable file name for the Into Drive path (the local path asks
+         for a name in the browser's own save dialog). -->
+    <div class="drive-choose-newname" style="margin-bottom:14px;">
+      <input type="text" id="driveSaveAsName" aria-label="File name in Drive" placeholder="File name">
+    </div>
     <div class="modal-actions">
       <button type="button" class="ghost small" id="driveSaveAsLocalBtn">Local file…</button>
       <button type="button" class="primary small" id="driveSaveAsDriveBtn">Into Drive</button>
@@ -6576,6 +6595,14 @@ function promptDriveChoose(files, folderId, opts = {}){
       newNameInput.value = suggestedName;
       newRow.classList.add('selected');
       syncConnectBtn();
+    } else if (opts.preferNew){
+      // e.g. "New file in Drive…" from the welcome modal: the new-file row
+      // starts selected with the name field focused, even when the folder
+      // already holds other songbooks.
+      selection = { kind: 'new', name: '' };
+      newRow.classList.add('selected');
+      syncConnectBtn();
+      newNameInput.focus();
     } else if (!files.length){
       selection = { kind: 'new', name: '' };
       newRow.classList.add('selected');
@@ -6593,7 +6620,7 @@ function promptDriveChoose(files, folderId, opts = {}){
 
 // Connect flow: token → folder picker → chooser (existing songbook or a
 // named new one) → open/create through the shared link helper.
-async function connectDrive(){
+async function connectDrive(preferNew){
   if (driveConnecting || !driveConfigured()) return;
   driveConnecting = true;
   try{
@@ -6631,7 +6658,10 @@ async function connectDrive(){
     // after the open file — connect-to-Drive becomes the handoff from local.
     const files = await driveListJsonFiles(folderId);
     const hasLocalWork = (state.sectionGroups || []).length > 0;
-    const choice = await promptDriveChoose(files, folderId, { suggestUpload: hasLocalWork ? (currentFileName || 'My songbook') : null });
+    const choice = await promptDriveChoose(files, folderId, {
+      suggestUpload: hasLocalWork ? (currentFileName || 'My songbook') : null,
+      preferNew: preferNew || (!hasLocalWork && !files.length),
+    });
     if (!choice) return;
     if (choice.kind === 'new'){
       const meta = await driveCreateLibrary(folderId, choice.name);
@@ -6878,13 +6908,15 @@ function updateDriveStatus(){
   const stale = !!(driveLink && driveLink.authStale);
   const configured = driveConfigured();
   const badge = document.getElementById('driveBadge');
+  // True when cloud save is actually running: linked AND signed in. Drives
+  // the badge state and the welcome modal's Drive section alike.
+  const active = connected && !stale;
   // The badge is ALWAYS visible and two-state: green "Drive" (and a link
   // into Drive — folder preferred, else the file) while cloud save is
   // active; red "Cloud save disabled" when disconnected or when a saved
   // link is stale (needs re-authorization).
   if (badge){
     const label = document.getElementById('driveBadgeLabel');
-    const active = connected && !stale;
     badge.hidden = false;
     if (active){
       badge.classList.remove('off');
@@ -6915,6 +6947,18 @@ function updateDriveStatus(){
     if (el) el.hidden = !show;
     const delegate = document.querySelector(`[data-delegate="${id}"]`);
     if (delegate) delegate.hidden = !show;
+  }
+  // Welcome modal's Drive section: shown whenever credentials exist; its
+  // Connect row shows while disconnected (or stale), swapping to direct
+  // New/Open file actions once connected. Hidden entirely when the Drive
+  // constants are empty.
+  const section = document.getElementById('welcomeDriveSection');
+  if (section){
+    section.hidden = !configured;
+    const connectRow = document.getElementById('welcomeDriveConnectRow');
+    if (connectRow) connectRow.hidden = active;
+    const pickRow = document.getElementById('welcomeDrivePickRow');
+    if (pickRow) pickRow.hidden = !active;
   }
 }
 // Earlier name kept as an alias for any future callers.
@@ -7425,6 +7469,10 @@ async function saveAs(){
     const release = () => { driveConflictActive = false; };
     document.getElementById('driveSaveAsSub').textContent =
       `\u201c${currentFileName.replace(' · Drive','')}\u201d is open from Google Drive. Save this copy into the connected Drive folder, or as a local file?`;
+    // Editable Drive file name, prefilled with a sensible copy name (the
+    // .json extension is appended automatically if missing).
+    const nameInput = document.getElementById('driveSaveAsName');
+    nameInput.value = `${currentFileName.replace(/\.json$/i, '').replace(' · Drive', '')} copy`;
     document.getElementById('driveSaveAsDriveBtn').onclick = async () => {
       driveSaveAsModal.close();
       try{
@@ -7434,7 +7482,8 @@ async function saveAs(){
           if (!folderId){ release(); return; }
         }
         const baseName = currentFileName.replace(/\.json$/i, '').replace(' · Drive', '');
-        const meta = await driveCreateLibrary(folderId, `${baseName} copy`);
+        const chosen = nameInput.value.trim() || `${baseName} copy`;
+        const meta = await driveCreateLibrary(folderId, chosen);
         release();
         await linkDriveFile({ id: meta.id, name: meta.name, modifiedTime: meta.modifiedTime }, { created: true, folderId });
       } catch(err){
@@ -9757,6 +9806,22 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   document.getElementById('welcomeOpenBtn').addEventListener('click', () => {
     welcomeModal.classList.remove('open');
     openFile();
+  });
+  // Welcome modal's Drive entry: Connect runs the folder picker + songbook
+  // chooser (its new-file row pre-selected when asked); once connected the
+  // section swaps to two direct file actions. updateDriveStatus() shows or
+  // hides the whole section whenever the link state changes.
+  document.getElementById('welcomeDriveConnectBtn').addEventListener('click', () => {
+    welcomeModal.classList.remove('open');
+    connectDrive(false);
+  });
+  document.getElementById('welcomeDriveNewBtn').addEventListener('click', () => {
+    welcomeModal.classList.remove('open');
+    connectDrive(true);
+  });
+  document.getElementById('welcomeDriveOpenBtn').addEventListener('click', () => {
+    welcomeModal.classList.remove('open');
+    drivePickAndOpen();
   });
 
   /* ---- share / device-transfer help hub ----
