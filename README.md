@@ -47,8 +47,9 @@ menu hides the Drive items when they're empty). One-time setup:
 2. Create an **API key** and an **OAuth 2.0 Web client ID**. Add the
    hosting origin (e.g. `https://max-levi.github.io`) and
    `http://localhost` to the client's authorized JavaScript origins.
-3. Fill `DRIVE_CLIENT_ID` and `DRIVE_API_KEY` at the top of the script in
-   `index.html`.
+   Note the **project number** from the console home page.
+3. Fill `DRIVE_CLIENT_ID`, `DRIVE_API_KEY`, and `DRIVE_APP_ID` (the
+   project number) at the top of the script in `index.html`.
 
 Users sign in through Google's own picker; SetBook uses the per-file
 `drive.file` scope (non-sensitive — no OAuth verification process), sees
