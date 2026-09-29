@@ -71,7 +71,64 @@ const sandbox = {
     title: '',
     hidden: false
   },
-  localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+  // Map-backed localStorage so recovery-fallback and prefs round-trip.
+  localStorage: (() => {
+    const store = new Map();
+    return {
+      getItem: (k) => (store.has(k) ? store.get(k) : null),
+      setItem: (k, v) => store.set(String(k), String(v)),
+      removeItem: (k) => store.delete(k),
+      clear: () => store.clear(),
+    };
+  })(),
+  // Minimal but real IndexedDB: same API surface the app uses (open with
+  // onupgradeneeded, objectStore get/put/delete in transactions), resolved
+  // via microtasks so the async recovery-store tests can await outcomes.
+  indexedDB: (() => {
+    const dbs = new Map();
+    const tick = () => Promise.resolve();
+    return {
+      open(name, version){
+        const req = { result: null, onupgradeneeded: null, onsuccess: null, onerror: null };
+        tick().then(() => {
+          if (!dbs.has(name)) dbs.set(name, { stores: new Map() });
+          const db = dbs.get(name);
+          req.result = {
+            createObjectStore(storeName){ if (!db.stores.has(storeName)) db.stores.set(storeName, new Map()); return db.stores.get(storeName); },
+            transaction(storeName, _mode){
+              const store = (() => {
+                if (!db.stores.has(storeName)) db.stores.set(storeName, new Map());
+                return db.stores.get(storeName);
+              })();
+              const ops = [];
+              const tx = {
+                objectStore(){
+                  return {
+                    get(key){ const r = { result: undefined, onsuccess: null, onerror: null }; ops.push(() => tick().then(() => { r.result = store.has(String(key)) ? store.get(String(key)) : undefined; r.onsuccess && r.onsuccess(); })); return r; },
+                    put(val, key){ const r = { result: undefined, onsuccess: null, onerror: null }; ops.push(() => tick().then(() => { store.set(String(key), val); r.onsuccess && r.onsuccess(); })); return r; },
+                    delete(key){ const r = { result: undefined, onsuccess: null, onerror: null }; ops.push(() => tick().then(() => { store.delete(String(key)); r.onsuccess && r.onsuccess(); })); return r; },
+                  };
+                },
+                oncomplete: null,
+              };
+              // Transactions self-run: the app attaches its op handlers
+              // synchronously, then this microtask chain executes the ops
+              // and fires oncomplete — mirroring real IndexedDB ordering.
+              queueMicrotask(() => {
+                ops.reduce((p, op) => p.then(op), tick())
+                  .then(() => { tx.oncomplete && tx.oncomplete(); });
+              });
+              return tx;
+            },
+            close(){},
+          };
+          if (db.stores.size === 0 && req.onupgradeneeded) req.onupgradeneeded({ result: req.result });
+          req.onsuccess && req.onsuccess();
+        });
+        return req;
+      },
+    };
+  })(),
   navigator: { userAgent: 'node-regression' },
   location: { reload() {}, href: '' },
   matchMedia: () => ({ matches: false, addEventListener() {}, addListener() {} }),
@@ -125,7 +182,9 @@ globalThis.__sb = {
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
   deglueChordLyricLines,
   transposeSymbolsValue, transposeChordToken, stepTransposeKey, groupLinesForDisplay,
-  TRANSPOSE_KEYS, TRANSPOSE_KEY_LABELS
+  TRANSPOSE_KEYS, TRANSPOSE_KEY_LABELS,
+  readRecoverySnapshot, writeRecoverySnapshot, clearRecoverySnapshot, scheduleRecoverySave,
+  parseRecoverySnapshot, driveRemoteChanged, ensurePdfLib, driveConfigured
 };
 `, sandbox, { filename: 'shim.js' });
 const sb = sandbox.__sb;
@@ -525,7 +584,88 @@ suite('deglue');
     'got\n' + js.map(l => '  ' + JSON.stringify(l)).join('\n'));
 }
 
+/* ================= recovery store: IDB + fallback + migration ================= */
+suite('recovery-store');
+const recoveryStoreChecks = (async () => {
+  suite('recovery-store');
+    const snap = { savedAt: 1720000000000, state: sb.defaultState() };
+
+    // 1) write → read via the async API
+    const state = sb.state; // the app serializes live `state`
+    sb.state = snap.state;
+    sb.writeRecoverySnapshot();
+    sb.state = state;
+    await new Promise((r) => setTimeout(r, 5)); // let the debounce-less write land
+    const reread = await sb.readRecoverySnapshot();
+    // writeRecoverySnapshot stamps savedAt itself; assert content round-trips
+    // and a sane fresh timestamp comes back.
+    suite('recovery-store');
+    check('IDB write→read round-trip', !!reread && typeof reread.savedAt === 'number' &&
+      JSON.stringify(reread.state) === JSON.stringify(snap.state),
+      JSON.stringify(reread && reread.savedAt));
+
+    // 2) corrupt IDB record is dropped and reads null
+    sb.clearRecoverySnapshot();
+    await new Promise((r) => setTimeout(r, 5));
+    const afterClear = await sb.readRecoverySnapshot();
+    suite('recovery-store');
+    check('clear removes the IDB snapshot', afterClear === null);
+
+    // 3) legacy localStorage entry migrates into IDB
+    const legacy = { savedAt: 1710000000000, state: sb.defaultState() };
+    sandbox.localStorage.setItem('setbook-recovery-v1', JSON.stringify(legacy));
+    const migrated = await sb.readRecoverySnapshot();
+    suite('recovery-store');
+    check('legacy localStorage snapshot migrates to IDB', !!migrated && migrated.savedAt === legacy.savedAt);
+    check('legacy entry removed after migration', sandbox.localStorage.getItem('setbook-recovery-v1') === null);
+    const viaIdb = await sb.readRecoverySnapshot();
+    suite('recovery-store');
+    check('migrated snapshot reads from IDB afterwards', !!viaIdb && viaIdb.savedAt === legacy.savedAt);
+    sb.clearRecoverySnapshot();
+    await new Promise((r) => setTimeout(r, 5));
+
+    // 4) malformed payloads never restore
+    check('parseRecoverySnapshot rejects junk', sb.parseRecoverySnapshot('not json') === null);
+    check('parseRecoverySnapshot rejects missing arrays', sb.parseRecoverySnapshot(JSON.stringify({ savedAt: 1, state: {} })) === null);
+    sandbox.localStorage.setItem('setbook-recovery-v1', 'garbage');
+    const junk = await sb.readRecoverySnapshot();
+    suite('recovery-store');
+    check('malformed legacy entry is dropped, not restored', junk === null);
+    sandbox.localStorage.removeItem('setbook-recovery-v1');
+  })();
+
+/* ================= lazy jsPDF loader guard ================= */
+const lazyPdfChecks = (async () => {
+  suite('lazy-pdf');
+  // In the sandbox there is no document.head: ensurePdfLib must return a
+  // promise that REJECTS with the friendly error (not throw synchronously,
+  // not hang) — exactly what a blocked CDN produces in a real browser.
+  const p = typeof sb.ensurePdfLib === 'function' ? sb.ensurePdfLib() : null;
+  check('ensurePdfLib exists and returns a promise', !!p && typeof p.then === 'function');
+  try {
+    await p;
+    check('ensurePdfLib rejects gracefully without a DOM loader', false, 'unexpectedly resolved');
+  } catch (err) {
+    // cross-realm Error: match on the message, not the prototype
+    suite('lazy-pdf');
+    check('ensurePdfLib rejects gracefully without a DOM loader', err && /did not load/.test(err.message), err && err.message);
+  }
+})();
+
+/* ================= Drive conflict decision (pure) ================= */
+const driveConflictChecks = (async () => {
+  suite('drive-conflict');
+  check('remote unchanged → no conflict', sb.driveRemoteChanged('2026-09-29T00:00:00Z', '2026-09-29T00:00:00Z') === false);
+  check('remote changed → conflict', sb.driveRemoteChanged('2026-09-29T00:00:00Z', '2026-09-29T01:00:00Z') === true);
+  check('unknown baseline → adopt silently, no conflict', sb.driveRemoteChanged(null, '2026-09-29T01:00:00Z') === false);
+  check('missing remote time → no conflict', sb.driveRemoteChanged('2026-09-29T00:00:00Z', undefined) === false);
+  // driveConfigured depends on the (possibly user-filled) credential
+  // constants — assert only its contract, not the credential state.
+  check('driveConfigured returns a boolean', typeof sb.driveConfigured() === 'boolean');
+})();
+
 /* ================= summary ================= */
+Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks]).then(() => {
 const failed = results.filter(r => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed.`);
 if (failed.length) {
@@ -533,8 +673,11 @@ if (failed.length) {
   failed.forEach(f => console.log('  ✗ ' + f.name + (f.detail ? ' — ' + f.detail : '')));
   process.exit(1);
 }
+runExternalCorpus();
+});
 
 /* ================= optional: external real-songbook pass (read-only) ================= */
+function runExternalCorpus(){
 const externalPath = process.argv[2];
 if (externalPath) {
   console.log(`\nExternal corpus: ${externalPath} (read-only)`);
@@ -571,4 +714,5 @@ if (externalPath) {
     process.exit(1);
   }
   console.log(`PASS  round-trip: ${checked}/${checked} sections across ${songs} songs survive text conversion losslessly.`);
+}
 }

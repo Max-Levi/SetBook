@@ -14,11 +14,16 @@ No build step, no server — it's one self-contained HTML file.
 ## What's here
 
 - `index.html` — the SetBook app.
+- `sw.js` — the offline service worker (PWA). Network-first for the app
+  shell, cache-first for the CDN assets (jsPDF, fonts). Bump `CACHE_VERSION`
+  when the pre-cached asset list changes.
+- `manifest.webmanifest`, `icons/` — PWA manifest and icons (placeholders;
+  regenerate with `node tools/make-icons.js`).
 - `tests/regression-test.js` — dependency-free regression tests that run
   the app's real script in Node (no browser needed):
 
   ```
-  node tests/regression-test.js                                # 45 fixture checks
+  node tests/regression-test.js                                # fixture checks
   node tests/regression-test.js /path/to/songbook.json        # + read-only
                                                                # round-trip pass
                                                                # over any library
@@ -31,6 +36,36 @@ No build step, no server — it's one self-contained HTML file.
   IndexedDB, GitHub, S3, generic REST) behind one adapter interface.
   See `storage/STORAGE_SPIKE_README.md`. `storage/spike-demo.html` is a
   live demo page.
+
+## Google Drive cloud save (setup)
+
+The Drive autosave is wired but disabled until credentials exist (the File
+menu hides the Drive items when they're empty). One-time setup:
+
+1. Create a Google Cloud project; enable the **Drive API** and the
+   **Google Picker API**.
+2. Create an **API key** and an **OAuth 2.0 Web client ID**. Add the
+   hosting origin (e.g. `https://max-levi.github.io`) and
+   `http://localhost` to the client's authorized JavaScript origins.
+   Note the **project number** from the console home page.
+3. Fill `DRIVE_CLIENT_ID`, `DRIVE_API_KEY`, and `DRIVE_APP_ID` (the
+   project number) at the top of the script in `index.html`.
+
+Users connect through Google's own pickers: they choose a **folder**
+(Connect) and then a **songbook** in it (existing `.json` or a named new
+one), or open any accessible `.json` via **Open from Google Drive…**;
+SetBook uses the per-file
+`drive.file` scope (non-sensitive — no OAuth verification process), sees
+only the file it creates in the folder the user picked, and keeps access
+tokens in memory only. Uploads are throttled: 15 s after the last edit,
+capped at 60 s since the first unsynced change, plus a flush when the tab
+is hidden or closed (`DRIVE_SAVE_DEBOUNCE_MS` / `DRIVE_SAVE_MAX_WAIT_MS`).
+
+While your Google Cloud OAuth consent screen is in **Testing** mode, only
+explicitly added **Test users** can sign in — add your account under
+Audience → Test users (no verification needed; strangers hit the
+verification wall). Testing-mode consent also expires about every 7 days,
+so Google re-asks periodically.
 
 ## Updating the hosted app
 
