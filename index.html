@@ -502,6 +502,17 @@
   .pdf-download-link:hover{ background: var(--gold-tint-strong); }
   button.pdf-download-link{ display:block; width:100%; cursor:pointer; font-family:inherit; }
   button.pdf-download-link[hidden]{ display:none; }
+  /* Drive connected badge: a compact always-visible status chip in the
+     header, shown while a Drive link is active (any viewport — on phones
+     the save text is hidden, so this is the only persistent indicator). */
+  .drive-badge{
+    display:inline-flex; align-items:center; gap:5px; flex-shrink:0;
+    font-size:12px; font-weight:600; letter-spacing:.2px;
+    color:var(--success); border:1px solid var(--success); border-radius:999px;
+    padding:3px 10px 3px 8px; background: color-mix(in srgb, var(--success) 10%, transparent);
+    user-select:none;
+  }
+  .drive-badge svg{ width:14px; height:14px; }
   /* Drive connect chooser: existing songbooks in the picked folder + a
      new-file row with its own name field. */
   .drive-choose-list{
@@ -1274,6 +1285,13 @@
       <span class="save-dot" id="saveDot"></span>
       <span class="save-text" id="saveText">not saved to disk</span>
     </div>
+    <!-- Drive connected badge: lives outside .file-status so it also shows
+         on phones, where the save text is hidden. Hidden unless a Drive
+         link is active (see updateDriveStatus). -->
+    <span class="drive-badge" id="driveBadge" hidden title="Autosaving to Google Drive">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 1 1 .36-8.99A6 6 0 0 1 19 11.5 3.75 3.75 0 0 1 18.25 18H7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
+      Drive
+    </span>
   </div>
   <div class="actions">
     <div class="menu-wrap">
@@ -1289,7 +1307,7 @@
         <button class="menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="menu-item-hint"></span></button>
         <button class="menu-item" id="btnCloseFile" hidden>Close current file</button>
         <div class="menu-sep"></div>
-        <button class="menu-item" id="btnDriveConnect">Connect Google Drive…</button>
+        <button class="menu-item" id="btnDriveConnect" hidden>Connect Google Drive…</button>
         <button class="menu-item" id="btnDriveOpen" hidden>Open from Google Drive…</button>
         <button class="menu-item" id="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
         <div class="menu-sep"></div>
@@ -1322,7 +1340,7 @@
         <button class="menu-item" data-delegate="btnSnapshots">Snapshots…</button>
         <button class="menu-item" data-delegate="btnSetFolder">Set folder…</button>
         <button class="menu-item" data-delegate="btnCloseFile" hidden>Close current file</button>
-        <button class="menu-item" data-delegate="btnDriveConnect">Connect Google Drive…</button>
+        <button class="menu-item" data-delegate="btnDriveConnect" hidden>Connect Google Drive…</button>
         <button class="menu-item" data-delegate="btnDriveOpen" hidden>Open from Google Drive…</button>
         <button class="menu-item" data-delegate="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
         <button class="menu-item" data-delegate="btnConfigureLayout">Configuration…</button>
@@ -1835,7 +1853,7 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links the same file automatically and re-authorizes silently. Opening a local file while a Drive link is active (or saving one with Save as…) offers a handoff: <strong>Sync to Drive</strong> uploads the local work as a new songbook in the linked folder and continues there, or <strong>Keep it local</strong> pauses Drive syncing (nothing is overwritten; Connect resumes). Connecting to Drive with local work open pre-selects uploading that work as a new songbook named after the open file. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
+            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links the same file automatically and re-authorizes silently. Opening a local file while a Drive link is active (or saving one with Save as…) offers a handoff: <strong>Sync to Drive</strong> uploads the local work as a new songbook in the linked folder and continues there, or <strong>Keep it local</strong> pauses Drive syncing (nothing is overwritten; Connect resumes). Connecting to Drive with local work open pre-selects uploading that work as a new songbook named after the open file. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. While connected, the header shows a green <strong>Drive</strong> badge (visible on phones too, where the save text is hidden); <strong>Connect Google Drive…</strong> appears only when disconnected and <strong>Disconnect Google Drive</strong> only while connected. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's IndexedDB (with a localStorage fallback and one-time migration from the pre-IndexedDB localStorage store, which had a ~5MB quota large songbooks could silently hit). If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered. A persisted Drive link never auto-applies the remote copy over offered or restored recovery work — the remote copy is only linked on a boot where no recovery offer appeared.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
             <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
@@ -6721,22 +6739,30 @@ async function disconnectDrive(){
 }
 
 function driveConfigured(){ return !!(DRIVE_CLIENT_ID && DRIVE_API_KEY); }
-function updateDriveMenuItems(){
-  const hide = !driveConfigured() || !!driveLink;
-  const connect = document.getElementById('btnDriveConnect');
-  const openItem = document.getElementById('btnDriveOpen');
-  const disconnect = document.getElementById('btnDriveDisconnect');
-  if (connect) connect.hidden = hide;
-  if (openItem) openItem.hidden = !driveConfigured();
-  if (disconnect) disconnect.hidden = !driveLink;
-  // the phone Menu mirrors the desktop items' visibility
-  const delegateConnect = document.querySelector('[data-delegate="btnDriveConnect"]');
-  const delegateOpen = document.querySelector('[data-delegate="btnDriveOpen"]');
-  const delegateDisconnect = document.querySelector('[data-delegate="btnDriveDisconnect"]');
-  if (delegateConnect) delegateConnect.hidden = hide;
-  if (delegateOpen) delegateOpen.hidden = !driveConfigured();
-  if (delegateDisconnect) delegateDisconnect.hidden = !driveLink;
+// Single source of truth for every Drive UI signal: the header badge and
+// the visibility of Connect / Open / Disconnect in both menus. Connect shows
+// only when credentials exist AND no link is active; Disconnect only while
+// connected; Open whenever credentials exist. Called after every change to
+// the link or credential state.
+function updateDriveStatus(){
+  const connected = !!driveLink;
+  const configured = driveConfigured();
+  const badge = document.getElementById('driveBadge');
+  if (badge) badge.hidden = !connected;
+  const map = [
+    ['btnDriveConnect', configured && !connected],
+    ['btnDriveOpen', configured],
+    ['btnDriveDisconnect', connected],
+  ];
+  for (const [id, show] of map){
+    const el = document.getElementById(id);
+    if (el) el.hidden = !show;
+    const delegate = document.querySelector(`[data-delegate="${id}"]`);
+    if (delegate) delegate.hidden = !show;
+  }
 }
+// Earlier name kept as an alias for any future callers.
+function updateDriveMenuItems(){ updateDriveStatus(); }
 document.getElementById('btnDriveOpen').addEventListener('click', drivePickAndOpen);
 document.getElementById('btnDriveConnect').addEventListener('click', connectDrive);
 // Upload-cadence safety net: if the tab is hidden or closing with unsynced
@@ -7244,6 +7270,7 @@ async function saveAs(){
     driveFirstPendingAt = 0;
     lastDriveSavedJson = null;
     persistDriveLink();
+    updateFileLabel(); // refresh badge + menu visibility before the picker opens
     showToast('Drive syncing paused — saving a local copy. Reconnect to resume.');
   }
   try{
