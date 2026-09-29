@@ -6633,30 +6633,6 @@ async function connectDrive(preferNew){
   driveConnecting = true;
   try{
     await requestDriveToken(true);
-    if (driveLink && driveLink.authStale){
-      // Resuming a saved link after re-auth: no pickers, straight to the
-      // same folder and file the user already chose.
-      const link = driveLink;
-      const text = await driveLoadLibrary(link.fileId);
-      const parsed = JSON.parse(text);
-      assertParsedState(parsed);
-      if ((state.sectionGroups || []).length) takeSnapshot('Before reopening ' + link.fileName + ' (Drive)');
-      loadParsedState(parsed);
-      takeSnapshot('Opened ' + link.fileName + ' (Drive)');
-      const head = await driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } });
-      link.remoteModifiedTime = head.ok ? (await head.json()).modifiedTime : link.remoteModifiedTime;
-      delete link.authStale;
-      currentFileName = `${link.fileName} · Drive`;
-      driveDirty = false;
-      driveFirstPendingAt = 0;
-      lastDriveSavedJson = null;
-      persistDriveLink();
-      updateFileLabel();
-      updateSaveStatus('saved');
-      renderAll();
-      showToast(`Reconnected to ${link.fileName} in Google Drive.`);
-      return;
-    }
     const folderId = await pickDriveFolder();
     if (!folderId) return;
     // Which songbook in this folder? The chooser lists every .json in it
@@ -6927,23 +6903,15 @@ function driveConfigured(){ return !!(DRIVE_CLIENT_ID && DRIVE_API_KEY); }
 // the link or credential state.
 function updateDriveStatus(){
   const connected = !!driveLink;
-  // A link whose sign-in went stale (expired consent, blocked popup) still
-  // counts as linked for Disconnect, but ALSO shows Connect so the user can
-  // sign in again; the badge hides because nothing is autosaving yet.
-  const stale = !!(driveLink && driveLink.authStale);
   const configured = driveConfigured();
   const badge = document.getElementById('driveBadge');
-  // True when cloud save is actually running: linked AND signed in. Drives
-  // the badge state and the welcome modal's Drive section alike.
-  const active = connected && !stale;
   // The badge is ALWAYS visible and two-state: green "Drive" (and a link
   // into Drive — folder preferred, else the file) while cloud save is
-  // active; red "Cloud save disabled" when disconnected or when a saved
-  // link is stale (needs re-authorization).
+  // active; red "Cloud save disabled" when not connected.
   if (badge){
     const label = document.getElementById('driveBadgeLabel');
     badge.hidden = false;
-    if (active){
+    if (connected){
       badge.classList.remove('off');
       // Prefer the linked folder; fall back to the songbook file itself
       // (e.g. opened via the file Picker without a folder). Opens in a
@@ -6959,13 +6927,13 @@ function updateDriveStatus(){
       badge.removeAttribute('href');
       badge.removeAttribute('target');
       if (label) label.textContent = 'Cloud save disabled';
-      badge.title = stale ? 'Drive link needs sign-in — File → Connect Google Drive…' : 'Google Drive is not connected — File → Connect Google Drive…';
+      badge.title = 'Google Drive is not connected — File → Connect Google Drive…';
     }
   }
   const map = [
-    ['btnDriveConnect', configured && (!connected || stale)],
+    ['btnDriveConnect', configured && !connected],
     ['btnDriveOpen', configured],
-    ['btnDriveDisconnect', connected && !stale],
+    ['btnDriveDisconnect', connected],
   ];
   for (const [id, show] of map){
     const el = document.getElementById(id);
@@ -6974,16 +6942,16 @@ function updateDriveStatus(){
     if (delegate) delegate.hidden = !show;
   }
   // Welcome modal's Drive section: shown whenever credentials exist; its
-  // Connect row shows while disconnected (or stale), swapping to direct
-  // New/Open file actions once connected. Hidden entirely when the Drive
-  // constants are empty.
+  // Connect row shows while disconnected, swapping to direct New/Open file
+  // actions once connected. Hidden entirely when the Drive constants are
+  // empty.
   const section = document.getElementById('welcomeDriveSection');
   if (section){
     section.hidden = !configured;
     const connectRow = document.getElementById('welcomeDriveConnectRow');
-    if (connectRow) connectRow.hidden = active;
+    if (connectRow) connectRow.hidden = connected;
     const pickRow = document.getElementById('welcomeDrivePickRow');
-    if (pickRow) pickRow.hidden = !active;
+    if (pickRow) pickRow.hidden = !connected;
   }
 }
 // Earlier name kept as an alias for any future callers.
@@ -9798,81 +9766,66 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   }
   // Re-link a persisted Drive link: the saved file/folder ids survive a
   // reload. Runs BEFORE the welcome modal opens, so the user's first
-  // choices happen in the already-connected state. A failed silent
-  // sign-in (expired consent, blocked popup) must NEVER drop the link —
-  // the app surfaces a stale-connected state instead (badge red, Connect
-  // shown to re-authorize, Disconnect still shown), and Connect resumes
-  // the saved link without re-picking folder or file. 404 means the file
-  // was really deleted from Drive: only then is the link cleared.
+  // choices happen in the already-connected state — connected ALWAYS
+  // means a Drive file is open (the file-model invariant). A failed
+  // silent sign-in, a missing file, or a dead network simply severs the
+  // link (the persisted record is cleared) and the welcome modal offers
+  // Connect again — the user re-picks folder and file; there is no
+  // connected-but-fileless limbo to resume into.
   // When a recovery offer appears (the usual returning-user case — the
   // rolling crash snapshot is typically newer than the last Drive
-  // upload), the remote copy is NOT applied over the offer; the re-link
-  // establishes the LINK, then waits for the welcome decision: restore →
-  // keep the link for later; Start fresh / Open → apply the remote copy.
+  // upload), the remote copy is NOT applied over the offer: restore
+  // keeps the restored local work (which autosaves back to Drive via
+  // the established link); Start fresh / Open applies the remote copy.
   async function reconnectDriveAtBoot(link){
-    const applyRemote = async () => {
+    const sever = (msg) => {
+      driveLink = null;
+      persistDriveLink();
+      updateFileLabel();
+      if (msg) showToast(msg);
+    };
+    try{
+      const head = await withSaveTimeout(driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } }), 8000);
+      if (head === undefined){ sever('Could not reach Google Drive — connect again from the welcome screen.'); return 'timeout'; }
+      if (!head.ok){
+        if (head.status === 404) sever(`\u201c${link.fileName}\u201d is no longer in Drive — the link was cleared.`);
+        else sever('Could not reach Google Drive — connect again from the welcome screen.');
+        return head.status === 404 ? 'cleared' : 'unreachable';
+      }
+      const remoteModifiedTime = (await head.json()).modifiedTime;
+      if (recoveryRestoredThisBoot) return 'restored'; // restore won the race
+      // Establish the link; the remote CONTENT waits if a recovery offer
+      // is up (restore keeps the newer local work, autosaving to Drive).
+      driveLink = { ...link, remoteModifiedTime };
+      const bannerUp = () => !!document.querySelector('.recovery-banner');
+      if (bannerUp()){
+        updateFileLabel();
+        await new Promise((resolve) => {
+          const check = setInterval(() => {
+            if (!bannerUp()){ clearInterval(check); resolve(); }
+          }, 250);
+        });
+        if (recoveryRestoredThisBoot) return 'restored'; // user chose restore
+      }
       const text = await driveLoadLibrary(link.fileId);
       const parsed = JSON.parse(text);
       assertParsedState(parsed);
-      const head = await driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } });
-      const remoteModifiedTime = head.ok ? (await head.json()).modifiedTime : link.remoteModifiedTime;
-      driveLink = { ...link, remoteModifiedTime };
       currentFileName = `${link.fileName} · Drive`;
-      driveDirty = false;      // remote copy is loaded; next edit starts the cadence
+      driveDirty = false;
       driveFirstPendingAt = 0;
       lastDriveSavedJson = null;
       loadParsedState(parsed);
       updateFileLabel();
       updateSaveStatus('saved');
       renderAll();
-      showToast(`Re-linked to ${link.fileName} in Google Drive.`);
-    };
-    const markStale = () => {
-      driveLink = { ...link, authStale: true };
-      currentFileName = `${link.fileName} · Drive`;
-      updateFileLabel();
-      updateSaveStatus('error');
-      showToast('Drive link needs sign-in — click Connect Google Drive to continue.');
-    };
-    const bannerUp = () => !!document.querySelector('.recovery-banner');
-    try{
-      // Probe (validates reachability + sign-in); never let a dead
-      // network hold the welcome modal hostage.
-      const head = await withSaveTimeout(driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } }), 8000);
-      if (head === undefined) return 'timeout';
-      if (!head.ok && head.status !== 401 && head.status !== 403){
-        const e = new Error('drive ' + head.status);
-        e.driveStatus = head.status;
-        throw e;
-      }
-      if (recoveryRestoredThisBoot) return 'restored'; // restored work wins; keep the saved link untouched
-      // Establish the link first so the welcome UI reflects it; with a
-      // recovery offer up, the REMOTE CONTENT waits for the decision.
-      driveLink = { ...link, remoteModifiedTime: head.ok ? (await head.clone().json()).modifiedTime : link.remoteModifiedTime };
-      updateFileLabel();
-      if (bannerUp()){
-        await new Promise((resolve) => {
-          const check = setInterval(() => {
-            if (!bannerUp()){ clearInterval(check); resolve(); }
-          }, 250);
-        });
-        if (recoveryRestoredThisBoot) return 'restored';  // user chose restore
-      }
-      if (head.ok) await applyRemote();
-      else markStale();
+      showToast(`Reconnected to \u201c${link.fileName}\u201d in Google Drive.`);
       return 'linked';
     } catch(err){
-      // Only a real 404 clears the link; anything else (auth, network)
-      // marks it stale so Connect can resume it.
-      const status = err && err.driveStatus;
-      if (status === 404){
-        driveLink = null;
-        persistDriveLink();
-        showToast(`\u201c${link.fileName}\u201d is no longer in Drive — the link was cleared.`);
-        return 'cleared';
-      }
-      markStale();
-      return 'stale';
+      // Any failure (auth expired, network, unparsable remote) severs the
+      // link: connected always implies a file is open, so there is no
+      // connected-but-fileless state to preserve.
+      sever('Drive reconnect failed — connect again from the welcome screen.');
+      return 'severed';
     }
   }
   document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
