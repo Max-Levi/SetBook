@@ -1785,7 +1785,7 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a single <code>setbook.json</code> in a Drive folder you pick (via Google's own picker, in folder-select mode). Every change autosaves to that file exactly like the local-file link — the header shows "saved to Drive · <em>age</em>". If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links automatically and re-authorizes silently. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
+            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a single <code>setbook.json</code> in a Drive folder you pick (via Google's own picker, in folder-select mode). Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links automatically and re-authorizes silently. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's IndexedDB (with a localStorage fallback and one-time migration from the pre-IndexedDB localStorage store, which had a ~5MB quota large songbooks could silently hit). If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered. A persisted Drive link never auto-applies the remote copy over offered or restored recovery work — the remote copy is only linked on a boot where no recovery offer appeared.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
             <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
@@ -5995,11 +5995,16 @@ function scheduleSave(){
   // Every change is written to the linked local file (debounced). The
   // recovery snapshot above is the crash-safety net.
   if (driveLink){
-    // Cloud link: same debounce, Drive upload instead of the writable.
+    // Cloud link: same recovery net, but uploads are throttled (see
+    // DRIVE_SAVE_DEBOUNCE_MS) so editing doesn't re-upload the library
+    // on every change.
+    driveDirty = true;
+    if (!driveFirstPendingAt) driveFirstPendingAt = Date.now();
     updateSaveStatus('pending');
     fileSaveFailed = false;
     if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(doSave, 500);
+    const waited = Date.now() - driveFirstPendingAt;
+    saveTimer = setTimeout(doSave, waited >= DRIVE_SAVE_MAX_WAIT_MS ? 0 : DRIVE_SAVE_DEBOUNCE_MS);
     return;
   }
   if (!(supportsFsApi && fileHandle)){ updateSaveStatus('nofile'); return; }
@@ -6013,9 +6018,20 @@ let fileSaveFailed = false;
 async function doSave(){
   if (driveLink){
     try{
-      updateSaveStatus('saving');
       stampSectionDisplayNames();
+      const body = driveFileBody();
+      if (!driveDirty || body === lastDriveSavedJson){
+        // Nothing new to upload (edits were undone, or a flush raced us).
+        driveDirty = false;
+        driveFirstPendingAt = 0;
+        updateSaveStatus('saved');
+        return;
+      }
+      updateSaveStatus('saving');
       await driveSaveLibrary();
+      lastDriveSavedJson = driveFileBody();
+      driveDirty = false;
+      driveFirstPendingAt = 0;
       fileSaveFailed = false;
       updateSaveStatus('saved');
     } catch(err){
@@ -6150,9 +6166,16 @@ async function relinkLastFile(){
 // origins must include the site hosting SetBook (e.g. https://max-levi.github.io)
 // plus http://localhost for local testing. Leave empty to hide the
 // Drive menu items.
-const DRIVE_CLIENT_ID = '';   // e.g. '1234567890-abc123.apps.googleusercontent.com'
-const DRIVE_API_KEY = '';     // e.g. 'AIza…'
-const DRIVE_APP_ID = '';      // Cloud project NUMBER (console home page), for the Picker
+const DRIVE_CLIENT_ID = '';
+const DRIVE_API_KEY = '';
+const DRIVE_APP_ID = ''; // Cloud project NUMBER (console home page), for the Picker
+// Upload cadence: Drive saves are throttled so continuous editing doesn't
+// stream the whole library to Google on every keystroke burst. A save
+// uploads 15s after the last change, and never waits more than 60s total;
+// pending work is flushed when the tab is hidden or closed (and the
+// crash-recovery snapshot holds the newest state in every case).
+const DRIVE_SAVE_DEBOUNCE_MS = 15000;
+const DRIVE_SAVE_MAX_WAIT_MS = 60000;
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_LIBRARY_NAME = 'setbook.json';
 
@@ -6162,6 +6185,9 @@ let driveTokenExpiry = 0;      // ms epoch
 let driveTokenClient = null;
 let driveConnecting = false;
 let driveConflictActive = false;
+let driveFirstPendingAt = 0;   // when the oldest unsynced change happened
+let driveDirty = false;        // unsynced changes since the last upload
+let lastDriveSavedJson = null; // last payload uploaded (skips no-op writes)
 const driveConflictModal = wireModal({ overlayId: 'driveConflictModalOverlay' });
 
 // Load an external script once; resolves on load, rejects on error.
@@ -6348,6 +6374,9 @@ async function connectDrive(){
     fileHandle = null; // cloud link replaces any local-file link
     driveLink = { folderId, folderName: '', fileId: file.id, fileName: file.name, remoteModifiedTime: file.modifiedTime };
     currentFileName = `${file.name} · Drive`;
+    lastDriveSavedJson = driveFileBody(); // memory now matches the remote copy
+    driveDirty = false;
+    driveFirstPendingAt = 0;
     persistDriveLink();
     updateFileLabel();
     updateSaveStatus('saved');
@@ -6369,6 +6398,9 @@ async function disconnectDrive(){
   driveLink = null;
   driveAccessToken = null;
   driveTokenExpiry = 0;
+  driveDirty = false;
+  driveFirstPendingAt = 0;
+  lastDriveSavedJson = null;
   persistDriveLink();
   currentFileName = null;
   updateFileLabel();
@@ -6390,6 +6422,16 @@ function updateDriveMenuItems(){
   if (delegateDisconnect) delegateDisconnect.hidden = !driveLink;
 }
 document.getElementById('btnDriveConnect').addEventListener('click', connectDrive);
+// Upload-cadence safety net: if the tab is hidden or closing with unsynced
+// Drive changes, flush them now (skipped mid-conflict — the user is choosing
+// a side — and on failure the next save retries as usual).
+function flushDrivePendingSave(){
+  if (!driveLink || !driveDirty || driveConflictActive) return;
+  if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; }
+  doSave();
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushDrivePendingSave(); });
+window.addEventListener('pagehide', flushDrivePendingSave);
 document.getElementById('btnDriveDisconnect').addEventListener('click', () => {
   showConfirmPopover(document.getElementById('btnDriveDisconnect'),
     'Disconnect Google Drive? Your work is saved to Drive one last time first; the folder and its setbook.json stay where they are.',
@@ -6465,6 +6507,9 @@ function showDriveConflict(remoteModifiedTime){
       assertParsedState(parsed);
       takeSnapshot('Before reloading from Drive');
       loadParsedState(parsed);
+      lastDriveSavedJson = null; // memory now mirrors the remote copy
+      driveDirty = false;
+      driveFirstPendingAt = 0;
       const head = await driveApi('GET', `drive/v3/files/${driveLink.fileId}`, { params: { fields: 'modifiedTime' } });
       if (head.ok){ driveLink.remoteModifiedTime = (await head.json()).modifiedTime; }
       updateSaveStatus('saved');
@@ -6981,6 +7026,9 @@ function closeCurrentFile(){
     driveLink = null;
     driveAccessToken = null;
     driveTokenExpiry = 0;
+    driveDirty = false;
+    driveFirstPendingAt = 0;
+    lastDriveSavedJson = null;
     persistDriveLink();
     fileHandle = null;
     currentFileName = null;
@@ -8469,6 +8517,9 @@ function resetToNewFile(){
   driveLink = null;
   driveAccessToken = null;
   driveTokenExpiry = 0;
+  driveDirty = false;
+  driveFirstPendingAt = 0;
+  lastDriveSavedJson = null;
   persistDriveLink();
   currentFileName = null;
   persistFileHandle();
@@ -9119,6 +9170,9 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
       const remoteModifiedTime = head.ok ? (await head.json()).modifiedTime : link.remoteModifiedTime;
       driveLink = { ...link, remoteModifiedTime };
       currentFileName = `${link.fileName} · Drive`;
+      driveDirty = false;      // remote copy is loaded; next edit starts the cadence
+      driveFirstPendingAt = 0;
+      lastDriveSavedJson = null;
       loadParsedState(parsed);
       updateFileLabel();
       updateSaveStatus('saved');

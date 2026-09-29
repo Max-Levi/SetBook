@@ -53,7 +53,15 @@ menu hides the Drive items when they're empty). One-time setup:
 Users sign in through Google's own picker; SetBook uses the per-file
 `drive.file` scope (non-sensitive — no OAuth verification process), sees
 only the file it creates in the folder the user picked, and keeps access
-tokens in memory only.
+tokens in memory only. Uploads are throttled: 15 s after the last edit,
+capped at 60 s since the first unsynced change, plus a flush when the tab
+is hidden or closed (`DRIVE_SAVE_DEBOUNCE_MS` / `DRIVE_SAVE_MAX_WAIT_MS`).
+
+While your Google Cloud OAuth consent screen is in **Testing** mode, only
+explicitly added **Test users** can sign in — add your account under
+Audience → Test users (no verification needed; strangers hit the
+verification wall). Testing-mode consent also expires about every 7 days,
+so Google re-asks periodically.
 
 ## Updating the hosted app
 
