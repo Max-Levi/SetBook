@@ -1700,7 +1700,7 @@
             <li>Filter toggles: Cover/Original and Ready/In progress/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables all of its filters; All shows active whenever every pill is on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that cycles its value — Not Ready → In Progress → Ready → Not Ready — with the tooltip naming what the next click does. A new third filter pill, <strong>In progress</strong>, sits between the Ready and Not ready pills and composes with the others the same way. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
             <li>Sort &amp; Filter row: everything below the search box — sort, the Show pills, and the tag/artist pickers — lives behind one <strong>Sort &amp; Filter</strong> toggle so the song list gets most of the sidebar. The toggle is an accordion-style section header (uppercase label, divider, prominent chevron — deliberately not a boxed field), starts collapsed, and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device. <strong>Expand all</strong> and <strong>Collapse all</strong> sit outside the panel in their own always-visible row and light up gold to reflect the expansion state — Expand all when every song is expanded, Collapse all when every song is collapsed, neither in a mixed state. Collapse all also closes every open Details panel. A <strong>Clear all</strong> button appears beside the toggle whenever anything is narrowing the song list — search text, a dropdown filter, or a type/ready pill — whether the panel is open or closed, and resets all of them at once (sort is untouched). Each dropdown also has its own <strong>✕</strong> button beside it, visible only while that dropdown has a selection, which clears just that filter.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
-            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session.</li>
+            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session. Picking a section — a row on the card, a search result, or a Recently-viewed song's top section — opens it in the editor and scrolls that section's field to the top of the editor (stopping there only if the field already fits on screen), and scrolls the song's card back into view in the list whenever its title row has slipped out of sight.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
             <li><strong>Add song from URL:</strong> a button beneath "+ New song" opens a dialog that fetches the text lines from a URL and creates a new song whose first section is a mass-entry staging area (see the Section editor). The dialog's <strong>Add to</strong> choice can instead <strong>take over an existing song</strong>: the picker lists every Not Ready and In Progress song (Ready songs are never targetable), and submitting keeps the song's details — title, artist, type, tags, video links — while clearing its sections and replacing them with the staging area holding the scraped text. Plain-text and raw-file URLs work best; the site must allow cross-origin reads, and only http(s) addresses are fetched.</li>
             <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch-primary device (phones/tablets — not on desktop) slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
@@ -1754,7 +1754,7 @@
             <li>Export filtered songs as JSON: Songs → Export filtered songs as JSON… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/In progress/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
             <li>Import: songs can be copied from another SetBook JSON file via the Songs menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
-            <li>Recently viewed songs: Songs → Recently viewed songs… lists the last six songs you had open, most recent first, each with how long ago you viewed it ("just now", "5 min ago", "2 hours ago", … — the same cadence as the header's save-age display). Tapping a row opens that song; the list is saved with the file, so it survives closing and reopening.</li>
+            <li>Recently viewed songs: Songs → Recently viewed songs… lists the last six songs you had open, most recent first, each with how long ago you viewed it ("just now", "5 min ago", "2 hours ago", … — the same cadence as the header's save-age display). Tapping a row opens that song at its top section, scrolled into view in both the editor and the sidebar; the list is saved with the file, so it survives closing and reopening.</li>
             <li>Transpose: each section can define the key its chords are written in — pick it from the key dropdown in the section header (legacy row editor) or the field header (mass-entry editor); both editors share the same controls, stored per section. Once a key is set, a second dropdown appears with up/down steppers that step through the twelve keys; choosing a different key transposes that section's chords in the on-screen preview and in both exported PDFs, with a "Key: G → A" note shown beside the section title. Only chord symbols move — a chord's quality and extensions stay attached (Em7 → F#m7, D/F# → E/G#), slash basses move with the chord, bar-line pipes (|) and extras like (x2), (5th Fret), or N.C. are kept verbatim, and chord positions over lyrics are re-aligned when spellings change width. Flat keys (Bb, Eb, Ab, Db, Gb) get flat spellings; others use sharps. A chord line with no recognizable chords at all can't be moved — preview and PDFs flag it with a dotted underline and a "cannot transpose" note while the rest of the section still transposes. The editors themselves always show and store the original chords, so transposing is display-only and reversible; set the target back to the section's key (or clear the key) to return.</li>
             <li>Close current file: File → Close current file (shown only while a file is linked) unlinks the open JSON after writing any unsaved changes to disk. The file itself stays where it is — only the link between it and SetBook is dropped — and the songs stay on screen as unsaved work; Save as… then links a new file without losing anything.</li>
             <li>Renaming a song re-sorts the list; if the sort moves the song you have open out of view, the sidebar scrolls it to the top of the visible area automatically, so the new sort order is obvious without hunting. A rename that leaves the open song visible doesn't scroll anything.</li>
@@ -2776,6 +2776,8 @@ function renderSidebar(){
           selectedSectionId = sec.id;
           renderAll();
           closeSidebarAfterNavigate();
+          scrollEditorToSelectedSection();
+          scrollSelectedSongHeadIntoView();
         });
         row.querySelector('[data-action="up"]')?.addEventListener('click', () => { moveSection(sec, -1); });
         row.querySelector('[data-action="down"]')?.addEventListener('click', () => { moveSection(sec, 1); });
@@ -2818,6 +2820,7 @@ function renderSidebar(){
         scheduleSave();
         renderAll();
         closeSidebarAfterNavigate();
+        scrollEditorToSelectedSection();
       });
       gDiv.appendChild(addSecBtn);
     }
@@ -2890,6 +2893,8 @@ function renderSearchResults(el){
       document.getElementById('sidebarSearch').value = '';
       renderAll();
       closeSidebarAfterNavigate();
+      scrollEditorToSelectedSection();
+      scrollSelectedSongHeadIntoView();
     });
     el.appendChild(row);
   });
@@ -5800,7 +5805,8 @@ function renderRecentSongList(){
       expandedGroups.add(group.id);
       renderAll();
       closeSidebarAfterNavigate();
-      scrollSelectedSongIntoView();
+      scrollSelectedSongHeadIntoView();
+      scrollEditorToSelectedSection();
    });
     box.appendChild(row);
   });
@@ -7973,6 +7979,54 @@ function scrollSelectedSongIntoView(){
   setTimeout(() => {
     const rowEl = document.querySelector(`.group[data-gid="${CSS.escape(selectedGroupId)}"]`);
     if (rowEl) rowEl.scrollIntoView({ block: 'center' });
+  }, 0);
+}
+
+/* Picking a section (sidebar row or a Recently-viewed row) should land the
+   editor at the top of that section. In the mass-style editor every section
+   of the song stacks inside the one scrollable #main, so the scroll offset
+   the previous view left behind would otherwise show the new section
+   mid-content; legacy and staging editors show a single section, so they
+   just reset to the top. The mass field is top-aligned only when it is not
+   already fully in view — re-picking a visible section must not yank the
+   page. Measured after a double rAF so auto-growing textareas have settled. */
+function scrollEditorToSelectedSection(){
+  const main = document.getElementById('main');
+  if (!main) return;
+  const alignOnce = () => {
+    const field = selectedSectionId
+      ? main.querySelector(`.mass-field[data-sec-id="${CSS.escape(selectedSectionId)}"]`)
+      : null;
+    if (!field){ main.scrollTop = 0; return; }
+    const fr = field.getBoundingClientRect();
+    const mr = main.getBoundingClientRect();
+    if (fr.top < mr.top || fr.bottom > mr.bottom){
+      main.scrollTop += fr.top - mr.top;
+    }
+  };
+  // Measured after a double rAF so auto-growing textareas have mostly
+  // settled, then re-run once more — fields elsewhere in the song can
+  // still resize a beat later (font arrival, async auto-grow) and shift
+  // the target; the re-pass is a no-op when nothing moved.
+  requestAnimationFrame(() => requestAnimationFrame(alignOnce));
+  setTimeout(alignOnce, 160);
+}
+
+/* Bring the selected song's card into view in the sidebar after a section
+   row click: minimal-scroll like maybeScrollOpenSongAfterRename — the list
+   only moves when the card's title row has scrolled out of view (deep in a
+   long expanded section list), and then just enough to expose it again. */
+function scrollSelectedSongHeadIntoView(){
+  if (!selectedGroupId) return;
+  setTimeout(() => {
+    const el = document.querySelector(`.group[data-gid="${CSS.escape(selectedGroupId)}"]`);
+    const scroller = document.getElementById('sidebarList');
+    if (!el || !scroller) return;
+    const r = el.getBoundingClientRect();
+    const box = scroller.getBoundingClientRect();
+    if (r.top < box.top || r.top > box.bottom - 1){
+      scroller.scrollTop += r.top - box.top;
+    }
   }, 0);
 }
 
