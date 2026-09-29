@@ -3370,33 +3370,82 @@ const DEGLUE_CHORD_RE = new RegExp('^(?:' + DEGLUE_CHORD_SRC + ')$');
 const DEGLUE_LEAD_RE = new RegExp('^(' + DEGLUE_CHORD_SRC + ')(?=[A-Z])');
 const DEGLUE_MID_RE = new RegExp('([ \\t])(' + DEGLUE_CHORD_SRC + ')(?=[A-Z])', 'g');
 const DEGLUE_TRAIL_GLUED_RE = new RegExp('([a-z])(' + DEGLUE_CHORD_SRC + ')$');
+/* Chord glued straight after sentence punctuation: "salt,A7Put",
+   "dollar,C C# D". The lookahead allows a glued capital, whitespace (a
+   chord run), or end of line — digits ("3,000") and lowercase words
+   ("St.George") never qualify, so commas inside numbers and
+   abbreviations stay whole. */
+const DEGLUE_PUNCT_RE = new RegExp('([,;:.!?])(' + DEGLUE_CHORD_SRC + ')(?=[\\s(]|[A-Z]|$)', 'g');
+/* Chord (with something beyond its root letter — A7, F#m, Bbsus, D/F#…)
+   glued to a lowercase lyric word at line start: "A7joo-ba". The token
+   must contain a digit, accidental, quality word, or slash — bare
+   root+quality glue ("Am…") stays put, so ordinary words beginning with
+   chord prefixes ("Amazing", "Email") never split. */
+const DEGLUE_LEAD_LOWER_RE = new RegExp('^(' + DEGLUE_CHORD_SRC + ')(?=[a-z])');
+function deglueLeadLowerIsRealChord(tok){
+  return /[0-9#b]\/?|maj|min|dim|aug|sus|add|\//.test(tok);
+}
+/* A chord tail token, optionally wrapped in bar pipes: "D7", "|D7". */
+const DEGLUE_TAIL_TOK_RE = new RegExp('^\\|*(?:' + DEGLUE_CHORD_SRC + ')\\|*$');
 
 // A line ending in whitespace-separated chord tokens after lyric text gets
 // its chord tail moved to its own line: "…Arizona   D   C" -> "…Arizona" /
-// "D   C". Pure chord lines (and bar grids) are returned unchanged.
+// "D   C". Bar-pipe tokens count ("…walkin' out   |D7"). Pure chord lines
+// (and bar grids) are returned unchanged.
 function deglueTrailingTail(line){
   const parts = line.split(/([ \t]+)/);
   let cut = parts.length;
   while (cut > 0){
     const t = parts[cut - 1];
-    if (/^[ \t]+$/.test(t) || DEGLUE_CHORD_RE.test(t)) cut--;
+    if (/^[ \t]+$/.test(t) || DEGLUE_TAIL_TOK_RE.test(t)) cut--;
     else break;
   }
   if (cut === 0 || cut === parts.length) return null;
   const head = parts.slice(0, cut).join('').replace(/[ \t]+$/, '');
   const tail = parts.slice(cut).join('').replace(/^[ \t]+/, '');
   if (!head || !tail) return null;
-  const headHasLyric = head.split(/[ \t]+/).some(tok => tok && !DEGLUE_CHORD_RE.test(tok) && !/^\|+$/.test(tok));
+  const headHasLyric = head.split(/[ \t]+/).some(tok => tok && !DEGLUE_TAIL_TOK_RE.test(tok));
   if (!headHasLyric) return null;
   return [head, tail];
 }
 
-function deglueChordLyricLines(text){
+/* A leading run of chord tokens (and bar pipes / xN markers) followed by
+   lyric text splits after the run: "C C# D   Take a silver dime" ->
+   "C C# D" / "Take a silver dime". A run of a single root-only chord
+   ("A Letter…") does not split — ordinary sentences starting with the
+   letters A–G must stay whole. Pure chord lines have no remainder and
+   are untouched. */
+function deglueLeadingChordRun(line){
+  const parts = line.split(/([ \t]+)/);
+  let idx = 0, chords = 0, sawStrong = false;
+  while (idx < parts.length){
+    const t = parts[idx];
+    if (t === '' || /^[ \t]+$/.test(t)){ idx++; continue; }
+    if (/^\|+$/.test(t) || /^x\d+$/i.test(t)){ idx++; continue; }
+    if (DEGLUE_CHORD_RE.test(t)){
+      chords++;
+      if (t.length > 1) sawStrong = true;
+      idx++;
+      continue;
+    }
+    break;
+  }
+  if (!chords) return null;
+  const rest = parts.slice(idx).join('');
+  // Only split when lyric text actually follows the run (a pure chord
+  // line — possibly with trailing pipes — has none), and never split a
+  // lone root-only chord off the front of a sentence.
+  if (!rest || !/^[A-Za-z(]/.test(rest)) return null;
+  if (chords < 2 && !sawStrong) return null;
+  return [parts.slice(0, idx).join('').replace(/[ \t]+$/, ''), rest];
+}function deglueChordLyricLines(text){
   const out = [];
   (text || '').split('\n').forEach(rawLine => {
+    // 0. Chord glued straight after punctuation: "salt,A7Put" ->
+    //    "salt," / "A7Put"; "dollar,C C# D" -> "dollar," / "C C# D".
+    let pieces = rawLine.replace(DEGLUE_PUNCT_RE, '$1\n$2').split('\n');
     // 1. Leading chord glued to a lyric word: "GSlowin'" -> "G" / "Slowin'".
     // The uppercase-next-letter rule keeps lyric words like "Amazing" whole.
-    let pieces = [rawLine];
     pieces = pieces.flatMap(p => {
       const segs = [];
       let rest = p, guard = 0;
@@ -3409,10 +3458,20 @@ function deglueChordLyricLines(text){
       segs.push(rest);
       return segs;
     });
+    // 1b. Leading chord with real content (A7, F#m, Bbsus…) glued to a
+    //     lowercase word: "A7joo-ba" -> "A7" / "joo-ba…". Bare root+quality
+    //     glue never splits ("Amazing", "Email" stay whole).
+    pieces = pieces.flatMap(p => {
+      const m = p.match(DEGLUE_LEAD_LOWER_RE);
+      return m && deglueLeadLowerIsRealChord(m[1]) ? [m[1], p.slice(m[1].length)] : [p];
+    });
     // 2. Mid-line: chord glued to the next lyric word: "D   CSuch" -> "D   C" / "Such".
     pieces = pieces.flatMap(p => p.replace(DEGLUE_MID_RE, '$1$2\n').split('\n'));
+    // 2b. Leading chord run followed by lyric: "C C# D   Take a silver dime"
+    //     -> "C C# D" / "Take a silver dime".
+    pieces = pieces.flatMap(p => deglueLeadingChordRun(p) || [p]);
     // 3. Trailing: chord glued to a lyric ending ("mindG") or a chord tail
-    // after lyric text ("…Arizona   D   C") moves to its own line.
+    //    (including bar-pipe tokens, "…walkin' out   |D7") moves to its own line.
     pieces = pieces.flatMap(p => {
       const g = p.match(DEGLUE_TRAIL_GLUED_RE);
       const lines = g ? [p.slice(0, g.index + 1), g[2]] : [p];

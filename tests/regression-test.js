@@ -122,6 +122,7 @@ globalThis.__sb = {
   buildSymbolsLine, displaySectionName, massSplitDefaultType, sectionTypeFromCustomName,
   defaultState, uid, touchGroup, touchSection,
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
+  deglueChordLyricLines,
   transposeSymbolsValue, transposeChordToken, stepTransposeKey, groupLinesForDisplay,
   TRANSPOSE_KEYS, TRANSPOSE_KEY_LABELS
 };
@@ -389,6 +390,69 @@ suite('transpose');
   check('step up from G is G# (chromatic list)', sb.stepTransposeKey('G', 1) === 'G#');
   check('12 keys in the list', sb.TRANSPOSE_KEYS.length === 12);
   check('spelled labels for shared-key spellings', sb.TRANSPOSE_KEY_LABELS['F#'] === 'F# / Gb');
+}
+
+/* ================= 9. deglue rules (scraped wall-of-text splitting) ================= */
+suite('deglue');
+{
+  // New rules from the "Wolly Bully" scraping report
+  const cases = [
+    ['comma-glued chord + capital', 'take a little salt,A7Put it in my shotgun',
+      ['take a little salt,', 'A7', 'Put it in my shotgun']],
+    ['comma-glued chord run', 'you take a silver dollar,C C# D',
+      ['you take a silver dollar,', 'C C# D']],
+    ['trailing bar-pipe chord tail', "I go walkin' out      |D7",
+      ["I go walkin' out", '|D7']],
+    ['lead chord (strong) + lowercase word', 'A7joo-ba joo-ba, Wolly Bully,',
+      ['A7', 'joo-ba joo-ba, Wolly Bully,']],
+    ['leading chord run + lyric', 'C C# D    Take a silver dime',
+      ['C C# D', 'Take a silver dime']],
+    // classic behaviors must survive
+    ['mid chord + capital', 'D   CSuch a fine sight', ['D   C', 'Such a fine sight']],
+    ['lead chord + capital', "GSlowin' through the park", ['G', "Slowin' through the park"]],
+    ['trailing glued chord', '…mindG', ['…mind', 'G']],
+    ['trailing chord tail', '…Arizona   D   C', ['…Arizona', 'D   C']],
+  ];
+  cases.forEach(([name, input, want]) => {
+    const got = sb.deglueChordLyricLines(input).split('\n');
+    check(name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}`);
+  });
+  // Must NOT break
+  const safe = [
+    ['numbered comma stays', 'In 3,500 days', ['In 3,500 days']],
+    ['Amazing stays whole', 'Amazing grace, how sweet', ['Amazing grace, how sweet']],
+    ['Email stays whole', 'Email me at once', ['Email me at once']],
+    ['St. abbreviation stays', 'St.Louis blКues', ['St.Louis blКues']],
+    ['bar grid untouched', '| G | D | A |', ['| G | D | A |']],
+    ['pure chord line untouched', 'A7  D7  E7', ['A7  D7  E7']],
+    ['lone root-only chord + word stays', 'A Letter To You', ['A Letter To You']],
+  ];
+  safe.forEach(([name, input, want]) => {
+    const got = sb.deglueChordLyricLines(input).split('\n');
+    check('safe: ' + name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}`);
+  });
+  // End-to-end: the "Wolly Bully" wall of text from the original report —
+  // every arrow-called-out glue in the screenshot must resolve.
+  const wall = [
+    'A7',
+    'A7joo-ba joo-ba, Wolly Bully, looking high, looking low,',
+    'I take a little powder, take a little salt,A7Put it in my shotgun, I go walkin\u2019 out      |D7',
+    'Well you take a silver dollar,C C# D    Take a silver dime,C C# D    Mix it up together',
+    'With some alligator wine.'
+  ].join('\n');
+  const got = sb.deglueChordLyricLines(wall).split('\n');
+  const want = [
+    'A7',
+    'A7', 'joo-ba joo-ba, Wolly Bully, looking high, looking low,',
+    'I take a little powder, take a little salt,',
+    'A7', 'Put it in my shotgun, I go walkin\u2019 out', '|D7',
+    'Well you take a silver dollar,',
+    'C C# D', 'Take a silver dime,',
+    'C C# D', 'Mix it up together',
+    'With some alligator wine.'
+  ];
+  check('end-to-end Wolly Bully wall of text', JSON.stringify(got) === JSON.stringify(want),
+    'got\n' + got.map(l => '  ' + JSON.stringify(l)).join('\n'));
 }
 
 /* ================= summary ================= */
