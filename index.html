@@ -1700,6 +1700,19 @@
   </div>
 </div>
 
+<!-- Drive sync offer: a local file was opened while a Drive link is active -->
+<div class="modal-overlay" id="driveSyncModalOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" id="driveSyncCloseBtn" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Sync to Google Drive?</h2>
+    <p class="modal-sub" id="driveSyncSub"></p>
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="driveSyncNoBtn">Keep it local</button>
+      <button type="button" class="primary small" id="driveSyncYesBtn">Sync to Drive</button>
+    </div>
+  </div>
+</div>
+
 <!-- Drive conflict: the cloud copy changed since our last save -->
 <div class="modal-overlay" id="driveConflictModalOverlay">
   <div class="modal">
@@ -1822,7 +1835,7 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links the same file automatically and re-authorizes silently. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
+            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links the same file automatically and re-authorizes silently. Opening a local file while a Drive link is active (or saving one with Save as…) offers a handoff: <strong>Sync to Drive</strong> uploads the local work as a new songbook in the linked folder and continues there, or <strong>Keep it local</strong> pauses Drive syncing (nothing is overwritten; Connect resumes). Connecting to Drive with local work open pre-selects uploading that work as a new songbook named after the open file. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's IndexedDB (with a localStorage fallback and one-time migration from the pre-IndexedDB localStorage store, which had a ~5MB quota large songbooks could silently hit). If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered. A persisted Drive link never auto-applies the remote copy over offered or restored recovery work — the remote copy is only linked on a boot where no recovery offer appeared.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
             <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
@@ -6227,6 +6240,7 @@ let driveDirty = false;        // unsynced changes since the last upload
 let lastDriveSavedJson = null; // last payload uploaded (skips no-op writes)
 const driveConflictModal = wireModal({ overlayId: 'driveConflictModalOverlay' });
 const driveChooseModal = wireModal({ overlayId: 'driveChooseModalOverlay' });
+const driveSyncModal = wireModal({ overlayId: 'driveSyncModalOverlay' });
 
 // Load an external script once; resolves on load, rejects on error.
 function loadScriptOnce(src){
@@ -6420,12 +6434,15 @@ function pickDriveFolder(){
 // The connect chooser: existing .json songbooks in the picked folder
 // (newest first) plus a new-file option with its own name field. Resolves
 // {kind:'existing', file} | {kind:'new', name} | null (cancelled).
-function promptDriveChoose(files, folderId){
+function promptDriveChoose(files, folderId, opts = {}){
   return new Promise((resolve) => {
     const list = document.getElementById('driveChooseList');
     const connectBtn = document.getElementById('driveChooseConnectBtn');
     let selection = null; // {kind, file?, name?}
     const rows = [];
+    // When local work is open, "New songbook…" starts out selected with the
+    // open file's name — one click on Connect uploads it to Drive.
+    const suggestedName = opts.suggestUpload || '';
     list.innerHTML = '';
     const finish = (value) => {
       driveChooseModal.close();
@@ -6493,13 +6510,23 @@ function promptDriveChoose(files, folderId){
       finish(selection);
     };
     document.getElementById('driveChooseCancelBtn').onclick = () => finish(null);
-    if (!files.length){
+    if (suggestedName){
+      selection = { kind: 'new', name: suggestedName };
+      newNameInput.value = suggestedName;
+      newRow.classList.add('selected');
+      syncConnectBtn();
+    } else if (!files.length){
       selection = { kind: 'new', name: '' };
       newRow.classList.add('selected');
       syncConnectBtn();
       newNameInput.focus();
     }
+    if (suggestedName){
+      document.getElementById('driveChooseSub').textContent =
+        `Your open file can be uploaded as the songbook below — pick a different one, or edit the name.`;
+    }
     driveChooseModal.open();
+    if (suggestedName) newNameInput.select();
   });
 }
 
@@ -6514,9 +6541,12 @@ async function connectDrive(){
     if (!folderId) return;
     // Which songbook in this folder? The chooser lists every .json in it
     // (newest first) and offers a new-file name; Connect applies the choice
-    // through the shared link/open helper below.
+    // through the shared link/open helper below. With real local work open,
+    // the chooser pre-selects uploading THAT work as a new songbook named
+    // after the open file — connect-to-Drive becomes the handoff from local.
     const files = await driveListJsonFiles(folderId);
-    const choice = await promptDriveChoose(files, folderId);
+    const hasLocalWork = (state.sectionGroups || []).length > 0;
+    const choice = await promptDriveChoose(files, folderId, { suggestUpload: hasLocalWork ? (currentFileName || 'My songbook') : null });
     if (!choice) return;
     if (choice.kind === 'new'){
       const meta = await driveCreateLibrary(folderId, choice.name);
@@ -6606,6 +6636,73 @@ async function drivePickAndOpen(){
 }
 
 // Disconnect: final save, revoke the token, drop the link.
+// A local file landed in the editor while a Drive link is active (Open…,
+// Save as…, the no-FSA file input, or a recovery re-link): without this
+// the autosave pipeline would keep writing to the DRIVE copy, so the local
+// work would silently never be saved. Offer the handoff the user probably
+// wants — upload this file's content to Drive and continue there — or
+// keep it local, which pauses the Drive link until reconnect.
+let driveSyncChoice = null;
+function offerDriveSyncForLocalOpen(fileName){
+  const name = fileName || currentFileName || 'the local file';
+  if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; }
+  driveConflictActive = true; // blocks all autosave while the choice is pending
+  const release = () => { driveConflictActive = false; };
+  const keepLocal = () => {
+    // Drop the cloud link (the Drive file is untouched); the local file that
+    // is now open becomes the save target again. Reconnecting resumes Drive.
+    driveLink = null;
+    driveAccessToken = null;
+    driveTokenExpiry = 0;
+    driveDirty = false;
+    driveFirstPendingAt = 0;
+    lastDriveSavedJson = null;
+    persistDriveLink();
+    updateFileLabel();
+    if (supportsFsApi && fileHandle){
+      updateSaveStatus('saved');
+      showToast(`\u201c${currentFileName}\u201d stays local — Drive syncing paused. Reconnect to resume.`);
+    } else {
+      updateSaveStatus('nofile');
+      showToast('Drive syncing paused — the work on screen stays local. Reconnect to resume.');
+    }
+  };
+  document.getElementById('driveSyncSub').textContent =
+    `\u201c${name}\u201d is open locally, but SetBook is linked to \u201c${driveLink.fileName}\u201d in Google Drive. Sync this file to Drive and continue there, or keep it local (Drive syncing pauses until you reconnect). Nothing is overwritten either way.`;
+  document.getElementById('driveSyncYesBtn').onclick = async () => {
+    driveSyncModal.close();
+    try{
+      // Upload the local work as a NEW songbook in the linked folder (the
+      // previous Drive copy is never overwritten), then continue there.
+      let folderId = driveLink && driveLink.folderId;
+      if (!folderId){
+        folderId = await pickDriveFolder();
+        if (!folderId){ keepLocal(); release(); return; }
+      }
+      const meta = await driveCreateLibrary(folderId, name);
+      await linkDriveFile({ id: meta.id, name: meta.name, modifiedTime: meta.modifiedTime }, { created: true, folderId });
+    } catch(err){
+      showErrorToast('Could not sync to Drive: ' + err.message);
+      keepLocal();
+    } finally {
+      release();
+    }
+  };
+  document.getElementById('driveSyncNoBtn').onclick = () => {
+    driveSyncModal.close();
+    keepLocal();
+    release();
+  };
+  // ✕ counts as "keep it local" — the safe default. Nothing is uploaded,
+  // the Drive copy is untouched, and Connect resumes syncing later.
+  document.getElementById('driveSyncCloseBtn').onclick = () => {
+    driveSyncModal.close();
+    keepLocal();
+    release();
+  };
+  driveSyncModal.open();
+}
+
 async function disconnectDrive(){
   if (!driveLink) return;
   try{ if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; await doSave(); } } catch(err){ /* final save is best-effort */ }
@@ -7122,6 +7219,9 @@ async function openFile(){
     updateSaveStatus('saved');
     renderAll();
     scrollSelectedSongIntoView();
+    // A local file is now open while a Drive link is active — offer the
+    // handoff (upload to Drive / keep local) before autosave can misfire.
+    if (driveLink) offerDriveSyncForLocalOpen(file.name);
   } catch(err){
     if (err.name !== 'AbortError') showErrorToast('Could not open that file: ' + err.message);
   }
@@ -7131,6 +7231,20 @@ async function saveAs(){
   if (!supportsFsApi){
     downloadCopy();
     return;
+  }
+  if (driveLink){
+    // Save as… while a Drive link is active: the new local file becomes the
+    // save target, so pause the Drive link first — otherwise the autosave
+    // pipeline would keep writing the local choice into the DRIVE copy.
+    // The Drive file is untouched; Connect resumes syncing.
+    driveLink = null;
+    driveAccessToken = null;
+    driveTokenExpiry = 0;
+    driveDirty = false;
+    driveFirstPendingAt = 0;
+    lastDriveSavedJson = null;
+    persistDriveLink();
+    showToast('Drive syncing paused — saving a local copy. Reconnect to resume.');
   }
   try{
     const opts = {
@@ -8706,6 +8820,7 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
       updateSaveStatus('nofile');
       renderAll();
       scrollSelectedSongIntoView();
+      if (driveLink) offerDriveSyncForLocalOpen(file.name);
     } catch(err){
       showErrorToast('Could not load that file as a SetBook JSON: ' + err.message);
     }
