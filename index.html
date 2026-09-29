@@ -6285,14 +6285,34 @@ async function driveFindLibrary(folderId){
   return (json.files || []).find(f => f.name === DRIVE_LIBRARY_NAME) || null;
 }
 async function driveCreateLibrary(folderId){
+  // Single multipart upload WITH metadata, so setbook.json is born inside
+  // the picked folder. (An earlier create-then-move approach was a trap:
+  // uploadType=media drops the file in My Drive root, and the follow-up
+  // parent PATCH could fail silently — leaving a file the app cheerfully
+  // saved to that never appeared in the folder the user picked.)
+  const boundary = 'setbook0000' + Math.random().toString(36).slice(2, 10);
+  const metadata = JSON.stringify({ name: DRIVE_LIBRARY_NAME, parents: [folderId] });
+  const body =
+    `--${boundary}\r\n` +
+    `Content-Type: application/json; charset=UTF-8\r\n\r\n` +
+    `${metadata}\r\n` +
+    `--${boundary}\r\n` +
+    `Content-Type: application/json\r\n\r\n` +
+    `${driveFileBody()}\r\n` +
+    `--${boundary}--`;
   const res = await driveApi('POST', 'upload/drive/v3/files', {
-    params: { uploadType: 'media', fields: 'id,name,modifiedTime' },
-    body: driveFileBody(),
-    contentType: 'application/json',
+    params: { uploadType: 'multipart', fields: 'id,name,parents,modifiedTime' },
+    body,
+    contentType: `multipart/related; boundary=${boundary}`,
   });
-  if (!res.ok) throw new Error(`Drive create failed: ${res.status}`);
+  if (!res.ok){
+    const detail = await res.text().catch(() => '');
+    throw new Error(`Drive create failed: ${res.status} ${detail.slice(0, 200)}`);
+  }
   const meta = await res.json();
-  await driveApi('PATCH', `drive/v3/files/${meta.id}`, { params: { fields: 'id,modifiedTime' }, body: JSON.stringify({ parents: [folderId] }) });
+  if (Array.isArray(meta.parents) && !meta.parents.includes(folderId)){
+    console.warn('SetBook: the Drive file was created outside the picked folder:', meta.parents);
+  }
   return meta;
 }
 async function driveLoadLibrary(fileId){
