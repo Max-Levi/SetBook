@@ -1070,7 +1070,8 @@
   .mass-preview-accordion summary:hover{ color:var(--gold); }
   .mass-preview-accordion .preview-block{ max-width:none; margin:4px 0 0; }
   /* Key + transpose controls (both editors) */
-  .transpose-wrap{ display:inline-flex; align-items:center; gap:4px; }
+  .transpose-wrap{ display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; }
+  .transpose-label{ font-size:11px; color:var(--text-muted); font-weight:600; }
   .transpose-wrap select{
     font-family:inherit; font-size:12px; color:var(--text);
     background:var(--panel-2); border:1px solid var(--border); border-radius:6px;
@@ -5147,13 +5148,15 @@ function wireTransposeControls(root, sec, onChange){
   sync();
 }
 const TRANSPOSE_UI_HTML = `
-          <select class="transpose-key-select" title="The key this section's chords are written in">
+          <label class="transpose-label">Key</label>
+          <select class="transpose-key-select" aria-label="Key: the key this section's chords are written in" title="The key this section's chords are written in">
             ${transposeKeyOptions('', true)}
           </select>
           <span class="transpose-to-wrap" style="display:none">
             <span class="transpose-arrow">→</span>
+            <label class="transpose-label">Transpose to</label>
             <button type="button" class="transpose-down transpose-step" title="Transpose down a semitone" aria-label="Transpose down">▾</button>
-            <select class="transpose-to-select" title="Transpose the section's chords to this key"></select>
+            <select class="transpose-to-select" aria-label="Transpose to: the key the section's chords are shown in" title="Transpose the section's chords to this key"></select>
             <button type="button" class="transpose-up transpose-step" title="Transpose up a semitone" aria-label="Transpose up">▴</button>
           </span>`;
 
