@@ -516,6 +516,13 @@
   .drive-badge svg{ width:14px; height:14px; }
   a.drive-badge{ text-decoration:none; cursor:pointer; }
   a.drive-badge:hover{ background: color-mix(in srgb, var(--success) 22%, transparent); }
+  /* Disconnected (or stale-link) state: red, not a link, no pointer. */
+  .drive-badge.off{
+    color:var(--danger); border-color:var(--danger);
+    background: color-mix(in srgb, var(--danger) 10%, transparent);
+  }
+  a.drive-badge.off{ cursor:default; }
+  a.drive-badge.off:hover{ background: color-mix(in srgb, var(--danger) 14%, transparent); }
   /* Drive connect chooser: existing songbooks in the picked folder + a
      new-file row with its own name field. */
   .drive-choose-list{
@@ -1288,14 +1295,14 @@
       <span class="save-dot" id="saveDot"></span>
       <span class="save-text" id="saveText">not saved to disk</span>
     </div>
-    <!-- Drive connected badge: lives outside .file-status so it also shows
-         on phones, where the save text is hidden. Hidden unless a Drive
-         link is active (see updateDriveStatus). It is also a LINK: clicking
-         opens the linked Drive folder (or the file, when no folder is
-         known) in a new tab. -->
+    <!-- Drive status badge: lives outside .file-status so it also shows on
+         phones, where the save text is hidden. Always visible (see
+         updateDriveStatus): green "Drive" while autosaving to Drive — and
+         it is a LINK opening the folder in a new tab — red "Cloud save
+         disabled" when disconnected or when a link needs re-auth. -->
     <a class="drive-badge" id="driveBadge" hidden target="_blank" rel="noopener" title="Open the Drive folder in a new tab">
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 18a4.5 4.5 0 1 1 .36-8.99A6 6 0 0 1 19 11.5 3.75 3.75 0 0 1 18.25 18H7Z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></svg>
-      Drive
+      <span id="driveBadgeLabel">Drive</span>
     </a>
   </div>
   <div class="actions">
@@ -6871,15 +6878,32 @@ function updateDriveStatus(){
   const stale = !!(driveLink && driveLink.authStale);
   const configured = driveConfigured();
   const badge = document.getElementById('driveBadge');
+  // The badge is ALWAYS visible and two-state: green "Drive" (and a link
+  // into Drive — folder preferred, else the file) while cloud save is
+  // active; red "Cloud save disabled" when disconnected or when a saved
+  // link is stale (needs re-authorization).
   if (badge){
-    badge.hidden = !connected || stale;
-    // The badge doubles as a link into Drive: prefer the linked folder,
-    // fall back to the songbook file itself (e.g. opened via the file
-    // Picker without a folder). Opens in a new tab via target=_blank.
-    const folderHref = driveLink && driveLink.folderId ? `https://drive.google.com/drive/folders/${driveLink.folderId}` : null;
-    const fileHref = driveLink && driveLink.fileId ? `https://drive.google.com/file/d/${driveLink.fileId}/view` : null;
-    badge.href = folderHref || fileHref || '#';
-    badge.title = folderHref ? 'Autosaving to Google Drive — click to open the folder in a new tab' : 'Autosaving to Google Drive — click to open the file in a new tab';
+    const label = document.getElementById('driveBadgeLabel');
+    const active = connected && !stale;
+    badge.hidden = false;
+    if (active){
+      badge.classList.remove('off');
+      // Prefer the linked folder; fall back to the songbook file itself
+      // (e.g. opened via the file Picker without a folder). Opens in a
+      // new tab via target=_blank.
+      const folderHref = driveLink.folderId ? `https://drive.google.com/drive/folders/${driveLink.folderId}` : null;
+      const fileHref = driveLink.fileId ? `https://drive.google.com/file/d/${driveLink.fileId}/view` : null;
+      badge.href = folderHref || fileHref || '#';
+      badge.setAttribute('target', '_blank');
+      if (label) label.textContent = 'Drive';
+      badge.title = folderHref ? 'Autosaving to Google Drive — click to open the folder in a new tab' : 'Autosaving to Google Drive — click to open the file in a new tab';
+    } else {
+      badge.classList.add('off');
+      badge.removeAttribute('href');
+      badge.removeAttribute('target');
+      if (label) label.textContent = 'Cloud save disabled';
+      badge.title = stale ? 'Drive link needs sign-in — File → Connect Google Drive…' : 'Google Drive is not connected — File → Connect Google Drive…';
+    }
   }
   const map = [
     ['btnDriveConnect', configured && (!connected || stale)],
