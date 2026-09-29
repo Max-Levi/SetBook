@@ -7466,8 +7466,15 @@ async function saveAs(){
     // .json extension is appended automatically if missing).
     const nameInput = document.getElementById('driveSaveAsName');
     nameInput.value = `${currentFileName.replace(/\.json$/i, '').replace(' · Drive', '')} copy`;
-    document.getElementById('driveSaveAsDriveBtn').onclick = async () => {
+    // The Drive option exists only while connected: if the link severs
+    // while the dialog is open, Into Drive is disabled and the click falls
+    // through to the plain local save.
+    const driveBtn = document.getElementById('driveSaveAsDriveBtn');
+    const syncDriveBtn = () => { driveBtn.disabled = !driveLink; };
+    syncDriveBtn();
+    driveBtn.onclick = async () => {
       driveSaveAsModal.close();
+      if (!driveLink){ release(); showToast('Drive is disconnected — saving a local copy.'); await performLocalSaveAs(); return; }
       try{
         let folderId = driveLink.folderId;
         if (!folderId){
@@ -7504,6 +7511,7 @@ async function saveAs(){
       driveSaveAsModal.close();
       release(); // ✕ = cancel entirely; stay linked, change nothing
     };
+    syncDriveBtn();
     driveSaveAsModal.open();
     return;
   }
