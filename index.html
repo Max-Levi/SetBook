@@ -7104,7 +7104,17 @@ function idbRecoveryDelete(key){
     tx.oncomplete = () => db.close();
   }));
 }
+// Boot hold: from script start until the welcome modal closes, debounced
+// recovery writes are suppressed. Boot itself schedules saves (the seed
+// render, the Drive reconnect's loadParsedState), and without the hold a
+// write would fire ~1.5s into boot — OVERWRITING the stored crash snapshot
+// with the not-yet-restored boot state before maybeOfferRecovery reads it,
+// which silently killed the "Pick up where you left off?" offer on every
+// Drive-connected reload. The stored snapshot is the last session's real
+// work; the modal blocks interaction, so holding costs nothing.
+let bootRecoveryHold = true;
 function scheduleRecoverySave(){
+  if (bootRecoveryHold) return;
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = setTimeout(writeRecoverySnapshot, 1500);
 }
@@ -9768,6 +9778,17 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   renderAll();
 
   const welcomeModal = wireModal({ overlayId:'welcomeModalOverlay' }).overlay;
+  // Release the boot recovery hold when the welcome modal goes away (any
+  // path: choice buttons, ✕, Escape, click-outside), then resume the normal
+  // debounced cadence from whatever the user decided on.
+  const welcomeHoldObserver = new MutationObserver(() => {
+    if (!welcomeModal.classList.contains('open') && bootRecoveryHold){
+      bootRecoveryHold = false;
+      welcomeHoldObserver.disconnect();
+      scheduleRecoverySave();
+    }
+  });
+  welcomeHoldObserver.observe(welcomeModal, { attributes: true, attributeFilter: ['class'] });
   // The welcome modal opens only after the Drive reconnect attempt settles
   // (linked, stale, cleared, or timed out) — so the user's first choices
   // are made in the already-connected state: green badge, the Drive file
