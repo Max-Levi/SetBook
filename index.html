@@ -6085,7 +6085,7 @@ function updateSaveStatus(status){
   const toFile = !!(supportsFsApi && fileHandle);
   if (status === 'saved' && (toFile || onDrive)) lastDiskSaveAt = Date.now();
   const messages = {
-    saved: onDrive ? 'saved to Drive' : (toFile ? 'saved to disk' : 'not linked to a file yet'),
+    saved: onDrive ? 'saved to cloud' : (toFile ? 'saved to disk' : 'not linked to a file yet'),
     saving: onDrive ? 'saving to Drive\u2026' : 'saving\u2026',
     pending: 'unsynced changes',
     error: 'save failed \u2014 will retry',
@@ -6104,9 +6104,10 @@ function updateSaveStatus(status){
 // the save time.
 setInterval(() => {
   if (currentSaveStatus !== 'saved' || !lastDiskSaveAt) return;
-  if (!(supportsFsApi && fileHandle) && !driveLink) return;
+  const onDrive = !!driveLink;
+  if (!(supportsFsApi && fileHandle) && !onDrive) return;
   const age = saveAgeText();
-  document.getElementById('saveText').textContent = 'saved to disk' + (age ? ' \u00b7 ' + age : '');
+  document.getElementById('saveText').textContent = (onDrive ? 'saved to cloud' : 'saved to disk') + (age ? ' \u00b7 ' + age : '');
 }, 30000);
 
 /* ---- last-modified stamps for the open-file conflict comparison ----
