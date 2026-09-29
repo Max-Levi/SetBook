@@ -9771,8 +9771,22 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   renderAll();
 
   const welcomeModal = wireModal({ overlayId:'welcomeModalOverlay' }).overlay;
-  welcomeModal.classList.add('open');
-  maybeOfferRecovery();
+  // The welcome modal opens only after the Drive reconnect attempt settles
+  // (linked, stale, cleared, or timed out) — so the user's first choices
+  // are made in the already-connected state: green badge, the Drive file
+  // rows, and the remote content already loaded. See
+  // reconnectDriveAtBoot below; a timeout keeps a dead network from
+  // holding the welcome hostage.
+  (async () => {
+    try{
+      if (driveConfigured()){
+        const link = await readPersistedDriveLink();
+        if (link) await reconnectDriveAtBoot(link);
+      }
+    } catch(err){ /* reconnect reports its own state */ }
+    welcomeModal.classList.add('open');
+    maybeOfferRecovery();
+  })();
   // Offline support: register the service worker (PWA). Only on secure
   // origins where SWs exist — file:// and the Node test sandbox skip this;
   // registration failures are non-fatal by design.
@@ -9783,21 +9797,19 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
     });
   }
   // Re-link a persisted Drive link: the saved file/folder ids survive a
-  // reload. A failed silent sign-in (expired consent, blocked popup) must
-  // NEVER drop the link — the app surfaces a stale-connected state instead
-  // (badge red, Connect shown to re-authorize, Disconnect still shown),
-  // and Connect resumes the saved link without re-picking folder or file.
-  // 404 means the file was really deleted from Drive: only then is the
-  // link cleared.
-  // When a recovery offer is up (the usual returning-user case — the
-  // rolling crash snapshot is typically newer than the last Drive upload),
-  // the remote copy is NOT applied over the offer; the re-link waits for
-  // the welcome decision: restore → keep waiting; Start fresh / Open
-  // another file → apply the remote copy and close the modal.
-  (async () => {
-    if (!driveConfigured()) return;
-    const link = await readPersistedDriveLink();
-    if (!link) return;
+  // reload. Runs BEFORE the welcome modal opens, so the user's first
+  // choices happen in the already-connected state. A failed silent
+  // sign-in (expired consent, blocked popup) must NEVER drop the link —
+  // the app surfaces a stale-connected state instead (badge red, Connect
+  // shown to re-authorize, Disconnect still shown), and Connect resumes
+  // the saved link without re-picking folder or file. 404 means the file
+  // was really deleted from Drive: only then is the link cleared.
+  // When a recovery offer appears (the usual returning-user case — the
+  // rolling crash snapshot is typically newer than the last Drive
+  // upload), the remote copy is NOT applied over the offer; the re-link
+  // establishes the LINK, then waits for the welcome decision: restore →
+  // keep the link for later; Start fresh / Open → apply the remote copy.
+  async function reconnectDriveAtBoot(link){
     const applyRemote = async () => {
       const text = await driveLoadLibrary(link.fileId);
       const parsed = JSON.parse(text);
@@ -9822,26 +9834,33 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
       updateSaveStatus('error');
       showToast('Drive link needs sign-in — click Connect Google Drive to continue.');
     };
+    const bannerUp = () => !!document.querySelector('.recovery-banner');
     try{
-      // Probe while the welcome modal is up (also validates sign-in).
-      const head = await driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } });
+      // Probe (validates reachability + sign-in); never let a dead
+      // network hold the welcome modal hostage.
+      const head = await withSaveTimeout(driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } }), 8000);
+      if (head === undefined) return 'timeout';
       if (!head.ok && head.status !== 401 && head.status !== 403){
         const e = new Error('drive ' + head.status);
         e.driveStatus = head.status;
         throw e;
       }
-      const bannerUp = () => !!document.querySelector('.recovery-banner');
-      if (recoveryRestoredThisBoot) return;      // restored work wins; keep the saved link untouched
+      if (recoveryRestoredThisBoot) return 'restored'; // restored work wins; keep the saved link untouched
+      // Establish the link first so the welcome UI reflects it; with a
+      // recovery offer up, the REMOTE CONTENT waits for the decision.
+      driveLink = { ...link, remoteModifiedTime: head.ok ? (await head.clone().json()).modifiedTime : link.remoteModifiedTime };
+      updateFileLabel();
       if (bannerUp()){
         await new Promise((resolve) => {
           const check = setInterval(() => {
             if (!bannerUp()){ clearInterval(check); resolve(); }
           }, 250);
         });
-        if (recoveryRestoredThisBoot) return;    // user chose restore
+        if (recoveryRestoredThisBoot) return 'restored';  // user chose restore
       }
       if (head.ok) await applyRemote();
       else markStale();
+      return 'linked';
     } catch(err){
       // Only a real 404 clears the link; anything else (auth, network)
       // marks it stale so Connect can resume it.
@@ -9850,11 +9869,12 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
         driveLink = null;
         persistDriveLink();
         showToast(`\u201c${link.fileName}\u201d is no longer in Drive — the link was cleared.`);
-      } else {
-        markStale();
+        return 'cleared';
       }
+      markStale();
+      return 'stale';
     }
-  })();
+  }
   document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
     welcomeModal.classList.remove('open');
   });
