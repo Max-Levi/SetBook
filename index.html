@@ -1472,6 +1472,13 @@
 
     <a id="pdfDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
     <button type="button" class="pdf-download-link" id="pdfShareBtn" style="display:none;" hidden>↗ Share PDF…</button>
+    <!-- iPadOS quirk: the sheet navigator.share() shows can be a reduced
+         one whose Edit Actions list omits Books entirely (no user-side way
+         to add it). This hint routes around it: the Download-then-Files
+         path goes through a real file, whose share sheet DOES offer Books. -->
+    <p class="modal-sub" id="pdfShareBooksHint" style="display:none; margin:-8px 0 14px; text-align:center;">
+      Don't see Apple Books in the share sheet? <strong>↓ Download</strong>, open it from <strong>Files</strong>, and share from there — that sheet always offers Books.
+    </p>
 
     <div class="modal-actions">
       <button type="button" class="ghost small" id="pdfCancelBtn">Close</button>
@@ -8270,6 +8277,11 @@ function showPdfShareBtn(){
   const can = window.navigator.canShare && window.navigator.share && window.navigator.canShare({ files: [file] });
   shareBtn.hidden = !can;
   shareBtn.style.display = can ? 'block' : 'none';
+  // Where the share sheet exists but is the reduced navigator.share variant
+  // (iPadOS: no Books in its app row or its Edit Actions list), show the
+  // Download → Files → Share hint instead of leaving people stuck.
+  const hint = document.getElementById('pdfShareBooksHint');
+  if (hint) hint.style.display = (can && /iPad|iPhone|iPod/.test(navigator.userAgent)) ? 'block' : 'none';
 }
 
 /* ---------------------------------------------------------
