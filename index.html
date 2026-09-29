@@ -842,6 +842,9 @@
   }
   .section-row:hover{ background: var(--panel-2); color:var(--text); }
   .section-row.active{ background: var(--gold-tint-strong); color: var(--gold); }
+  /* Scroll-spy: the section currently under the editor's reading line */
+  .section-row.spy{ background: var(--gold-tint); color: var(--text); }
+  .section-row.spy .name{ color: var(--gold); }
   .section-row .name{ flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .section-row .order-btns{ display:none; gap:2px; }
   .section-row:hover .order-btns{ display:flex; }
@@ -1584,6 +1587,13 @@
     </label>
     <div class="config-row">
       <div class="config-text">
+        <div class="config-name">Animate scroll to sections</div>
+        <div class="config-desc">Glide to the picked section and song card instead of jumping instantly. The system “reduce motion” setting always disables this. Saved on this device.</div>
+      </div>
+      <input type="checkbox" class="config-check" id="configSmoothScroll" aria-label="Animate scroll to sections">
+    </div>
+    <div class="config-row">
+      <div class="config-text">
         <div class="config-name">Watch video links</div>
         <div class="config-desc">Open ▶ Watch videos in a new tab, or the same tab (leaves SetBook — use the back button to return). Saved on this device.</div>
       </div>
@@ -1645,7 +1655,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook — Technical Documentation</h2>
-    <p class="modal-sub">Last updated 2026-09-26.</p>
+    <p class="modal-sub">Last updated 2026-09-28.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-overview">1. Overview</a>
@@ -1700,11 +1710,11 @@
             <li>Filter toggles: Cover/Original and Ready/In progress/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables all of its filters; All shows active whenever every pill is on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that cycles its value — Not Ready → In Progress → Ready → Not Ready — with the tooltip naming what the next click does. A new third filter pill, <strong>In progress</strong>, sits between the Ready and Not ready pills and composes with the others the same way. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything.</li>
             <li>Sort &amp; Filter row: everything below the search box — sort, the Show pills, and the tag/artist pickers — lives behind one <strong>Sort &amp; Filter</strong> toggle so the song list gets most of the sidebar. The toggle is an accordion-style section header (uppercase label, divider, prominent chevron — deliberately not a boxed field), starts collapsed, and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device. <strong>Expand all</strong> and <strong>Collapse all</strong> sit outside the panel in their own always-visible row and light up gold to reflect the expansion state — Expand all when every song is expanded, Collapse all when every song is collapsed, neither in a mixed state. Collapse all also closes every open Details panel. A <strong>Clear all</strong> button appears beside the toggle whenever anything is narrowing the song list — search text, a dropdown filter, or a type/ready pill — whether the panel is open or closed, and resets all of them at once (sort is untouched). Each dropdown also has its own <strong>✕</strong> button beside it, visible only while that dropdown has a selection, which clears just that filter.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
-            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session. Picking a section — a row on the card, a search result, or a Recently-viewed song's top section — opens it in the editor and scrolls that section's field to the top of the editor (stopping there only if the field already fits on screen), and scrolls the song's card back into view in the list whenever its title row has slipped out of sight.</li>
+            <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session. Picking a section — a row on the card, a search result, or a Recently-viewed song's top section — opens it in the editor and scrolls that section's field to the top of the editor (stopping there only if the field already fits on screen), and scrolls the song's card back into view in the list whenever its title row has slipped out of sight. While you scroll through a multi-section song, a <strong>scroll-spy</strong> highlights the section row currently under the editor's upper third in the sidebar (a reading aid only — it never changes the selection; a single-section song highlights nothing), nudging the list just enough to keep that row visible. <strong>Alt+↓ / Alt+↑</strong> jump to the next/previous section of the open song in both editors, with the same pick-style scrolling; jumps stop at the song's first/last section and do nothing while you're typing in a field.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
             <li><strong>Add song from URL:</strong> a button beneath "+ New song" opens a dialog that fetches the text lines from a URL and creates a new song whose first section is a mass-entry staging area (see the Section editor). The dialog's <strong>Add to</strong> choice can instead <strong>take over an existing song</strong>: the picker lists every Not Ready and In Progress song (Ready songs are never targetable), and submitting keeps the song's details — title, artist, type, tags, video links — while clearing its sections and replacing them with the staging area holding the scraped text. Plain-text and raw-file URLs work best; the site must allow cross-origin reads, and only http(s) addresses are fetched.</li>
             <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch-primary device (phones/tablets — not on desktop) slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
-            <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Auto-number sections, Number single sections, Auto-split mass entry on [headers], and Use mass-entry editor for section editing are saved in the file. <strong>Auto-split mass entry on [headers]</strong> (default on) splits song text imported from a URL into sections at recognized <code>[Verse]</code>/<code>[Chorus]</code>-style bracket headers as it arrives; turn it off when a song's lyrics legitimately contain bracketed lines you want to handle by hand. <strong>Use mass-entry editor for section editing</strong> (default on) makes every section edit in the mass-entry style — one free-text field per section with live chord/lyric coloring (see the Section editor) — while turning it off restores the legacy chord-over-lyric row editor.</li>
+            <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Auto-number sections, Number single sections, Auto-split mass entry on [headers], and Use mass-entry editor for section editing are saved in the file. <strong>Auto-split mass entry on [headers]</strong> (default on) splits song text imported from a URL into sections at recognized <code>[Verse]</code>/<code>[Chorus]</code>-style bracket headers as it arrives — including headers a tab site glued inline into a line of lyrics or chords (<code>…much too slow. [Verse 2]E7sus4</code>), which are broken out onto their own line before the split; turn it off when a song's lyrics legitimately contain bracketed lines you want to handle by hand. <strong>Use mass-entry editor for section editing</strong> (default on) makes every section edit in the mass-entry style — one free-text field per section with live chord/lyric coloring (see the Section editor) — while turning it off restores the legacy chord-over-lyric row editor. <strong>Animate scroll to sections</strong> (default on, saved on this device) makes section picks, Recently-viewed picks, and section jumps glide to their target instead of jumping instantly; the system “reduce motion” setting always disables the animation, and a wheel or touch cancels a glide in progress.</li>
           </ul>
         </section>
         <section id="help-editor">
@@ -1725,7 +1735,7 @@
             <li>Comment lines: a lyric line wrapped in <code>/* … */</code> is a private note. It remains visible in the editor and the preview but is excluded from PDF exports.</li>
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
-            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. With <strong>Auto-split mass entry on [headers]</strong> on (the default, File → Configuration…), recognized <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines split the text into typed fields as it arrives — each field takes the header's type (Solo/Interlude map to Instrumental), the header line itself is dropped, and unrecognized <code>[Name]</code> lines stay ordinary text; with the setting off they are ordinary text you split or delete by hand. Lines are classified by content, not by position: a line of pure chord symbols is chords, a line containing lyric words is lyrics — so doubled lines (two chord lines or two lyric lines in a row, common after deglueing) can't flip the phase for everything below them. Ambiguous lines (a lone <code>Am</code>, an exotic chord spelling) fall back to strict positional alternation, with the first content line of each field counted as chords; blank and dropped lines don't disturb the rhythm. The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); the page stays exactly where it is when you split or delete a field — no scroll jump. Each field sizes itself to its text: fields grow as you type and shrink when you delete, so a field with two lines takes two lines' worth of space. Each field's naming row matches the normal section editor — <strong>Section type</strong> picker (including <strong>Custom</strong>, which reveals a free-text name input; typing a real section-type name there, e.g. <code>Chorus 2</code>, converts it to that picked type when you leave the field), a suffix input for informational tags like <code>(guitar solo)</code>, and a <strong>Shows as</strong> line previewing the derived name with auto-numbering across the fields. The × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text. The extension's delivery always asks first: an <strong>Import from extension</strong> dialog offers the text as a new song or as a takeover of an existing Not Ready / In Progress song (same picker rules as the URL dialog — Ready songs are never targetable), and only imports straight into a new song when there is nothing to take over. Before the staging section is built, the text is deglued: chord symbols glued to lyric text get their line breaks back — a chord at the start of a lyric (<code>GSlowin'</code>), a chord run into the next lyric (<code>D&nbsp;&nbsp;&nbsp;CSuch a fine sight</code>), and chords trailing a lyric line (<code>…Arizona&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;C</code>, <code>…mindG</code>) each split onto their own lines, while chord grids (<code>| G | D |</code>) and lyric words that merely start like chords (<code>Amazing</code>, <code>Email</code>) are left alone.</li>
+            <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. With <strong>Auto-split mass entry on [headers]</strong> on (the default, File → Configuration…), recognized <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines split the text into typed fields as it arrives — each field takes the header's type (Solo/Interlude map to Instrumental), the header line itself is dropped, and unrecognized <code>[Name]</code> lines stay ordinary text; with the setting off they are ordinary text you split or delete by hand. Lines are classified by content, not by position: a line of pure chord symbols is chords, a line containing lyric words is lyrics — so doubled lines (two chord lines or two lyric lines in a row, common after deglueing) can't flip the phase for everything below them. Ambiguous lines (a lone <code>Am</code>, an exotic chord spelling) fall back to strict positional alternation, with the first content line of each field counted as chords; blank and dropped lines don't disturb the rhythm. The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); the page stays exactly where it is when you split or delete a field — no scroll jump. Each field sizes itself to its text: fields grow as you type and shrink when you delete, so a field with two lines takes two lines' worth of space. Each field's naming row matches the normal section editor — <strong>Section type</strong> picker (including <strong>Custom</strong>, which reveals a free-text name input; typing a real section-type name there, e.g. <code>Chorus 2</code>, converts it to that picked type when you leave the field), a suffix input for informational tags like <code>(guitar solo)</code>, and a <strong>Shows as</strong> line previewing the derived name with auto-numbering across the fields. The × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text. The extension's delivery always asks first: an <strong>Import from extension</strong> dialog offers the text as a new song or as a takeover of an existing Not Ready / In Progress song (same picker rules as the URL dialog — Ready songs are never targetable), and only imports straight into a new song when there is nothing to take over. Before the staging section is built, the text is deglued: chord symbols glued to lyric text get their line breaks back — a chord at the start of a lyric (<code>GSlowin'</code>), a chord run into the next lyric (<code>D&nbsp;&nbsp;&nbsp;CSuch a fine sight</code>), and chords trailing a lyric line (<code>…Arizona&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;C</code>, <code>…mindG</code>) each split onto their own lines, while chord grids (<code>| G | D |</code>) and lyric words that merely start like chords (<code>Amazing</code>, <code>Email</code>) are left alone. Extended chords keep their full spelling — <code>E7sus4</code>, <code>F#7sus4</code>, <code>Dadd9</code> are matched greedily, so a chord ending in <code>sus</code>/<code>add</code> is never shredded into a bare chord plus a stray lyric line, and non-breaking spaces from web pages count as ordinary spaces during import.</li>
   <li><strong>Mass-entry style section editor:</strong> with <strong>Use mass-entry editor for section editing</strong> on (the default, File → Configuration…), every section of every song edits as a mass-entry field — the same free-text style as the URL-import staging area, with the live chord (gold) / lyric (white) coloring and fields that size to their text. The song's sections stack as one field each, each with its own <strong>Section type</strong> picker, Custom name and suffix inputs, and a <strong>Shows as</strong> preview — plus a ◎ <strong>Focus</strong> button that collapses the editor to just that section (an "← All sections" exit bar returns, mirroring the song focus in the sidebar) and a × that deletes the section after confirmation. A line of chord symbols pairs with the lyric line under it into one chord-over-lyric row; a chord line with no lyric under it is a chords-only row. <strong>Split</strong> chips on blank lines divide a section in two at that line — the lines above stay, the lines below become a new section typed to follow (Verse after Intro, Chorus after Verse) — so the bracket rule isn't the only way to section a song. Every detected line also carries a swap chip: <strong>as lyrics</strong> on a chord line and <strong>as chords</strong> on a lyric line flip that one line's kind, overriding the automatic detection (useful for ambiguous lines like <code>Am</code>, chord runs with words such as <code>D (ring out)</code>, or lyric lines that merely look chordish); the chip becomes <strong>auto</strong>, which removes the override and returns the line to detection. Overrides belong to their text line and survive splitting (each half keeps its lines' overrides). Rows without overrides keep the normal "every other line" alternation from that point on. Opening an existing song converts it faithfully: every stored chord line is carried into the field as an explicit chord line, so real-world content — annotated lines like <code>Cm (quick chugs x2 builds into the chorus)</code>, grid lines like <code>|D |D A | x12</code>, parentheticals like <code>F/D (5th Fret) D5</code> — round-trips unchanged, and the layout of a fully chords-only section is preserved exactly. Each field has its own folded <strong>Preview</strong> accordion beneath it: unfold it to see that section rendered as it will print (chords gold over lyrics, section title, repeat markers), and it stays live while you type; folded previews cost nothing until opened. <strong>+ Add section</strong> appends a typed section at the end and focuses its field. Turning the setting off brings back the legacy row editor with nothing lost — both editors read and write the same sections, and you can switch freely at any time.</li>
           </ul>
         </section>
@@ -2762,6 +2772,7 @@ function renderSidebar(){
       secs.forEach((sec, idx) => {
         const row = document.createElement('div');
         row.className = 'section-row' + (selectedSectionId === sec.id ? ' active' : '');
+        row.dataset.sid = sec.id;
         row.innerHTML = `
           <span class="name">${escapeHtml(displaySectionName(sec))}</span>
           <span class="order-btns">
@@ -3412,6 +3423,11 @@ const DEGLUE_LEAD_LOWER_RE = new RegExp('^(' + DEGLUE_CHORD_SRC + ')(?=[a-z])');
 function deglueLeadLowerIsRealChord(tok){
   return /[0-9#b]\/?|maj|min|dim|aug|sus|add|\//.test(tok);
 }
+/* Longest chord prefix of a line, for the lowercase-glue rule. Backtracking
+   the regex with a lowercase lookahead would happily match a NON-maximal
+   prefix ("E7sus4" -> "E7" + "s…"), shredding real slash/extension chords —
+   so we match greedily first and only then ask what follows. */
+const DEGLUE_CHORD_PREFIX_RE = new RegExp('^(' + DEGLUE_CHORD_SRC + ')');
 /* A chord tail token, optionally wrapped in bar pipes: "D7", "|D7". */
 const DEGLUE_TAIL_TOK_RE = new RegExp('^\\|*(?:' + DEGLUE_CHORD_SRC + ')\\|*$');
 
@@ -3486,11 +3502,17 @@ function deglueLeadingChordRun(line){
       return segs;
     });
     // 1b. Leading chord with real content (A7, F#m, Bbsus…) glued to a
-    //     lowercase word: "A7joo-ba" -> "A7" / "joo-ba…". Bare root+quality
-    //     glue never splits ("Amazing", "Email" stay whole).
+    //     lowercase word: "A7joo-ba" -> "A7" / "joo-ba…". The longest chord
+    //     prefix wins, so "E7sus4" / "F#7sus4" (whose next letter is merely
+    //     the chord's own "sus") stay whole; bare root+quality glue
+    //     ("Amazing", "Email") never splits.
     pieces = pieces.flatMap(p => {
-      const m = p.match(DEGLUE_LEAD_LOWER_RE);
-      return m && deglueLeadLowerIsRealChord(m[1]) ? [m[1], p.slice(m[1].length)] : [p];
+      const m = p.match(DEGLUE_CHORD_PREFIX_RE);
+      if (!m) return [p];
+      const rest = p.slice(m[1].length);
+      if (!/^[a-z]/.test(rest)) return [p];
+      if (!deglueLeadLowerIsRealChord(m[1])) return [p];
+      return [m[1], rest];
     });
     // 2. Mid-line: chord glued to the next lyric word: "D   CSuch" -> "D   C" / "Such".
     pieces = pieces.flatMap(p => p.replace(DEGLUE_MID_RE, '$1$2\n').split('\n'));
@@ -3510,12 +3532,35 @@ function deglueLeadingChordRun(line){
 }
 
 function normalizeScrapedText(text){
-  const cleaned = (text || '').replace(/\r\n?/g, '\n').split('\n')
+  const cleaned = (text || '').replace(/\r\n?/g, '\n').replace(/\u00a0/g, ' ').split('\n')
     .map(l => l.replace(/[ \t\u00a0]+$/, ''))
     .join('\n')
     .replace(/^\n+|\n+$/g, '')
     .replace(/\n{3,}/g, '\n\n');
-  return deglueChordLyricLines(cleaned);
+  return deglueChordLyricLines(cleaned.split('\n').map(breakOutInlineSectionHeaders).join('\n'));
+}
+
+/* Tab sites glue [Verse 1]-style headers into the lines around them
+   ("…much too slow.  [Verse 2]E7sus4"), which hides them from the
+   mass-entry auto-split — it only reads headers that sit alone on a line.
+   Recognized headers (same mapping the splitter uses) are broken out onto
+   their own lines before deglue runs; unrecognized [Text] stays inline. */
+function breakOutInlineSectionHeaders(line){
+  const re = /\[([^\[\]]+)\]/g;
+  const parts = [];
+  let last = 0, m, found = false;
+  while ((m = re.exec(line))){
+    if (!massHeaderSectionType(m[1])) continue;
+    found = true;
+    const before = line.slice(last, m.index).replace(/[ \t]+$/, '');
+    if (before) parts.push(before);
+    parts.push(m[0]);
+    last = m.index + m[0].length;
+  }
+  if (!found) return line;
+  const rest = line.slice(last).replace(/^[ \t]+/, '');
+  if (rest) parts.push(rest);
+  return parts.join('\n');
 }
 
 const MASS_BLOCK_TAGS = new Set(['P','DIV','LI','TR','H1','H2','H3','H4','H5','H6','PRE','BLOCKQUOTE','SECTION','ARTICLE','HR','TABLE','UL','OL','DT','DD','FIGCAPTION']);
@@ -5265,7 +5310,7 @@ function renderPreview(sec, paper){
   }).join('');
 }
 
-function renderAll(){ renderSidebar(); renderMain(); }
+function renderAll(){ renderSidebar(); renderMain(); initSectionSpy(); }
 
 /* In the mass-style section editor each section owns a folded preview
    accordion; refresh only the ones currently unfolded (a folded one
@@ -5316,6 +5361,8 @@ function syncConfigModal(){
   if (splitCb) splitCb.checked = state.autoSplitHeaders !== false;
   const massCb = document.getElementById('configMassEditorMode');
   if (massCb) massCb.checked = state.massEntryEditorMode !== false;
+  const smoothCb = document.getElementById('configSmoothScroll');
+  if (smoothCb) smoothCb.checked = smoothScrollEnabled();
 }
 function setWatchTarget(mode){
   try{ localStorage.setItem('setbook-watch-target', mode === 'self' ? 'self' : 'blank'); }catch(e){}
@@ -5345,6 +5392,9 @@ document.getElementById('configMassEditorMode').addEventListener('change', (e) =
   state.massEntryEditorMode = e.target.checked;
   scheduleSave();
   renderAll();
+});
+document.getElementById('configSmoothScroll').addEventListener('change', (e) => {
+  setSmoothScroll(e.target.checked);
 });
 wireModal({ overlayId:'configModalOverlay', openBtnId:'btnConfigureLayout', closeBtnId:'configCloseBtn', onOpen: syncConfigModal });
 syncConfigModal();
@@ -7982,6 +8032,65 @@ function scrollSelectedSongIntoView(){
   }, 0);
 }
 
+/* Pick-driven scrolling can animate. Smooth motion is a device-level
+   preference (default on, Configuration modal); the OS-level
+   prefers-reduced-motion setting always wins, and a running animation is
+   cancelled the moment its target moves again (re-picks, typing). */
+function smoothScrollEnabled(){
+  try{ if (localStorage.getItem('setbook-smooth-scroll') === '0') return false; }catch(e){}
+  return true;
+}
+function setSmoothScroll(on){
+  try{ localStorage.setItem('setbook-smooth-scroll', on ? '1' : '0'); }catch(e){}
+  syncConfigModal();
+}
+function prefersReducedMotion(){
+  try{ return window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches; }catch(e){ return false; }
+}
+const runningScrollAnims = new Map(); // element -> cancel fn
+// A wheel or touch on (or inside) an animating scroller hands control back
+// to the person at once — the glide never fights their input.
+['wheel', 'touchstart'].forEach(evtName => {
+  document.addEventListener(evtName, (e) => {
+    let el = e.target instanceof Element ? e.target : null;
+    while (el){
+      const cancel = runningScrollAnims.get(el);
+      if (cancel){ cancel(); break; }
+      el = el.parentElement;
+    }
+  }, { passive: true });
+});
+function animateScrollTo(el, top, onDone){
+  const prev = runningScrollAnims.get(el);
+  if (prev) prev();
+  if (!smoothScrollEnabled() || prefersReducedMotion()){
+    el.scrollTop = top;
+    if (onDone) onDone();
+    return;
+  }
+  const from = el.scrollTop;
+  const delta = top - from;
+  if (Math.abs(delta) < 2){
+    el.scrollTop = top;
+    if (onDone) onDone();
+    return;
+  }
+  let raf = 0, cancelled = false;
+  const cancel = () => { cancelled = true; cancelAnimationFrame(raf); runningScrollAnims.delete(el); };
+  runningScrollAnims.set(el, cancel);
+  const start = performance.now();
+  const DURATION = 300;
+  const easeInOut = t => t < 0.5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2)/2;
+  const step = (now) => {
+    if (cancelled) return;
+    const t = Math.min(1, (now - start) / DURATION);
+    el.scrollTop = from + delta * easeInOut(t);
+    if (t < 1){ raf = requestAnimationFrame(step); }
+    else { runningScrollAnims.delete(el); if (onDone) onDone(); }
+  };
+  raf = requestAnimationFrame(step);
+}
+
 /* Picking a section (sidebar row or a Recently-viewed row) should land the
    editor at the top of that section. In the mass-style editor every section
    of the song stacks inside the one scrollable #main, so the scroll offset
@@ -7997,11 +8106,11 @@ function scrollEditorToSelectedSection(){
     const field = selectedSectionId
       ? main.querySelector(`.mass-field[data-sec-id="${CSS.escape(selectedSectionId)}"]`)
       : null;
-    if (!field){ main.scrollTop = 0; return; }
+    if (!field){ animateScrollTo(main, 0); return; }
     const fr = field.getBoundingClientRect();
     const mr = main.getBoundingClientRect();
     if (fr.top < mr.top || fr.bottom > mr.bottom){
-      main.scrollTop += fr.top - mr.top;
+      animateScrollTo(main, main.scrollTop + (fr.top - mr.top));
     }
   };
   // Measured after a double rAF so auto-growing textareas have mostly
@@ -8025,10 +8134,94 @@ function scrollSelectedSongHeadIntoView(){
     const r = el.getBoundingClientRect();
     const box = scroller.getBoundingClientRect();
     if (r.top < box.top || r.top > box.bottom - 1){
-      scroller.scrollTop += r.top - box.top;
+      animateScrollTo(scroller, scroller.scrollTop + (r.top - box.top));
     }
   }, 0);
 }
+
+/* Scroll-spy: while the person scrolls through a song's stacked sections in
+   the mass-style editor, the matching sidebar row highlights — a reading
+   aid, so deep in a long song you always know which section is on screen.
+   Purely visual: it never changes selectedSectionId (that would fight the
+   person's picks and re-render the page), and it turns itself off the
+   moment a different song opens. */
+let spyActiveGroupId = null;
+function sidebarSpyHighlight(secId){
+  document.querySelectorAll('.section-row.spy').forEach(r => r.classList.remove('spy'));
+  if (!secId) return;
+  const row = document.querySelector(`.group[data-gid="${CSS.escape(selectedGroupId)}"] .section-row[data-sid="${CSS.escape(secId)}"]`);
+  if (row) row.classList.add('spy');
+}
+function updateSectionSpy(){
+  const main = document.getElementById('main');
+  if (!main || !selectedGroupId){ if (spyActiveGroupId){ spyActiveGroupId = null; sidebarSpyHighlight(null); } return; }
+  if (spyActiveGroupId !== selectedGroupId){ if (spyActiveGroupId){ spyActiveGroupId = null; sidebarSpyHighlight(null); } return; }
+  const fields = Array.from(main.querySelectorAll('.mass-field[data-sec-id]'));
+  if (!fields.length) return;
+  const mr = main.getBoundingClientRect();
+  // The section whose field crosses the editor's upper third is "on screen";
+  // near the document bottom the last field wins instead.
+  let current = null;
+  for (const f of fields){
+    const fr = f.getBoundingClientRect();
+    if (fr.bottom > mr.top + mr.height / 3){ current = f.dataset.secId; break; }
+  }
+  if (!current) current = fields[fields.length - 1].dataset.secId;
+  sidebarSpyHighlight(current);
+  syncSpyRowVisibility(current);
+}
+function initSectionSpy(){
+  const main = document.getElementById('main');
+  if (!main) return;
+  const fields = main.querySelectorAll('.mass-field[data-sec-id]');
+  const multi = fields.length > 1;
+  spyActiveGroupId = multi ? selectedGroupId : null;
+  if (!multi){ sidebarSpyHighlight(null); return; }
+  updateSectionSpy();
+}
+/* The spy never changes the selection, but it should not highlight a row
+   the person cannot see: when the highlighted row sits outside the sidebar's
+   visible area, the list nudges just enough to expose it (respecting the
+   animate-scroll preference), matching the sidebar follow behavior of the
+   other pick paths. */
+function syncSpyRowVisibility(secId){
+  const row = document.querySelector(`.section-row[data-sid="${CSS.escape(secId)}"]`);
+  const scroller = document.getElementById('sidebarList');
+  if (!row || !scroller) return;
+  const rr = row.getBoundingClientRect();
+  const br = scroller.getBoundingClientRect();
+  if (rr.top < br.top){ animateScrollTo(scroller, scroller.scrollTop + (rr.top - br.top)); }
+  else if (rr.bottom > br.bottom){ animateScrollTo(scroller, scroller.scrollTop + (rr.bottom - br.bottom)); }
+}
+document.getElementById('main').addEventListener('scroll', () => updateSectionSpy(), { passive: true });
+
+/* Alt+Down / Alt+Up: jump between sections of the open song without leaving
+   the keyboard. Works in both editors: in the mass-style editor it selects
+   the next/previous section and top-aligns it (scroll-to-top like a pick);
+   in the legacy row editor (one section on screen at a time) it simply
+   selects. At the song's edges it wraps nothing — it stops. */
+function jumpSection(delta){
+  if (!selectedGroupId || isTypingTarget(document.activeElement)) return;
+  if (document.querySelector('.modal-overlay.open')) return;
+  const secs = groupSections(selectedGroupId);
+  if (!secs.length) return;
+  const idx = secs.findIndex(s => s.id === selectedSectionId);
+  const next = idx === -1
+    ? (delta > 0 ? 0 : secs.length - 1)
+    : Math.min(secs.length - 1, Math.max(0, idx + delta));
+  if (next === idx) return;
+  selectedSectionId = secs[next].id;
+  expandedGroups.add(selectedGroupId);
+  renderAll();
+  closeSidebarAfterNavigate();
+  scrollEditorToSelectedSection();
+  scrollSelectedSongHeadIntoView();
+}
+document.addEventListener('keydown', (e) => {
+  if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey) return;
+  if (e.key === 'ArrowDown'){ e.preventDefault(); jumpSection(1); }
+  else if (e.key === 'ArrowUp'){ e.preventDefault(); jumpSection(-1); }
+});
 
 /* Renaming a song can re-sort the list and yank the open song out of view.
    Rather than scrolling on every keystroke (which would fight the person

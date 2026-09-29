@@ -119,6 +119,7 @@ globalThis.__sb = {
   loadParsedState, groupSections, songStatus, isSongReady, matchesReadyFilter,
   recordSongViewed, viewedAgoText, createSongFromUrlText, autoSplitMassFields,
   massRowsToText, parseMassFieldRows, classifyMassEntryLines, parseChordLine,
+  normalizeScrapedText, breakOutInlineSectionHeaders,
   buildSymbolsLine, displaySectionName, massSplitDefaultType, sectionTypeFromCustomName,
   defaultState, uid, touchGroup, touchSection,
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
@@ -458,6 +459,70 @@ suite('deglue');
   ];
   check('end-to-end Wolly Bully wall of text', JSON.stringify(got) === JSON.stringify(want),
     'got\n' + got.map(l => '  ' + JSON.stringify(l)).join('\n'));
+
+  // Regression: "Jack Straw" import. sus/add extension chords must survive
+  // deglue whole (the longest chord prefix wins, so "E7sus4" is never
+  // shredded into "E7" + "sus4"), and inline [Verse N] headers glue into
+  // surrounding lines must be broken out for the auto-splitter.
+  const susCases = [
+    ['sus chord at line start splits from its lyric', 'E7sus4 I just jumped the watchman, right outside the fence,',
+      ['E7sus4', 'I just jumped the watchman, right outside the fence,']],
+    ['sus chord glued to lyric splits whole', 'E7sus4I just jumped the watchman',
+      ['E7sus4', 'I just jumped the watchman']],
+    ['sharp sus glued to lyric splits whole', 'F#7sus4Hurts my ears to listen, Shannon,',
+      ['F#7sus4', 'Hurts my ears to listen, Shannon,']],
+    ['lone sus chord', 'E7sus4', ['E7sus4']],
+    ['add chord glued splits whole', 'Dadd9Took his rings', ['Dadd9', 'Took his rings']],
+    ['strong chord still splits from lowercase', 'A7joo-ba, Wolly Bully,',
+      ['A7', 'joo-ba, Wolly Bully,']],
+  ];
+  susCases.forEach(([name, input, want]) => {
+    const got = sb.deglueChordLyricLines(input).split('\n');
+    check('sus/add: ' + name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}`);
+  });
+  const inlineCases = [
+    ['header glued mid-line', 'movin\u2019 much too slow.  [Verse 2]E7sus4',
+      ['movin\u2019 much too slow.', '[Verse 2]', 'E7sus4']],
+    ['header glued to chord intro', 'Jack Straw - Grateful Dead (Hunter, Weir)  [Verse 1]E',
+      ['Jack Straw - Grateful Dead (Hunter, Weir)', '[Verse 1]', 'E']],
+    ['two inline headers on one line', '[Verse 1]E   F#m',
+      ['[Verse 1]', 'E   F#m']],
+    ['unrecognized bracket stays inline', 'the box [sic] was full', ['the box [sic] was full']],
+    ['plain header line stays put', '[Chorus]', ['[Chorus]']],
+    ['unrecognized bracket with suffix stays inline', 'intro riff  [Bridge (quiet)]Am',
+      ['intro riff  [Bridge (quiet)]Am']],
+  ];
+  inlineCases.forEach(([name, input, want]) => {
+    const got = sb.breakOutInlineSectionHeaders(input).split('\n');
+    check('inline header: ' + name, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}`);
+  });
+  // Full pipeline: header breakout happens before deglue, NBSP becomes a
+  // space, and the whole "Jack Straw" first-verse snippet comes out clean.
+  const js = sb.normalizeScrapedText(
+    'Jack Straw\u00a0- Grateful Dead (Hunter, Weir)  [Verse 1]E\n' +
+    'F#m\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0C#m\u00a0A\n' +
+    'We can share the women, we can share the wineE\n' +
+    'Bm\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0D\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0A\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0\u00a0E\u00a0\u00a0G#m\u00a0D\u00a0A\n' +
+    'We can share what we\'ve got of yours \'cause we done shared all of mine.\u00a0 [Verse 2]E7sus4'
+  ).split('\n');
+  // Pure chord lines (even multi-token) stay whole — the mass-entry parser
+  // pairs a chord line with the lyric line beneath it, so they must not be
+  // broken into one-token lines.
+  const jsWant = [
+    'Jack Straw - Grateful Dead (Hunter, Weir)',
+    '[Verse 1]',
+    'E',
+    'F#m            C#m A',
+    'We can share the women, we can share the wine',
+    'E',
+    'Bm            D      A          E  G#m D A',
+    'We can share what we\'ve got of yours \'cause we done shared all of mine.',
+    '[Verse 2]',
+    'E7sus4'
+  ];
+  check('end-to-end Jack Straw verse (sus + inline headers + NBSP)',
+    JSON.stringify(js) === JSON.stringify(jsWant),
+    'got\n' + js.map(l => '  ' + JSON.stringify(l)).join('\n'));
 }
 
 /* ================= summary ================= */
