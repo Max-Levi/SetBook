@@ -456,8 +456,10 @@
   /* ---------- mobile modal adaptation ---------- */
   /* On phones the modals feel oversized: trim the chrome, tighten the
      type, and let tall modals use the viewport as a sheet. Desktop
-     layout is unchanged. */
-  @media (max-width: 760px){
+     layout is unchanged. Matches narrow screens AND short+touch ones
+     (a phone in LANDSCAPE is wide but ~390px tall, and needs the same
+     compact chrome). */
+  @media (max-width: 760px), (max-height: 500px) and (pointer: coarse){
     .modal, .modal-wide{
       width:94vw; max-width:94vw;
       padding:18px 16px;
@@ -610,10 +612,13 @@
      sliver of space, so it moves off-canvas and opens as an overlay
      drawer (toggled by the hamburger button in the header). The inline
      width set by the resize handle is overridden with !important while
-     the drawer rules apply. */
+     the drawer rules apply. Matches narrow screens AND short+touch ones:
+     a phone in landscape is wide enough to get the desktop header, where
+     the wordmark, file status, badge, three menus, and Export button
+     overflow the ~390px-tall bar and push the menus off-screen entirely. */
   #btnSidebarToggle{ display:none; }
   .sidebar-scrim{ display:none; }
-  @media (max-width: 760px){
+  @media (max-width: 760px), (max-height: 500px) and (pointer: coarse){
     /* 44px minimum touch targets (Apple HIG) — the 12px icons in
        .small buttons were only ~24px tall and hard to tap. */
     #btnSidebarToggle{
@@ -1018,7 +1023,7 @@
   }
   .text-input-wrap input:focus{ outline:none; border-color: var(--focus-border); }
   .line-controls{ display:flex; flex-direction:column; gap:3px; padding-top:20px; flex-shrink:0; }
-  @media (max-width: 760px){
+  @media (max-width: 760px), (max-height: 500px) and (pointer: coarse){
     /* drag handle gets a proper touch target; the four icon buttons
        collapse into the ⋯ overflow menu */
     .line-num{ width:40px; padding-top:22px; }
@@ -7737,7 +7742,10 @@ function setSidebarWidth(px, opts = {}){
    Escape key, or automatically once the user navigates to a
    section (so the editor gets the full screen).
 --------------------------------------------------------- */
-const mobileSidebarMQ = window.matchMedia('(max-width: 760px)');
+// Same conditions as the CSS phone blocks: narrow, OR short+touch
+// (a phone in landscape) — keeps the JS drawer behavior in sync with the
+// styles that show the hamburger button.
+const mobileSidebarMQ = window.matchMedia('(max-width: 760px), (max-height: 500px) and (pointer: coarse)');
 const isMobileLayout = () => mobileSidebarMQ.matches;
 function setSidebarOpen(open){
   document.body.classList.toggle('sidebar-open', !!open);
