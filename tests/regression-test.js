@@ -249,6 +249,11 @@ suite('status');
   check('old files migrate: inProgress filter defaults on', sb.state.readyFilter.inProgress === true);
   check('old files migrate: new config defaults on', sb.state.autoSplitHeaders === true && sb.state.massEntryEditorMode === true);
   check('old files migrate: recentlyViewed starts empty', Array.isArray(sb.state.recentlyViewed) && sb.state.recentlyViewed.length === 0);
+  // Badge click order: Not Ready -> In Progress -> Ready -> Not Ready.
+  // Mirrors the click handler in renderSidebar (the cycle isn't a helper).
+  const cyc = (from) => from === 'not-ready' ? 'in-progress' : from === 'in-progress' ? 'ready' : 'not-ready';
+  check('status cycle: Not Ready → In Progress → Ready → Not Ready',
+    cyc('not-ready') === 'in-progress' && cyc('in-progress') === 'ready' && cyc('ready') === 'not-ready');
 }
 
 /* ================= 5. recently viewed (#2) ================= */
