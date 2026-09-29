@@ -9785,23 +9785,23 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   // Re-link a persisted Drive link: the saved file/folder ids survive a
   // reload. A failed silent sign-in (expired consent, blocked popup) must
   // NEVER drop the link — the app surfaces a stale-connected state instead
-  // (badge hidden, Connect shown to re-authorize, Disconnect still shown),
+  // (badge red, Connect shown to re-authorize, Disconnect still shown),
   // and Connect resumes the saved link without re-picking folder or file.
   // 404 means the file was really deleted from Drive: only then is the
   // link cleared.
+  // When a recovery offer is up (the usual returning-user case — the
+  // rolling crash snapshot is typically newer than the last Drive upload),
+  // the remote copy is NOT applied over the offer; the re-link waits for
+  // the welcome decision: restore → keep waiting; Start fresh / Open
+  // another file → apply the remote copy and close the modal.
   (async () => {
     if (!driveConfigured()) return;
     const link = await readPersistedDriveLink();
     if (!link) return;
-    try{
+    const applyRemote = async () => {
       const text = await driveLoadLibrary(link.fileId);
       const parsed = JSON.parse(text);
       assertParsedState(parsed);
-      // A recovery offer may have appeared while the fetch was in flight —
-      // never apply the remote copy over offered/restored crash-recovery
-      // work. The persisted link is kept; a reload without the offer links
-      // the Drive copy as usual.
-      if (recoveryRestoredThisBoot || document.querySelector('.recovery-banner')) return;
       const head = await driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } });
       const remoteModifiedTime = head.ok ? (await head.json()).modifiedTime : link.remoteModifiedTime;
       driveLink = { ...link, remoteModifiedTime };
@@ -9814,15 +9814,45 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
       updateSaveStatus('saved');
       renderAll();
       showToast(`Re-linked to ${link.fileName} in Google Drive.`);
-    } catch(err){
-      // Mark the saved link stale instead of deleting it: Drive stays the
-      // target, the UI shows Connect to re-authorize, and remote content
-      // is left untouched until sign-in succeeds.
+    };
+    const markStale = () => {
       driveLink = { ...link, authStale: true };
       currentFileName = `${link.fileName} · Drive`;
       updateFileLabel();
       updateSaveStatus('error');
       showToast('Drive link needs sign-in — click Connect Google Drive to continue.');
+    };
+    try{
+      // Probe while the welcome modal is up (also validates sign-in).
+      const head = await driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } });
+      if (!head.ok && head.status !== 401 && head.status !== 403){
+        const e = new Error('drive ' + head.status);
+        e.driveStatus = head.status;
+        throw e;
+      }
+      const bannerUp = () => !!document.querySelector('.recovery-banner');
+      if (recoveryRestoredThisBoot) return;      // restored work wins; keep the saved link untouched
+      if (bannerUp()){
+        await new Promise((resolve) => {
+          const check = setInterval(() => {
+            if (!bannerUp()){ clearInterval(check); resolve(); }
+          }, 250);
+        });
+        if (recoveryRestoredThisBoot) return;    // user chose restore
+      }
+      if (head.ok) await applyRemote();
+      else markStale();
+    } catch(err){
+      // Only a real 404 clears the link; anything else (auth, network)
+      // marks it stale so Connect can resume it.
+      const status = err && err.driveStatus;
+      if (status === 404){
+        driveLink = null;
+        persistDriveLink();
+        showToast(`\u201c${link.fileName}\u201d is no longer in Drive — the link was cleared.`);
+      } else {
+        markStale();
+      }
     }
   })();
   document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
