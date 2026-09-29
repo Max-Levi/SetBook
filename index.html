@@ -6152,6 +6152,7 @@ async function relinkLastFile(){
 // Drive menu items.
 const DRIVE_CLIENT_ID = '';   // e.g. '1234567890-abc123.apps.googleusercontent.com'
 const DRIVE_API_KEY = '';     // e.g. 'AIza…'
+const DRIVE_APP_ID = '';      // Cloud project NUMBER (console home page), for the Picker
 const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const DRIVE_LIBRARY_NAME = 'setbook.json';
 
@@ -6302,12 +6303,14 @@ function pickDriveFolder(){
     const view = new google.picker.DocsView(google.picker.ViewId.FOLDER);
     view.setSelectFolderEnabled(true);
     view.setMode(google.picker.DocsViewMode.LIST);
-    const picker = new google.picker.PickerBuilder()
+    const builder = new google.picker.PickerBuilder()
       .addView(view)
       .enableFeature(google.picker.Feature.NAV_HIDDEN)
       .setTitle('Choose a SetBook folder')
       .setOAuthToken(driveAccessToken)
-      .setDeveloperKey(DRIVE_API_KEY)
+      .setDeveloperKey(DRIVE_API_KEY);
+    if (DRIVE_APP_ID) builder.setAppId(String(DRIVE_APP_ID));
+    const picker = builder
       .setCallback((data) => {
         if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED){
           const doc = (data[google.picker.Response.DOCUMENTS] || [])[0];
