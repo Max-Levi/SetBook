@@ -24,6 +24,7 @@ const PRECACHE_URLS = [
   './',
   './index.html',
   './manifest.webmanifest',
+  './favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
   // jsPDF — loaded lazily by the app, cached here so offline exports work.

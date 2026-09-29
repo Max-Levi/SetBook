@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
+  <!-- SetBook favicon: the brand's open-book mark on the dark app background.
+       Same paths as the header logo (viewBox 0 0 44 36, centered vertically);
+       stroke is a touch heavier than the header's 3.6 so the book stays
+       legible at 16px tab size. -->
+  <rect width="44" height="44" rx="9" fill="#1b1b1e"/>
+  <g transform="translate(0 4)" fill="none" stroke="#a3e3b2" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M22 9 C15 3.5, 8 3.5, 4 6 V28.5 C8 26, 15 26, 22 32 C29 26, 36 26, 40 28.5 V6 C36 3.5, 29 3.5, 22 9 Z"/>
+    <path d="M22 9 V32"/>
+  </g>
+</svg>
