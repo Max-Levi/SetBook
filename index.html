@@ -30,12 +30,20 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- PWA: installable + offline-capable (see sw.js). The SW registration
+     is guarded below: it only runs on https/localhost, never on file://,
+     and its absence must never block the app. -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#1b1b1e">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <title>SetBook — Section Editor</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
-  integrity="sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA=="
-  crossorigin="anonymous"></script>
+<!-- jsPDF is lazy-loaded on demand (see ensureJsPdf below): the export
+     flow injects the same CDN tag the first time a PDF is generated, so
+     page load doesn't pay for a ~350KB library most sessions never use.
+     Offline, the service worker serves a cached copy (see sw.js). -->
 <script>
   // Applied as early as possible (before the body paints) to avoid a
   // flash of the wrong theme. A saved choice in localStorage wins; else
@@ -1260,6 +1268,9 @@
         <button class="menu-item" id="btnSetFolder">Set folder…<span id="lastFolderHint" class="menu-item-hint"></span></button>
         <button class="menu-item" id="btnCloseFile" hidden>Close current file</button>
         <div class="menu-sep"></div>
+        <button class="menu-item" id="btnDriveConnect">Connect Google Drive…</button>
+        <button class="menu-item" id="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
+        <div class="menu-sep"></div>
         <button class="menu-item" id="btnConfigureLayout">Configuration…</button>
       </div>
     </div>
@@ -1289,6 +1300,8 @@
         <button class="menu-item" data-delegate="btnSnapshots">Snapshots…</button>
         <button class="menu-item" data-delegate="btnSetFolder">Set folder…</button>
         <button class="menu-item" data-delegate="btnCloseFile" hidden>Close current file</button>
+        <button class="menu-item" data-delegate="btnDriveConnect">Connect Google Drive…</button>
+        <button class="menu-item" data-delegate="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
         <button class="menu-item" data-delegate="btnConfigureLayout">Configuration…</button>
         <div class="menu-group-label">Songs</div>
         <button class="menu-item" data-delegate="btnCopySongs">Import songs</button>
@@ -1650,12 +1663,26 @@
   </div>
 </div>
 
+<!-- Drive conflict: the cloud copy changed since our last save -->
+<div class="modal-overlay" id="driveConflictModalOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Drive copy changed</h2>
+    <p class="modal-sub" id="driveConflictSub"></p>
+    <ul id="driveConflictDiffList" class="diff-list" aria-live="polite"></ul>
+    <div class="modal-actions">
+      <button type="button" class="primary small" id="driveConflictOverwriteBtn">Overwrite Drive</button>
+      <button type="button" class="ghost small" id="driveConflictReloadBtn">Reload from Drive</button>
+    </div>
+  </div>
+</div>
+
 <!-- Technical documentation / Help modal -->
 <div class="modal-overlay" id="helpModalOverlay">
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook — Technical Documentation</h2>
-    <p class="modal-sub">Last updated 2026-09-28.</p>
+    <p class="modal-sub">Last updated 2026-09-29.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-overview">1. Overview</a>
@@ -1676,7 +1703,7 @@
         <section id="help-overview">
           <h3>1. Overview</h3>
           <p>SetBook is a single-file, client-side web application for building and managing a personal song library as structured lead sheets. It is designed for musicians who need readable chord charts at rehearsals, jam sessions, open mics, recording sessions, and live performances.</p>
-          <p>The entire application — markup, styles, and logic — is contained in one HTML file. There is no build step, no backend, no account system, and no local database. Third-party code is loaded from CDNs at runtime: jsPDF (PDF generation) and Google Fonts (typefaces). All UI icons are inline SVG assets embedded directly in the file, so they render with no network access.</p>
+          <p>The entire application — markup, styles, and logic — is contained in one HTML file. There is no build step and no backend. Third-party code is loaded from CDNs: jsPDF (PDF generation, lazy-loaded on first export) and Google Fonts (typefaces). A service worker (<code>sw.js</code>) caches the app shell and those CDN assets so the installed app keeps working offline. All UI icons are inline SVG assets embedded directly in the file, so they render with no network access.</p>
         </section>
         <section id="help-architecture">
           <h3>2. Architecture</h3>
@@ -1758,15 +1785,16 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's localStorage. If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered.</li>
+            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a single <code>setbook.json</code> in a Drive folder you pick (via Google's own picker, in folder-select mode). Every change autosaves to that file exactly like the local-file link — the header shows "saved to Drive · <em>age</em>". If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more, revokes the saved Google authorization, and unlinks (the Drive file stays). Reopening the app re-links automatically and re-authorizes silently. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
+            <li>Crash recovery: every change is also snapshotted (debounced) to the browser's IndexedDB (with a localStorage fallback and one-time migration from the pre-IndexedDB localStorage store, which had a ~5MB quota large songbooks could silently hit). If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered. A persisted Drive link never auto-applies the remote copy over offered or restored recovery work — the remote copy is only linked on a boot where no recovery offer appeared.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
-            <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder… and — while a file is linked — Close current file, then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
+            <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Export filtered songs as JSON: Songs → Export filtered songs as JSON… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/In progress/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
             <li>Import: songs can be copied from another SetBook JSON file via the Songs menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
             <li>Recently viewed songs: Songs → Recently viewed songs… lists the last six songs you had open, most recent first, each with how long ago you viewed it ("just now", "5 min ago", "2 hours ago", … — the same cadence as the header's save-age display). Tapping a row opens that song at its top section, scrolled into view in both the editor and the sidebar; the list is saved with the file, so it survives closing and reopening.</li>
             <li>Transpose: each section can define the key its chords are written in — pick it from the key dropdown in the section header (legacy row editor) or the field header (mass-entry editor); both editors share the same controls, stored per section. Once a key is set, a second dropdown appears with up/down steppers that step through the twelve keys; choosing a different key transposes that section's chords in the on-screen preview and in both exported PDFs, with a "Key: G → A" note shown beside the section title. Only chord symbols move — a chord's quality and extensions stay attached (Em7 → F#m7, D/F# → E/G#), slash basses move with the chord, bar-line pipes (|) and extras like (x2), (5th Fret), or N.C. are kept verbatim, and chord positions over lyrics are re-aligned when spellings change width. Flat keys (Bb, Eb, Ab, Db, Gb) get flat spellings; others use sharps. A chord line with no recognizable chords at all can't be moved — preview and PDFs flag it with a dotted underline and a "cannot transpose" note while the rest of the section still transposes. The editors themselves always show and store the original chords, so transposing is display-only and reversible; set the target back to the section's key (or clear the key) to return.</li>
-            <li>Close current file: File → Close current file (shown only while a file is linked) unlinks the open JSON after writing any unsaved changes to disk. The file itself stays where it is — only the link between it and SetBook is dropped — and the songs stay on screen as unsaved work; Save as… then links a new file without losing anything.</li>
+            <li>Close current file: File → Close current file (shown only while a file — local or Drive — is linked) unlinks the open JSON after writing any unsaved changes (to disk, or to Drive). The file itself stays where it is — only the link between it and SetBook is dropped (a Drive disconnect also revokes the saved authorization) — and the songs stay on screen as unsaved work; Save as… or Connect Google Drive… then links a new file without losing anything.</li>
             <li>Renaming a song re-sorts the list; if the sort moves the song you have open out of view, the sidebar scrolls it to the top of the visible area automatically, so the new sort order is obvious without hunting. A rename that leaves the open song visible doesn't scroll anything.</li>
           </ul>
         </section>
@@ -1776,7 +1804,7 @@
         </section>
         <section id="help-requirements">
           <h3>10. Requirements</h3>
-          <p>A modern browser with JavaScript enabled. Internet access is required on first load to fetch the jsPDF library and fonts from CDNs; afterwards the application runs entirely from the single local file.</p>
+          <p>A modern browser with JavaScript enabled. Internet access is needed on first load for the CDN assets and when a PDF is first exported (the jsPDF library lazy-loads at that point); the service worker caches the app shell, fonts, and jsPDF, so the installed app opens and exports PDFs offline. Google Drive autosave additionally needs connectivity at save time — offline edits are kept by the crash-recovery snapshot and saved to Drive on the next online save.</p>
         </section>
         <section id="help-maintainers">
           <h3>11. Maintainer notes</h3>
@@ -1784,7 +1812,9 @@
             <li>All display-affecting transforms (lyric-continuation grouping, comment-line stripping, repeat markers) are centralized in <code>groupLinesForDisplay</code> and its helpers so the preview and both PDF pipelines share one code path. Editor source data is never mutated by display logic.</li>
             <li>UI icons are hand-drawn inline SVGs (<code>&lt;svg class="svg-icon" viewBox="0 0 512 512"&gt;</code>) embedded directly in the markup — there is no icon font or icon CDN. To add an icon, inline a new SVG with the <code>svg-icon</code> class; it sizes to <code>1em</code> and inherits <code>currentColor</code>. Do not reintroduce an external icon library.</li>
             <li>Design tokens are disciplined: gold (<code>--gold</code>) is reserved for the brand mark, chord symbols, active states, and focus — never for general labels, tags, or status text. Radii follow a three-step scale: <code>6px</code> controls, <code>10px</code> surfaces, <code>999px</code> pills. Only two typefaces load — Work Sans for UI, JetBrains Mono for chords and code. Pressable controls translate 1px on press (<code>:active</code>), and every focusable element shows a gold <code>:focus-visible</code> ring. In light mode the dimmed gold (<code>--gold-dim #7a5f16</code>) is the darkest that still keeps the brand look while holding ≈4.9:1 contrast against the paper background for preview chord symbols. The empty preview state shows a hand-drawn open-book illustration, not blank paper.</li>
-            <li>The jsPDF library loads from the cdnjs CDN with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update both the script tag and <code>setbook-qa/security-test.js</code>, which asserts the exact hash.</li>
+            <li>The jsPDF library lazy-loads from the cdnjs CDN on first PDF export (<code>ensurePdfLib()</code> injects the script tag) with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update the constant in <code>ensurePdfLib()</code>, the <code>PRECACHE_URLS</code> entry in <code>sw.js</code>, and <code>setbook-qa/security-test.js</code>, which asserts the exact hash.</li>
+            <li>Offline support is a service worker (<code>sw.js</code>) plus <code>manifest.webmanifest</code> and placeholder icons (<code>tools/make-icons.js</code> regenerates them). The worker is network-first for the app shell (a Pages deploy must never be pinned stale) and cache-first for immutable CDN assets (jsPDF, fonts); Drive/auth traffic is bypassed so tokens never transit the cache. Bump <code>CACHE_VERSION</code> in <code>sw.js</code> whenever the pre-cached asset list changes. Registration is guarded to https/localhost and never blocks the app — including the Node test sandbox, which provides no service worker.</li>
+            <li>Google Drive autosave uses Google's Picker flow with the per-file <code>drive.file</code> scope (non-sensitive: no OAuth app verification or security assessment). The credentials are bring-your-own constants (<code>DRIVE_CLIENT_ID</code>/<code>DRIVE_API_KEY</code>) — the app ships with them empty and hides the Drive menu items until they are filled; tokens are memory-only and the persisted link (file/folder ids) lives in the same IndexedDB store as local file handles. Drive v3 has no conditional writes: conflict detection compares <code>modifiedTime</code> before each write — a documented check-then-write race, the same honesty as the storage spike's S3 adapter.</li>
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
             <li>URL import (Add song from URL) is the app's only fetch-from-URL feature, and its security model is: fetch gates the scheme on the <em>resolved</em> URL (only <code>http:</code>/<code>https:</code>) so smuggled schemes can't pass; HTML extraction runs through <code>DOMParser</code>, which never executes scripts; and scraped text is only ever assigned to input <code>value</code> properties or plain strings — never <code>innerHTML</code>. The <code>setbook-url-import</code> event hook normalizes its text through the same path before creating the staging section, and its takeover choice only re-targets which existing song is cleared — it never widens what the hook can touch.</li>
             <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
@@ -5864,9 +5894,10 @@ function renderRecentSongList(){
 
 function updateFileLabel(){
   document.getElementById('fileNameLabel').textContent = currentFileName || 'No file open';
-  // "Close current file" only means something while a file is linked
+  // "Close current file" only means something while a file (local or Drive) is linked
   const closeItem = document.getElementById('btnCloseFile');
-  if (closeItem) closeItem.hidden = !fileHandle;
+  if (closeItem) closeItem.hidden = !fileHandle && !driveLink;
+  updateDriveMenuItems();
 }
 
 let lastDiskSaveAt = 0;   // ms epoch of the last moment memory matched the linked file
@@ -5917,11 +5948,12 @@ function updateSaveStatus(status){
   const dot = document.getElementById('saveDot');
   const text = document.getElementById('saveText');
   dot.className = 'save-dot' + (status ? ' ' + status : '');
+  const onDrive = !!driveLink;
   const toFile = !!(supportsFsApi && fileHandle);
-  if (status === 'saved' && toFile) lastDiskSaveAt = Date.now();
+  if (status === 'saved' && (toFile || onDrive)) lastDiskSaveAt = Date.now();
   const messages = {
-    saved: toFile ? 'saved to disk' : 'not linked to a file yet',
-    saving: 'saving\u2026',
+    saved: onDrive ? 'saved to Drive' : (toFile ? 'saved to disk' : 'not linked to a file yet'),
+    saving: onDrive ? 'saving to Drive\u2026' : 'saving\u2026',
     pending: 'unsynced changes',
     error: 'save failed \u2014 will retry',
     nofile: supportsFsApi ? 'not linked to a file yet' : 'download to save (browser has no file access)',
@@ -5939,7 +5971,7 @@ function updateSaveStatus(status){
 // the save time.
 setInterval(() => {
   if (currentSaveStatus !== 'saved' || !lastDiskSaveAt) return;
-  if (!(supportsFsApi && fileHandle)) return;
+  if (!(supportsFsApi && fileHandle) && !driveLink) return;
   const age = saveAgeText();
   document.getElementById('saveText').textContent = 'saved to disk' + (age ? ' \u00b7 ' + age : '');
 }, 30000);
@@ -5962,6 +5994,14 @@ function scheduleSave(){
   scheduleRecoverySave();
   // Every change is written to the linked local file (debounced). The
   // recovery snapshot above is the crash-safety net.
+  if (driveLink){
+    // Cloud link: same debounce, Drive upload instead of the writable.
+    updateSaveStatus('pending');
+    fileSaveFailed = false;
+    if (saveTimer) clearTimeout(saveTimer);
+    saveTimer = setTimeout(doSave, 500);
+    return;
+  }
   if (!(supportsFsApi && fileHandle)){ updateSaveStatus('nofile'); return; }
   updateSaveStatus('pending');
   fileSaveFailed = false;
@@ -5971,6 +6011,26 @@ function scheduleSave(){
 
 let fileSaveFailed = false;
 async function doSave(){
+  if (driveLink){
+    try{
+      updateSaveStatus('saving');
+      stampSectionDisplayNames();
+      await driveSaveLibrary();
+      fileSaveFailed = false;
+      updateSaveStatus('saved');
+    } catch(err){
+      if (err && err.message === 'drive-conflict'){
+        // Remote changed since our last write: let the user pick a side.
+        updateSaveStatus('error');
+        showDriveConflict(err.remoteModifiedTime);
+        return;
+      }
+      console.error(err);
+      fileSaveFailed = true;
+      updateSaveStatus('error');
+    }
+    return;
+  }
   if (!fileHandle) return;
   try{
     updateSaveStatus('saving');
@@ -6077,28 +6137,440 @@ async function relinkLastFile(){
     return none;
   }
 }
-const RECOVERY_KEY = 'setbook-recovery-v1';
+/* ---------------------------------------------------------
+   Google Drive cloud save (drive.file scope, no backend)
+   The library links to ONE JSON file (setbook.json) in a
+   user-picked Drive folder, mirroring the local-file model.
+   Credentials are bring-your-own (constants below); access
+   tokens stay in memory only.
+--------------------------------------------------------- */
+// Setup (one-time, outside this file): create a Google Cloud project,
+// enable the Drive API and the Google Picker API, then create an API key
+// and an OAuth 2.0 Web client ID. The Web client's authorized JavaScript
+// origins must include the site hosting SetBook (e.g. https://max-levi.github.io)
+// plus http://localhost for local testing. Leave empty to hide the
+// Drive menu items.
+const DRIVE_CLIENT_ID = '';   // e.g. '1234567890-abc123.apps.googleusercontent.com'
+const DRIVE_API_KEY = '';     // e.g. 'AIza…'
+const DRIVE_SCOPE = 'https://www.googleapis.com/auth/drive.file';
+const DRIVE_LIBRARY_NAME = 'setbook.json';
+
+let driveLink = null;          // { folderId, folderName, fileId, fileName, remoteModifiedTime }
+let driveAccessToken = null;   // memory only — never persisted
+let driveTokenExpiry = 0;      // ms epoch
+let driveTokenClient = null;
+let driveConnecting = false;
+let driveConflictActive = false;
+const driveConflictModal = wireModal({ overlayId: 'driveConflictModalOverlay' });
+
+// Load an external script once; resolves on load, rejects on error.
+function loadScriptOnce(src){
+  return new Promise((resolve, reject) => {
+    const existing = document.querySelector(`script[src="${src}"]`);
+    if (existing){ existing.addEventListener('load', () => resolve()); existing.addEventListener('error', () => reject(new Error('Failed to load ' + src))); if (existing.dataset.loaded === '1') resolve(); return; }
+    const s = document.createElement('script');
+    s.src = src;
+    s.async = true;
+    s.onload = () => { s.dataset.loaded = '1'; resolve(); };
+    s.onerror = () => reject(new Error('Failed to load ' + src));
+    document.head.appendChild(s);
+  });
+}
+// Both SDKs load on demand (first connect) so page load stays fast.
+async function ensureGoogleAuthSdk(){
+  if (window.google && window.google.accounts && window.google.accounts.oauth2) return;
+  await loadScriptOnce('https://accounts.google.com/gsi/client');
+}
+async function ensurePickerSdk(){
+  if (window.google && window.google.picker) return;
+  await loadScriptOnce('https://apis.google.com/js/api.js');
+  await new Promise((resolve) => gapi.load('picker', resolve));
+}
+
+// Resolve an OAuth access token. Non-expiring in-memory cache; interactive
+// mode shows the account chooser / consent, silent mode re-uses the session.
+function requestDriveToken(interactive){
+  return ensureGoogleAuthSdk().then(() => new Promise((resolve, reject) => {
+    if (driveAccessToken && Date.now() < driveTokenExpiry - 60000) return resolve(driveAccessToken);
+    if (!driveTokenClient){
+      driveTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: DRIVE_CLIENT_ID,
+        scope: DRIVE_SCOPE,
+        callback: (resp) => {
+          if (resp.error){ reject(new Error(resp.error)); return; }
+          driveAccessToken = resp.access_token;
+          driveTokenExpiry = Date.now() + (Number(resp.expires_in || 3600) * 1000);
+          resolve(driveAccessToken);
+        },
+        error_callback: (err) => reject(new Error(err && err.type || 'popup_closed')),
+      });
+    }
+    driveTokenClient.requestAccessToken({ prompt: interactive ? 'consent' : '' });
+  }));
+}
+
+// Minimal Drive v3 REST helpers (simple media upload; metadata only).
+async function driveApi(method, path, opts = {}){
+  const token = await requestDriveToken(false);
+  const url = new URL(`https://www.googleapis.com/${path}`);
+  for (const [k, v] of Object.entries(opts.params || {})) url.searchParams.set(k, v);
+  const res = await fetch(url, {
+    method,
+    headers: {
+      'Authorization': `Bearer ${token}`,
+      ...(opts.body ? { 'Content-Type': opts.contentType || 'application/json' } : {}),
+    },
+    body: opts.body || undefined,
+  });
+  if (res.status === 401){
+    // Token expired/revoked mid-session: re-request silently, retry once.
+    driveAccessToken = null;
+    const fresh = await requestDriveToken(false);
+    const retry = await fetch(url, {
+      method,
+      headers: {
+        'Authorization': `Bearer ${fresh}`,
+        ...(opts.body ? { 'Content-Type': opts.contentType || 'application/json' } : {}),
+      },
+      body: opts.body || undefined,
+    });
+    return retry;
+  }
+  return res;
+}
+
+function driveFileBody(){ return JSON.stringify(state, null, 2); }
+// The conflict decision, extracted pure for the regression tests: a remote
+// modification time conflicts only when we have a known baseline AND it
+// differs. A null baseline (fresh link) adopts the remote state silently.
+function driveRemoteChanged(lastKnown, current){
+  return !!(lastKnown && current && lastKnown !== current);
+}
+
+// The library file in the linked folder: find it or create it.
+async function driveFindLibrary(folderId){
+  const q = `'${folderId}' in parents and trashed = false`;
+  const res = await driveApi('GET', 'drive/v3/files', {
+    params: { q, fields: 'files(id,name,modifiedTime)', pageSize: '50', spaces: 'drive' },
+  });
+  if (!res.ok) throw new Error(`Drive list failed: ${res.status}`);
+  const json = await res.json();
+  return (json.files || []).find(f => f.name === DRIVE_LIBRARY_NAME) || null;
+}
+async function driveCreateLibrary(folderId){
+  const res = await driveApi('POST', 'upload/drive/v3/files', {
+    params: { uploadType: 'media', fields: 'id,name,modifiedTime' },
+    body: driveFileBody(),
+    contentType: 'application/json',
+  });
+  if (!res.ok) throw new Error(`Drive create failed: ${res.status}`);
+  const meta = await res.json();
+  await driveApi('PATCH', `drive/v3/files/${meta.id}`, { params: { fields: 'id,modifiedTime' }, body: JSON.stringify({ parents: [folderId] }) });
+  return meta;
+}
+async function driveLoadLibrary(fileId){
+  const res = await driveApi('GET', `drive/v3/files/${fileId}`, { params: { alt: 'media' } });
+  if (!res.ok) throw new Error(`Drive load failed: ${res.status}`);
+  return res.text();
+}
+async function driveSaveLibrary(){
+  // Conflict detection: Drive v3 has no conditional writes, so compare the
+  // remote modifiedTime before each write (the same documented
+  // check-then-write race as the storage spike's S3 adapter).
+  const head = await driveApi('GET', `drive/v3/files/${driveLink.fileId}`, { params: { fields: 'modifiedTime' } });
+  if (head.ok){
+    const meta = await head.json();
+    if (driveRemoteChanged(driveLink.remoteModifiedTime, meta.modifiedTime)){
+      const err = new Error('drive-conflict');
+      err.remoteModifiedTime = meta.modifiedTime;
+      throw err;
+    }
+  }
+  const res = await driveApi('PATCH', `upload/drive/v3/files/${driveLink.fileId}`, {
+    params: { uploadType: 'media', fields: 'id,modifiedTime' },
+    body: driveFileBody(),
+    contentType: 'application/json',
+  });
+  if (!res.ok) throw new Error(`Drive save failed: ${res.status}`);
+  const meta = await res.json();
+  driveLink.remoteModifiedTime = meta.modifiedTime;
+}
+
+// Open the Google Picker in folder-select mode; resolves the picked folder.
+function pickDriveFolder(){
+  return ensurePickerSdk().then(() => requestDriveToken(false)).then(() => new Promise((resolve, reject) => {
+    const view = new google.picker.DocsView(google.picker.ViewId.FOLDER);
+    view.setSelectFolderEnabled(true);
+    view.setMode(google.picker.DocsViewMode.LIST);
+    const picker = new google.picker.PickerBuilder()
+      .addView(view)
+      .enableFeature(google.picker.Feature.NAV_HIDDEN)
+      .setTitle('Choose a SetBook folder')
+      .setOAuthToken(driveAccessToken)
+      .setDeveloperKey(DRIVE_API_KEY)
+      .setCallback((data) => {
+        if (data[google.picker.Response.ACTION] === google.picker.Action.PICKED){
+          const doc = (data[google.picker.Response.DOCUMENTS] || [])[0];
+          resolve(doc ? doc[google.picker.Document.ID] : null);
+        } else if (data[google.picker.Response.ACTION] === google.picker.Action.CANCEL){
+          resolve(null);
+        }
+      })
+      .build();
+    picker.setVisible(true);
+  }));
+}
+
+// Connect flow: token → folder picker → find-or-create setbook.json → load
+// (snapshot current work first, exactly like Open) or create it.
+async function connectDrive(){
+  if (driveConnecting || !driveConfigured()) return;
+  driveConnecting = true;
+  try{
+    await requestDriveToken(true);
+    const folderId = await pickDriveFolder();
+    if (!folderId) return;
+    let file = await driveFindLibrary(folderId);
+    if (!file){
+      const meta = await driveCreateLibrary(folderId);
+      file = { id: meta.id, name: DRIVE_LIBRARY_NAME, modifiedTime: meta.modifiedTime };
+    } else {
+      const text = await driveLoadLibrary(file.id);
+      const parsed = JSON.parse(text);
+      assertParsedState(parsed);
+      if ((state.sectionGroups || []).length) takeSnapshot('Before opening ' + DRIVE_LIBRARY_NAME + ' (Drive)');
+      loadParsedState(parsed);
+      takeSnapshot('Opened ' + DRIVE_LIBRARY_NAME + ' (Drive)');
+    }
+    fileHandle = null; // cloud link replaces any local-file link
+    driveLink = { folderId, folderName: '', fileId: file.id, fileName: file.name, remoteModifiedTime: file.modifiedTime };
+    currentFileName = `${file.name} · Drive`;
+    persistDriveLink();
+    updateFileLabel();
+    updateSaveStatus('saved');
+    renderAll();
+    showToast(`Linked to ${DRIVE_LIBRARY_NAME} in Google Drive.`);
+  } catch(err){
+    if (err && err.message === 'drive-conflict') return; // handled by doSave's conflict path
+    showErrorToast('Could not connect Google Drive: ' + err.message);
+  } finally {
+    driveConnecting = false;
+  }
+}
+
+// Disconnect: final save, revoke the token, drop the link.
+async function disconnectDrive(){
+  if (!driveLink) return;
+  try{ if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; await doSave(); } } catch(err){ /* final save is best-effort */ }
+  try{ if (driveAccessToken) google.accounts.oauth2.revoke(driveAccessToken, () => {}); } catch(err){}
+  driveLink = null;
+  driveAccessToken = null;
+  driveTokenExpiry = 0;
+  persistDriveLink();
+  currentFileName = null;
+  updateFileLabel();
+  updateSaveStatus('nofile');
+  showToast('Google Drive disconnected — your work stays on screen; Save as… to link a local file.');
+}
+
+function driveConfigured(){ return !!(DRIVE_CLIENT_ID && DRIVE_API_KEY); }
+function updateDriveMenuItems(){
+  const hide = !driveConfigured() || !!driveLink;
+  const connect = document.getElementById('btnDriveConnect');
+  const disconnect = document.getElementById('btnDriveDisconnect');
+  if (connect) connect.hidden = hide;
+  if (disconnect) disconnect.hidden = !driveLink;
+  // the phone Menu mirrors the desktop items' visibility
+  const delegateConnect = document.querySelector('[data-delegate="btnDriveConnect"]');
+  const delegateDisconnect = document.querySelector('[data-delegate="btnDriveDisconnect"]');
+  if (delegateConnect) delegateConnect.hidden = hide;
+  if (delegateDisconnect) delegateDisconnect.hidden = !driveLink;
+}
+document.getElementById('btnDriveConnect').addEventListener('click', connectDrive);
+document.getElementById('btnDriveDisconnect').addEventListener('click', () => {
+  showConfirmPopover(document.getElementById('btnDriveDisconnect'),
+    'Disconnect Google Drive? Your work is saved to Drive one last time first; the folder and its setbook.json stay where they are.',
+    'Disconnect', () => { disconnectDrive(); });
+});
+
+// Drive link persistence: stored in the same handles IndexedDB as local
+// file handles so a reload re-links silently (the token is re-requested
+// silently on the next save).
+async function persistDriveLink(){
+  if (typeof indexedDB === 'undefined') return;
+  try{
+    const db = await idbOpenHandles();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readwrite');
+      const op = driveLink
+        ? tx.objectStore(HANDLE_STORE).put({ driveLink, savedAt: Date.now() }, 'driveLink')
+        : tx.objectStore(HANDLE_STORE).delete('driveLink');
+      op.onsuccess = () => resolve();
+      op.onerror = () => reject(op.error);
+      tx.oncomplete = () => db.close();
+    });
+  }catch(err){ /* private mode etc. */ }
+}
+async function readPersistedDriveLink(){
+  if (typeof indexedDB === 'undefined') return null;
+  try{
+    const db = await idbOpenHandles();
+    const rec = await new Promise((resolve, reject) => {
+      const tx = db.transaction(HANDLE_STORE, 'readonly');
+      const get = tx.objectStore(HANDLE_STORE).get('driveLink');
+      get.onsuccess = () => resolve(get.result);
+      get.onerror = () => reject(get.error);
+      tx.oncomplete = () => db.close();
+    });
+    return (rec && rec.driveLink) || null;
+  }catch(err){ return null; }
+}
+
+// Conflict modal: cloud copy changed since our last save. Nothing is
+// written automatically — the user picks a side; the local work is
+// snapshotted first so either choice stays undoable. The remote copy is
+// fetched (best-effort) so the diff shows what actually differs, like the
+// open-file conflict comparison.
+function showDriveConflict(remoteModifiedTime){
+  if (driveConflictActive) return;
+  driveConflictActive = true;
+  if (saveTimer){ clearTimeout(saveTimer); saveTimer = null; }
+  takeSnapshot('Before Drive conflict choice');
+  document.getElementById('driveConflictSub').textContent =
+    `\u201c${DRIVE_LIBRARY_NAME}\u201d in Google Drive was changed after your last save — probably from another device or tab. Your local work was snapshotted first, so nothing is lost either way. Choose which version to keep.`;
+  (async () => {
+    let remoteState = null;
+    try{
+      const text = await driveLoadLibrary(driveLink.fileId);
+      remoteState = JSON.parse(text);
+    } catch(err){ /* diff falls back to a local-side-only listing */ }
+    renderDiffInto(document.getElementById('driveConflictDiffList'), state, remoteState, 'This device', 'Drive copy', { showTimes: true });
+  })();
+  document.getElementById('driveConflictOverwriteBtn').onclick = async () => {
+    driveLink.remoteModifiedTime = remoteModifiedTime;
+    driveConflictActive = false;
+    driveConflictModal.close();
+    updateSaveStatus('pending');
+    await doSave();
+  };
+  document.getElementById('driveConflictReloadBtn').onclick = async () => {
+    driveConflictActive = false;
+    driveConflictModal.close();
+    try{
+      const text = await driveLoadLibrary(driveLink.fileId);
+      const parsed = JSON.parse(text);
+      assertParsedState(parsed);
+      takeSnapshot('Before reloading from Drive');
+      loadParsedState(parsed);
+      const head = await driveApi('GET', `drive/v3/files/${driveLink.fileId}`, { params: { fields: 'modifiedTime' } });
+      if (head.ok){ driveLink.remoteModifiedTime = (await head.json()).modifiedTime; }
+      updateSaveStatus('saved');
+      renderAll();
+      showToast('Reloaded the Drive copy — your local work is in Snapshots.');
+    } catch(err){
+      showErrorToast('Could not reload from Drive: ' + err.message);
+    }
+  };
+  driveConflictModal.open();
+}
+
+const RECOVERY_KEY = 'setbook-recovery-v1'; // legacy: pre-IDB snapshots, migrated on read
 let recoveryTimer = null;
+// The recovery snapshot lives in IndexedDB: localStorage's ~5MB quota can be
+// silently hit by a large songbook (a full library serializes to a few MB of
+// JSON), which would quietly disable crash recovery exactly when the work is
+// worth recovering. localStorage remains a fallback write target (and a
+// one-time migration source) for browsers where IDB throws or is missing.
+const RECOVERY_DB = 'setbook-recovery-db';
+const RECOVERY_STORE = 'snapshots';
+function idbOpenRecovery(){
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') return reject(new Error('no IndexedDB'));
+    const req = indexedDB.open(RECOVERY_DB, 1);
+    req.onupgradeneeded = () => req.result.createObjectStore(RECOVERY_STORE);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+function idbRecoveryGet(key){
+  return idbOpenRecovery().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(RECOVERY_STORE, 'readonly');
+    const get = tx.objectStore(RECOVERY_STORE).get(key);
+    get.onsuccess = () => resolve(get.result);
+    get.onerror = () => reject(get.error);
+    tx.oncomplete = () => db.close();
+  }));
+}
+function idbRecoveryPut(key, val){
+  return idbOpenRecovery().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(RECOVERY_STORE, 'readwrite');
+    const op = tx.objectStore(RECOVERY_STORE).put(val, key);
+    op.onsuccess = () => resolve();
+    op.onerror = () => reject(op.error);
+    tx.oncomplete = () => db.close();
+  }));
+}
+function idbRecoveryDelete(key){
+  return idbOpenRecovery().then(db => new Promise((resolve, reject) => {
+    const tx = db.transaction(RECOVERY_STORE, 'readwrite');
+    const op = tx.objectStore(RECOVERY_STORE).delete(key);
+    op.onsuccess = () => resolve();
+    op.onerror = () => reject(op.error);
+    tx.oncomplete = () => db.close();
+  }));
+}
 function scheduleRecoverySave(){
   if (recoveryTimer) clearTimeout(recoveryTimer);
   recoveryTimer = setTimeout(writeRecoverySnapshot, 1500);
 }
 function writeRecoverySnapshot(){
-  try{
-    localStorage.setItem(RECOVERY_KEY, JSON.stringify({ savedAt: Date.now(), state }));
-  }catch(err){ /* quota etc. — the disk save remains the source of truth */ }
+  const payload = JSON.stringify({ savedAt: Date.now(), state });
+  idbRecoveryPut('snapshot', payload)
+    .catch(() => { try{ localStorage.setItem(RECOVERY_KEY, payload); }catch(err){} });
 }
 function readRecoverySnapshot(){
-  try{
-    const raw = localStorage.getItem(RECOVERY_KEY);
+  // Returns a Promise of the parsed snapshot (or null). Prefers IndexedDB;
+  // falls back to the legacy localStorage entry and migrates it (the old
+  // snapshot is deleted only after the IDB write succeeds, so a crash
+  // mid-migration can't lose it).
+  return idbRecoveryGet('snapshot').then(rec => {
+    if (rec){
+      const snap = parseRecoverySnapshot(rec);
+      if (snap) return snap;
+      return idbRecoveryDelete('snapshot').then(() => readRecoverySnapshot());
+    }
+    // No IDB record: check the legacy localStorage entry and migrate it.
+    let raw = null;
+    try{ raw = localStorage.getItem(RECOVERY_KEY); }catch(err){}
     if (!raw) return null;
+    const snap = parseRecoverySnapshot(raw);
+    if (!snap){
+      try{ localStorage.removeItem(RECOVERY_KEY); }catch(err){}
+      return null;
+    }
+    return idbRecoveryPut('snapshot', raw).then(() => {
+      try{ localStorage.removeItem(RECOVERY_KEY); }catch(err){}
+      return snap;
+    }).catch(() => snap); // migration write failed — still return the old snapshot
+  }).catch(() => {
+    // IndexedDB unavailable (private mode, sandbox): legacy path only.
+    try{
+      const raw = localStorage.getItem(RECOVERY_KEY);
+      return raw ? parseRecoverySnapshot(raw) : null;
+    }catch(err){ return null; }
+  });
+}
+// Shared payload validation for both stores.
+function parseRecoverySnapshot(raw){
+  try{
     const snap = JSON.parse(raw);
     if (!snap || !snap.state || !Array.isArray(snap.state.sectionGroups) || !Array.isArray(snap.state.sections)) return null;
     return snap;
   }catch(err){ return null; }
 }
 function clearRecoverySnapshot(){
-  try{ localStorage.removeItem(RECOVERY_KEY); }catch(err){}
+  idbRecoveryDelete('snapshot').catch(() => {});
+  try{ localStorage.removeItem(RECOVERY_KEY); }catch(err){} // legacy + fallback entries
 }
 // A snapshot is only worth offering when it holds real work — not the
 // default fresh file (one untitled song, one empty section).
@@ -6149,7 +6621,7 @@ function restoreWelcomeFileButtons(){
   if (ctaLabel) ctaLabel.style.display = '';
 }
 async function maybeOfferRecovery(){
-  const snap = readRecoverySnapshot();
+  const snap = await readRecoverySnapshot();
   if (!snap || !recoveryHasContent(snap.state)) return;
   if (await isDiskFileNewerThanSnapshot(snap, false)) return;
   const when = new Date(snap.savedAt).toLocaleString(undefined, { weekday:'short', hour:'numeric', minute:'2-digit' });
@@ -6494,11 +6966,19 @@ function downloadCopy(){
 }
 
 function closeCurrentFile(){
-  if (!fileHandle){ return; }
+  if (!fileHandle && !driveLink){ return; }
   // The file itself stays untouched: drop the handle, keep the content in
   // memory as a working copy, and let the next explicit Save/Save-as
-  // re-link a file.
+  // re-link a file. Drive links are dropped too (the Drive file is not
+  // deleted; Connect again to re-link it).
   doSave().catch(() => {}).finally(() => {
+    if (driveLink && driveAccessToken){
+      try{ google.accounts.oauth2.revoke(driveAccessToken, () => {}); } catch(err){}
+    }
+    driveLink = null;
+    driveAccessToken = null;
+    driveTokenExpiry = 0;
+    persistDriveLink();
     fileHandle = null;
     currentFileName = null;
     persistFileHandle();
@@ -6835,6 +7315,10 @@ let pdfType = 'performance';
 const pdfModal = wireModal({
   overlayId:'pdfModalOverlay', openBtnId:'btnPdf', closeBtnId:'pdfCancelBtn',
   onOpen(){
+    // Pre-warm the lazy jsPDF library while the user configures the export;
+    // Generate then starts with it already in memory. Errors here surface
+    // normally at Generate time (ensurePdfLib's friendly message).
+    ensurePdfLib().catch(() => {});
     pdfProjectNameInput.value = state.projectName || '';
     document.getElementById('pdfDownloadLink').style.display = 'none';
     shareBtn.hidden = true;
@@ -7182,11 +7666,46 @@ function pdfSectionLines(section){
   return transposedSectionLines(section);
 }
 
+// jsPDF is loaded lazily: the CDN tag is injected the first time a PDF
+// export runs (ensurePdfLib, called from the PDF modal open + Generate),
+// so normal sessions never download the ~350KB library. The SRI attributes
+// are the ones the original static <script> tag carried; the service worker
+// caches the file so repeat offline exports still work. Resolves to the
+// library namespace, or throws the friendly error users already saw.
+let pdfLibPromise = null;
+function ensurePdfLib(){
+  if (window.jspdf) return Promise.resolve(window.jspdf);
+  if (pdfLibPromise) return pdfLibPromise;
+  pdfLibPromise = new Promise((resolve, reject) => {
+    try{
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
+      s.integrity = 'sha512-qZvrmS2ekKPF2mSznTQsxqPgnpkI4DNTlrdUmTzrDgektczlKNRRhy5X5AAOnx5S09ydFYWWNSfcEqDTTHgtNA==';
+      s.crossOrigin = 'anonymous';
+      s.onload = () => {
+        if (window.jspdf) resolve(window.jspdf);
+        else reject(new Error('PDF library loaded but did not initialize — check your internet connection and try again.'));
+      };
+      s.onerror = () => {
+        pdfLibPromise = null; // allow a later retry (e.g. back online)
+        reject(new Error('PDF library did not load — check your internet connection and try again.'));
+      };
+      document.head.appendChild(s);
+    } catch(err){
+      // Injection itself failed (blocked DOM, embedded context): same
+      // friendly message as a network failure.
+      pdfLibPromise = null;
+      reject(new Error('PDF library did not load — check your internet connection and try again.'));
+    }
+  });
+  return pdfLibPromise;
+}
+
 // Throws when the jsPDF library failed to load; otherwise builds the document
 // and returns it together with the page geometry both pipelines derive from
 // the chosen device and orientation.
 async function setupPdfDoc(deviceId, orientationId){
-  if (!window.jspdf){ throw new Error('PDF library did not load — check your internet connection and try again.'); }
+  await ensurePdfLib();
   const { jsPDF } = window.jspdf;
   const device = PDF_DEVICES[deviceId] || PDF_DEVICES.ipad;
   const landscape = orientationId !== 'portrait';
@@ -7944,6 +8463,10 @@ function resetToNewFile(){
   selectedSectionId = null;
   expandedGroups = new Set();
   fileHandle = null;
+  driveLink = null;
+  driveAccessToken = null;
+  driveTokenExpiry = 0;
+  persistDriveLink();
   currentFileName = null;
   persistFileHandle();
   updateFileLabel();
@@ -8564,6 +9087,45 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
   const welcomeModal = wireModal({ overlayId:'welcomeModalOverlay' }).overlay;
   welcomeModal.classList.add('open');
   maybeOfferRecovery();
+  // Offline support: register the service worker (PWA). Only on secure
+  // origins where SWs exist — file:// and the Node test sandbox skip this;
+  // registration failures are non-fatal by design.
+  if ('serviceWorker' in navigator &&
+      (location.protocol === 'https:' || ['localhost', '127.0.0.1'].includes(location.hostname))){
+    navigator.serviceWorker.register('sw.js').catch((err) => {
+      console.warn('SetBook: service worker not registered:', err && err.message);
+    });
+  }
+  // Re-link a persisted Drive link (setbook.json in the chosen folder):
+  // loads the remote copy and marks it saved. The token is re-requested
+  // silently on the next save, so no prompt appears here.
+  (async () => {
+    try{
+      if (!driveConfigured()) return;
+      const link = await readPersistedDriveLink();
+      if (!link) return;
+      const text = await driveLoadLibrary(link.fileId);
+      const parsed = JSON.parse(text);
+      assertParsedState(parsed);
+      // A recovery offer may have appeared while the fetch was in flight —
+      // never apply the remote copy over offered/restored crash-recovery
+      // work. The persisted link is kept; a reload without the offer links
+      // the Drive copy as usual.
+      if (recoveryRestoredThisBoot || document.querySelector('.recovery-banner')) return;
+      const head = await driveApi('GET', `drive/v3/files/${link.fileId}`, { params: { fields: 'modifiedTime' } });
+      const remoteModifiedTime = head.ok ? (await head.json()).modifiedTime : link.remoteModifiedTime;
+      driveLink = { ...link, remoteModifiedTime };
+      currentFileName = `${link.fileName} · Drive`;
+      loadParsedState(parsed);
+      updateFileLabel();
+      updateSaveStatus('saved');
+      renderAll();
+    } catch(err){
+      // Remote gone or unreachable: stay unlinked and clear the stale link.
+      driveLink = null;
+      persistDriveLink();
+    }
+  })();
   document.getElementById('welcomeStartNewBtn').addEventListener('click', () => {
     welcomeModal.classList.remove('open');
   });
