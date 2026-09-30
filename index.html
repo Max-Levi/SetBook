@@ -1884,7 +1884,7 @@
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
             <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session. Picking a section — a row on the card, a search result, or a Recently-viewed song's top section — opens it in the editor and scrolls that section's field to the top of the editor (stopping there only if the field already fits on screen), and scrolls the song's card back into view in the list whenever its title row has slipped out of sight. While you scroll through a multi-section song, a <strong>scroll-spy</strong> highlights the section row currently under the editor's upper third in the sidebar (a reading aid only — it never changes the selection; a single-section song highlights nothing), nudging the list just enough to keep that row visible. <strong>Alt+↓ / Alt+↑</strong> jump to the next/previous section of the open song in both editors, with the same pick-style scrolling; jumps stop at the song's first/last section and do nothing while you're typing in a field.</li>
             <li>On narrow screens (≤760px) the sidebar becomes an off-canvas drawer opened by the hamburger button (Escape or the scrim closes it). Picking a section or search result, or adding a section, closes the drawer and hands the full screen to the editor; "+ New song" keeps it open while the song is named.</li>
-            <li><strong>Add song from URL:</strong> a button beneath "+ New song" opens a dialog that fetches the text lines from a URL and creates a new song whose first section is a mass-entry staging area (see the Section editor). The dialog's <strong>Add to</strong> choice can instead <strong>take over an existing song</strong>: the picker lists every Not Ready and In Progress song (Ready songs are never targetable), and submitting keeps the song's details — title, artist, type, tags, video links — while clearing its sections and replacing them with the staging area holding the scraped text. Plain-text and raw-file URLs work best; the site must allow cross-origin reads, and only http(s) addresses are fetched.</li>
+            <li><strong>Add song from URL:</strong> a button beneath "+ New song" opens a dialog that fetches the text lines from a URL and creates a new song whose first section is a mass-entry staging area (see the Section editor). The new song is selected and the sidebar scrolls to reveal it. The dialog's <strong>Add to</strong> choice can instead <strong>take over an existing song</strong>: the picker lists every Not Ready and In Progress song (Ready songs are never targetable), and submitting keeps the song's details — title, artist, type, tags, video links — while clearing its sections and replacing them with the staging area holding the scraped text. Plain-text and raw-file URLs work best; the site must allow cross-origin reads, and only http(s) addresses are fetched.</li>
             <li>Pull to reload (touch): the app shell locks the page, so mobile browsers never fire their native pull-to-refresh gesture. Instead, pulling down from the very top of the song editor on a touch-primary device (phones/tablets — not on desktop) slides in a "Pull to reload" pill; past the threshold it turns gold with a spinner and reads "Release to reload", and releasing reloads the page. The gesture is ignored while scrolled down or when the pull is short, and the pill takes no layout space at rest.</li>
             <li>Configuration: the File menu's <strong>Configuration…</strong> item opens a preferences modal. Appearance (dark/light) and Watch video links (new tab / same tab) are saved per device; Auto-number sections, Number single sections, Auto-split mass entry on [headers], and Use mass-entry editor for section editing are saved in the file. <strong>Auto-split mass entry on [headers]</strong> (default on) splits song text imported from a URL into sections at recognized <code>[Verse]</code>/<code>[Chorus]</code>-style bracket headers as it arrives — including headers a tab site glued inline into a line of lyrics or chords (<code>…much too slow. [Verse 2]E7sus4</code>), which are broken out onto their own line before the split; turn it off when a song's lyrics legitimately contain bracketed lines you want to handle by hand. <strong>Use mass-entry editor for section editing</strong> (default on) makes every section edit in the mass-entry style — one free-text field per section with live chord/lyric coloring (see the Section editor) — while turning it off restores the legacy chord-over-lyric row editor. <strong>Animate scroll to sections</strong> (default on, saved on this device) makes section picks, Recently-viewed picks, and section jumps glide to their target instead of jumping instantly; the system “reduce motion” setting always disables the animation, and a wheel or touch cancels a glide in progress.</li>
           </ul>
@@ -1936,7 +1936,7 @@
             <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
             <li>Export filtered songs as JSON: Songs → Export filtered songs as JSON… downloads a JSON containing just the songs currently visible in the sidebar — the Cover/Original, Ready/In progress/Not ready, tag, and artist filters, plus the search box when it has text. The menu item shows a live count of what will be exported; if nothing matches, a toast explains that instead of downloading an empty file. The download is named after the open file with a " (filtered)" suffix, and the open file (including its linked file handle) is left untouched. The export is a standalone library: filters are reset so everything in it shows, saved PDF setlists are pruned to the exported songs (emptied ones are dropped), section display names are re-stamped against the exported sections, and tags are carried over with each song. It does not count as a backup for the backup reminder — only a full save does.</li>
             <li>Backup reminder: snapshots only live in the tab's memory — they vanish on reload. Save-as and explicit downloads stamp the library with the backup time, and the Snapshots modal shows a gentle note when a backup copy has never been saved or is over two weeks old (with relative time); a fresh backup hides it.</li>
-            <li>Import: songs can be copied from another SetBook JSON file via the Songs menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type.</li>
+            <li>Import: songs can be copied from another SetBook JSON file via the Songs menu. Each song's type, ready status, and tags are carried over, defaulting to Cover / Not Ready / no tags when the source file does not specify them. Section names are carried over too — titles from files saved before the name picker become Custom names (with any trailing parenthetical moved into the label slot), then any name matching a section-type name is converted to that picked type. Adding the songs always confirms with an "Imported N song(s)" toast, selects the first imported song, and scrolls the sidebar so it is visible; when the import carries statuses, types, tags, or artists the current filters would hide, the filters are widened first and a second toast names what changed.</li>
             <li>Recently viewed songs: Songs → Recently viewed songs… lists the last six songs you had open, most recent first, each with how long ago you viewed it ("just now", "5 min ago", "2 hours ago", … — the same cadence as the header's save-age display). Tapping a row opens that song at its top section, scrolled into view in both the editor and the sidebar; the list is saved with the file, so it survives closing and reopening.</li>
             <li>Transpose: each section can define the key its chords are written in — pick it from the key dropdown in the section header (legacy row editor) or the field header (mass-entry editor); both editors share the same controls, stored per section. Once a key is set, a second dropdown appears with up/down steppers that step through the twelve keys; choosing a different key transposes that section's chords in the on-screen preview and in both exported PDFs, with a "Key: G → A" note shown beside the section title. Only chord symbols move — a chord's quality and extensions stay attached (Em7 → F#m7, D/F# → E/G#), slash basses move with the chord, bar-line pipes (|) and extras like (x2), (5th Fret), or N.C. are kept verbatim, and chord positions over lyrics are re-aligned when spellings change width. Flat keys (Bb, Eb, Ab, Db, Gb) get flat spellings; others use sharps. A chord line with no recognizable chords at all can't be moved — preview and PDFs flag it with a dotted underline and a "cannot transpose" note while the rest of the section still transposes. The editors themselves always show and store the original chords, so transposing is display-only and reversible; set the target back to the section's key (or clear the key) to return.</li>
             <li>Close current file: File → Close current file (shown only while a file — local or Drive — is linked) unlinks the open JSON after writing any unsaved changes (to disk, or to Drive). The file itself stays where it is — only the link between it and SetBook is dropped (a Drive disconnect also revokes the saved authorization) — and the songs stay on screen as unsaved work; Save as… or Connect Google Drive… then links a new file without losing anything.</li>
@@ -1965,6 +1965,7 @@
             <li>Sidebar focus state lives in <code>state.focusedGroupId</code> (<code>null</code> = off). Enter and exit focus only through <code>setSongFocus()</code> so search-clearing, persistence, and re-rendering stay together; <code>renderSidebar()</code> reads the flag to hide the toolbar, other songs, and the "+ New song" button.</li>
             <li>Mobile UX is a standing requirement on every change, not a separate pass: any UI addition or alteration must also be adapted and verified at phone width (≤760px). New header controls need ≥44px touch targets; new modals must pick up the compact mobile styling (94vw sheet, tightened type, enlarged action buttons); drawer interactions must hand the full screen to the editor (close the drawer when a section, search result, or "+ Add section" is chosen, keep it open while naming a new song). Verify with the mobile Playwright suite (<code>setbook-qa/mobile-drawer-test.js</code>) plus a 390px visual pass.</li>
             <li>The snapshot diff engine (<code>diffStates</code>) matches songs by id with a title+artist fallback, sections by id with a display-name fallback within each song, and compares rows as multisets of serialized lines — so it reports honest "+N / −N rows" without pretending to track individual edits. Section renames are detected by comparing the <code>(nameType, customName, nameSuffix)</code> triple rather than the display name, so auto-numbering shifts ("Chorus" → "Chorus 1") don't read as renames; <code>songIsEmpty()</code> keeps contentless placeholder songs out of the diff. It is a pure function of two states; the Snapshots modal and the open-file conflict modal are the callers. <code>renderDiffInto()</code> accepts <code>{ showTimes: true }</code> to append each song's and section's last-modified time on both sides (the later highlighted), used by the conflict modal; the Snapshots Compare view renders without it and is unchanged.</li>
+            <li>MCP server (<code>setbook-mcp/</code> in the repo): a stdio MCP server exposing the song pipeline to any AI agent — <code>scrape_song</code>, <code>parse_song_text</code>, <code>add_song_to_file</code>, <code>list_songs</code>. Its parsing core (<code>core/setbook-core.mjs</code>) is not a copy: <code>build-core.mjs</code> extracts it verbatim from the <code>__SETBOOK_MCP_CORE_BEGIN__</code> / <code>__SETBOOK_MCP_CORE_END__</code> marker comments in this file, so <code>index.html</code> is the source of truth. Keep those regions environment-agnostic (no app state; <code>DOMParser</code>/<code>fetch</code> only) and rebuild the core (<code>node build-core.mjs</code>) whenever they change — the package's parity test fails if the checked-in core goes stale.</li>
             <li>When adding, changing, or removing a feature, update this documentation to describe it and refresh the "Last updated" date above.</li>
           </ul>
         </section>
@@ -2133,7 +2134,13 @@ let selectedSectionId = null;
 let expandedGroups = new Set();
 const detailsOpen = new Set(); // song ids whose Details panel is expanded (session-only)
 
+/*__SETBOOK_MCP_CORE_BEGIN__*/
+/* NOTE (MCP core): this region is extracted verbatim into
+   setbook-mcp/core/setbook-core.mjs by setbook-mcp/build-core.mjs. Keep it
+   environment-agnostic — no app state, no DOM beyond DOMParser/fetch — so
+   the app and the MCP server parse identically. */
 function uid(prefix){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
+/*__SETBOOK_MCP_CORE_END__*/
 
 function groupSections(groupId){
   return state.sections
@@ -3187,6 +3194,11 @@ function moveSection(sec, dir){
 // base name within a song are numbered ("Chorus" alone, but "Chorus 1" /
 // "Chorus 2" when there are two) — custom names take part in the counting
 // too, so a custom "Chorus" and a picked Chorus number together.
+/*__SETBOOK_MCP_CORE_BEGIN__*/
+/* NOTE (MCP core): this region is extracted verbatim into
+   setbook-mcp/core/setbook-core.mjs by setbook-mcp/build-core.mjs. Keep it
+   environment-agnostic — no app state, no DOM beyond DOMParser/fetch — so
+   the app and the MCP server parse identically. */
 const SECTION_TYPES = [
   { id:'intro', label:'Intro' },
   { id:'verse', label:'Verse' },
@@ -3219,6 +3231,7 @@ function sectionBaseName(sec){
   }
   return (sec.customName || '').trim();
 }
+/*__SETBOOK_MCP_CORE_END__*/
 // The base used for grouping and numbering: a trailing number the user
 // typed themselves ("Verse 1") is ignored, so the app owns numbering and a
 // legacy "Verse 1" never becomes "Verse 1 1" when single-section numbering
@@ -3607,6 +3620,11 @@ function printableSections(groupId){
    misclassify wholesale — this pass inserts the missing line breaks before
    the text reaches the staging section. Chord grids ("| G | D |") are
    untouched: "|" never triggers a split. */
+/*__SETBOOK_MCP_CORE_BEGIN__*/
+/* NOTE (MCP core): this region is extracted verbatim into
+   setbook-mcp/core/setbook-core.mjs by setbook-mcp/build-core.mjs. Keep it
+   environment-agnostic — no app state, no DOM beyond DOMParser/fetch — so
+   the app and the MCP server parse identically. */
 const DEGLUE_CHORD_SRC = '[A-G][#b]?(?:m(?!aj)|maj|min|dim|aug|sus|add)?\\d*(?:[#b]\\d+)?(?:sus[24])?(?:\\/[A-G][#b]?)?';
 const DEGLUE_CHORD_RE = new RegExp('^(?:' + DEGLUE_CHORD_SRC + ')$');
 const DEGLUE_LEAD_RE = new RegExp('^(' + DEGLUE_CHORD_SRC + ')(?=[A-Z])');
@@ -4002,6 +4020,7 @@ function massSplitDefaultType(nameType){
     default: return 'verse';
   }
 }
+/*__SETBOOK_MCP_CORE_END__*/
 
 function createSongFromUrlText(text, takeoverGroup){
   // Fields model: the staging section starts as one Intro field holding the
@@ -4042,6 +4061,7 @@ function createSongFromUrlText(text, takeoverGroup){
   massEntryCaretToStart = true;
   renderAll();
   closeSidebarAfterNavigate();
+  scrollSelectedSongHeadIntoView();
   if (filterFix) showToast(`Filters adjusted so the ${takeoverGroup ? 'song' : 'new song'} stays visible — ${filterFix}.`);
   return g;
 }
@@ -5161,6 +5181,11 @@ Looking back at the years gone by like so many summer fields"></textarea>
 let bulkPasteOpen = false; // whether the "paste multiple lines" textarea is showing for the current section
 let lastRenderedSectionId = null;
 
+/*__SETBOOK_MCP_CORE_BEGIN__*/
+/* NOTE (MCP core): this region is extracted verbatim into
+   setbook-mcp/core/setbook-core.mjs by setbook-mcp/build-core.mjs. Keep it
+   environment-agnostic — no app state, no DOM beyond DOMParser/fetch — so
+   the app and the MCP server parse identically. */
 function parseChordLine(str){
   const symbols = [];
   const re = /\S+/g;
@@ -5170,6 +5195,7 @@ function parseChordLine(str){
   }
   return symbols;
 }
+/*__SETBOOK_MCP_CORE_END__*/
 
 function parseMultiLineBlock(text){
   // blank lines are treated as separators between stanzas/pairs and skipped,
@@ -8039,7 +8065,15 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   const filterFix = ensureFiltersAdmitSongs(importedGroups);
   scheduleSave();
   updateArtistDatalist();
+  // Select the first imported song and reveal it in the sidebar.
+  const firstImported = importedGroups[0];
+  expandedGroups.add(firstImported.id);
+  selectedGroupId = firstImported.id;
+  const importedTop = groupSections(firstImported.id)[0];
+  selectedSectionId = importedTop ? importedTop.id : null;
   renderAll();
+  scrollSelectedSongHeadIntoView();
+  showToast(`Imported ${importedGroups.length} song${importedGroups.length === 1 ? '' : 's'}.`);
   if (filterFix) showToast(`Filters adjusted so the imported songs stay visible — ${filterFix}.`);
   copyModal.classList.remove('open');
   copySourceState = null;
