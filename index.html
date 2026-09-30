@@ -1827,7 +1827,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook — Technical Documentation</h2>
-    <p class="modal-sub">Last updated 2026-09-29.</p>
+    <p class="modal-sub">Last updated 2026-09-30.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-overview">1. Overview</a>
@@ -1879,7 +1879,7 @@
             <li>Sorting is by title or artist, ascending or descending. Untitled songs are pinned below titled songs in both directions; songs without an artist are pinned below songs that have one. A leading "The " in an artist name is ignored for ordering ("The Beatles" sorts under B).</li>
             <li>Songs can carry custom tags: open a song's <strong>Details</strong> panel and use the tag editor — type a tag and press Enter (a comma works too); each tag becomes a removable pill. Duplicates are ignored case-insensitively. The sidebar's Filter section offers a tag picker and an artist picker (every tag/artist in the library, A–Z, with a song count beside each, plus an "All" default); a picker selection that no longer exists falls back to All. The tag and artist filters compose with the Cover/Original and Ready/In progress/Not ready filters, apply to search results as well, and — like the other filters — close the open song if it gets filtered out of view.</li>
             <li>Multiple artists: the artist field in Details takes one artist per line. The header shows them joined with commas, the artist picker lists each artist separately, and a song matches the artist filter when <em>any</em> of its artists is picked. Sorting by artist uses the first listed artist, and the suggestion popup completes the line being typed.</li>
-            <li>Filter toggles: Cover/Original and Ready/In progress/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables all of its filters; All shows active whenever every pill is on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that cycles its value — Not Ready → In Progress → Ready → Not Ready — with the tooltip naming what the next click does. A new third filter pill, <strong>In progress</strong>, sits between the Ready and Not ready pills and composes with the others the same way. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything. Creating or importing a song also turns back on any filter that would hide it — a new song always starts as Not Ready, so pressing "+ New song" while the Not ready pill is off re-enables that pill instead of leaving the song in a hidden row.</li>
+            <li>Filter toggles: Cover/Original and Ready/In progress/Not ready. Each group also has an explicit <strong>All</strong> pill that re-enables all of its filters; All shows active whenever every pill is on, so the unfiltered state is unambiguous. Each song carries a clickable status badge that cycles its value — Not Ready → In Progress → Ready → Not Ready — with the tooltip naming what the next click does. A new third filter pill, <strong>In progress</strong>, sits between the Ready and Not ready pills and composes with the others the same way. If a filter hides the song currently open in the editor, the editor closes back to the empty starting view; restoring the filter does not reopen anything. Creating or importing a song also turns back on any filter that would hide it — a new song always starts as Not Ready, so pressing "+ New song" while the Not ready pill is off re-enables that pill instead of leaving the song in a hidden row — and a brief toast names exactly which filters were adjusted, so the list never shifts without explanation.</li>
             <li>Sort &amp; Filter row: everything below the search box — sort, the Show pills, and the tag/artist pickers — lives behind one <strong>Sort &amp; Filter</strong> toggle so the song list gets most of the sidebar. The toggle is an accordion-style section header (uppercase label, divider, prominent chevron — deliberately not a boxed field), starts collapsed, and shows a one-line summary of whatever is active (e.g. "Artist: Grateful Dead · Ready only"); the open/closed choice is remembered per device. <strong>Expand all</strong> and <strong>Collapse all</strong> sit outside the panel in their own always-visible row and light up gold to reflect the expansion state — Expand all when every song is expanded, Collapse all when every song is collapsed, neither in a mixed state. Collapse all also closes every open Details panel. A <strong>Clear all</strong> button appears beside the toggle whenever anything is narrowing the song list — search text, a dropdown filter, or a type/ready pill — whether the panel is open or closed, and resets all of them at once (sort is untouched). Each dropdown also has its own <strong>✕</strong> button beside it, visible only while that dropdown has a selection, which clears just that filter.</li>
             <li>Focus mode: the ◎ button on a song header hides the search box, sort/filter/expand controls, the "+ New song" button, and all other songs, leaving just that song with its sections — always expanded and still fully editable (select, reorder, add, and delete sections all work). Entering focus also opens the focused song's top section in the editor, so no section from a previously viewed song lingers under the new song's name. The "← All songs" bar at the top exits focus. The choice is saved per file and survives reload; deleting the focused song exits focus automatically. On the song header the delete (✕) button is set apart from the focus (◎) button with extra spacing, so the destructive action is harder to hit by accident on touch screens.</li>
             <li>Each song card has two rows: the top row holds the expand chevron, the editable title, the read-only artist summary, the section count, and the focus/delete buttons; the badges row beneath spans the full card width with the clickable Cover/Original and Ready/Not Ready badges and the <strong>Details</strong> toggle on one line. The collapsible Details panel under the card holds the artist(s) editor (one per line), the tag editor, and the Videos section — an album-version link and a live-performance link, each editable in its own row, with a single Watch button that opens the link directly when only one is set or offers an Album version / Live performance picker when both are. Details stays collapsed until opened and is remembered per card for the session. Picking a section — a row on the card, a search result, or a Recently-viewed song's top section — opens it in the editor and scrolls that section's field to the top of the editor (stopping there only if the field already fits on screen), and scrolls the song's card back into view in the list whenever its title row has slipped out of sight. While you scroll through a multi-section song, a <strong>scroll-spy</strong> highlights the section row currently under the editor's upper third in the sidebar (a reading aid only — it never changes the selection; a single-section song highlights nothing), nudging the list just enough to keep that row visible. <strong>Alt+↓ / Alt+↑</strong> jump to the next/previous section of the open song in both editors, with the same pick-style scrolling; jumps stop at the song's first/last section and do nothing while you're typing in a field.</li>
@@ -2283,23 +2283,24 @@ function matchesArtistFilter(group){
    pill off, "+ New song" looked like it did nothing — the song existed but
    no row showed, leaving no way to name it. Every path that mints or
    imports songs calls this first to widen the filters just enough for the
-   incoming songs to show (untouched otherwise). Returns whether anything
-   changed, so callers can skip redundant work. */
+   incoming songs to show (untouched otherwise). Returns a human-readable
+   description of what was adjusted ('' = nothing changed) so callers can
+   toast the change instead of moving the sidebar silently. */
 function ensureFiltersAdmitSongs(groups){
   const incoming = Array.isArray(groups) ? groups.filter(Boolean) : [];
-  if (!incoming.length) return false;
-  let changed = false;
+  if (!incoming.length) return '';
+  const fixes = [];
   if (!state.songTypeFilter) state.songTypeFilter = { cover: true, original: true };
-  if (incoming.some(g => (g.type || 'cover') === 'cover') && state.songTypeFilter.cover === false){ state.songTypeFilter.cover = true; changed = true; }
-  if (incoming.some(g => (g.type || 'cover') === 'original') && state.songTypeFilter.original === false){ state.songTypeFilter.original = true; changed = true; }
+  if (incoming.some(g => (g.type || 'cover') === 'cover') && state.songTypeFilter.cover === false){ state.songTypeFilter.cover = true; fixes.push('Cover filter back on'); }
+  if (incoming.some(g => (g.type || 'cover') === 'original') && state.songTypeFilter.original === false){ state.songTypeFilter.original = true; fixes.push('Original filter back on'); }
   if (!state.readyFilter) state.readyFilter = { ready: true, notReady: true, inProgress: true };
   const statuses = new Set(incoming.map(g => songStatus(g)));
-  if (statuses.has('ready') && state.readyFilter.ready === false){ state.readyFilter.ready = true; changed = true; }
-  if (statuses.has('in-progress') && state.readyFilter.inProgress === false){ state.readyFilter.inProgress = true; changed = true; }
-  if (statuses.has('not-ready') && state.readyFilter.notReady === false){ state.readyFilter.notReady = true; changed = true; }
-  if (state.tagFilter && !incoming.every(matchesTagFilter)){ state.tagFilter = ''; changed = true; }
-  if (state.artistFilter && !incoming.every(matchesArtistFilter)){ state.artistFilter = ''; changed = true; }
-  return changed;
+  if (statuses.has('ready') && state.readyFilter.ready === false){ state.readyFilter.ready = true; fixes.push('Ready filter back on'); }
+  if (statuses.has('in-progress') && state.readyFilter.inProgress === false){ state.readyFilter.inProgress = true; fixes.push('In progress filter back on'); }
+  if (statuses.has('not-ready') && state.readyFilter.notReady === false){ state.readyFilter.notReady = true; fixes.push('Not ready filter back on'); }
+  if (state.tagFilter && !incoming.every(matchesTagFilter)){ state.tagFilter = ''; fixes.push('tag filter cleared'); }
+  if (state.artistFilter && !incoming.every(matchesArtistFilter)){ state.artistFilter = ''; fixes.push('artist filter cleared'); }
+  return fixes.join(', ');
 }
 
 // If the song open in the editor is hidden by the current filters, close it
@@ -3050,9 +3051,12 @@ function renderSidebar(){
     selectedGroupId = g.id;
     selectedSectionId = introSec.id;
     expandedGroups.add(g.id);
-    ensureFiltersAdmitSongs([g]); // a fresh song is Not Ready: never let the filters hide it
+    // A fresh song is Not Ready: never let the filters hide it — and when a
+    // pill had to come back on, say so instead of moving the list silently.
+    const filterFix = ensureFiltersAdmitSongs([g]);
     scheduleSave();
     renderAll();
+    if (filterFix) showToast(`Filters adjusted so the new song stays visible — ${filterFix}.`);
     setTimeout(() => {
       const input = el.querySelector(`.group-name[data-gid="${CSS.escape(g.id)}"] textarea`);
       input?.focus();
@@ -4017,7 +4021,7 @@ function createSongFromUrlText(text, takeoverGroup){
   }
   // New songs and taken-over songs alike must stay visible under the
   // current filters (a taken-over song is typically Not Ready / In Progress).
-  ensureFiltersAdmitSongs([g]);
+  const filterFix = ensureFiltersAdmitSongs([g]);
   const sec = {
     id: uid('sec'), groupId: g.id, nameType: 'custom', customName: 'URL import',
     nameSuffix: '', name: 'URL import', order: 0, lines: [],
@@ -4038,6 +4042,7 @@ function createSongFromUrlText(text, takeoverGroup){
   massEntryCaretToStart = true;
   renderAll();
   closeSidebarAfterNavigate();
+  if (filterFix) showToast(`Filters adjusted so the ${takeoverGroup ? 'song' : 'new song'} stays visible — ${filterFix}.`);
   return g;
 }
 
@@ -8031,10 +8036,11 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   });
   // Imported songs can carry statuses, types, tags, or artists the current
   // filters hide — widen the filters so every import shows up.
-  ensureFiltersAdmitSongs(importedGroups);
+  const filterFix = ensureFiltersAdmitSongs(importedGroups);
   scheduleSave();
   updateArtistDatalist();
   renderAll();
+  if (filterFix) showToast(`Filters adjusted so the imported songs stay visible — ${filterFix}.`);
   copyModal.classList.remove('open');
   copySourceState = null;
   copySourceName = '';

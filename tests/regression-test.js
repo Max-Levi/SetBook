@@ -324,7 +324,7 @@ suite('new-song-filters');
   sb.state.readyFilter = { ready: true, notReady: false, inProgress: true };
   const changed = sb.ensureFiltersAdmitSongs([g]);
   check('new-song guard: Not Ready pill turns back on for a new song',
-    changed === true && sb.state.readyFilter.notReady === true && sb.matchesReadyFilter(g));
+    changed !== '' && /Not ready/.test(changed) && sb.state.readyFilter.notReady === true && sb.matchesReadyFilter(g));
 }
 {
   resetApp();
@@ -333,17 +333,17 @@ suite('new-song-filters');
   sb.state.tagFilter = 'jazz'; sb.state.artistFilter = 'Esperanza';
   const changed2 = sb.ensureFiltersAdmitSongs([g]);
   check('new-song guard: widens only what is needed, clears foreign tag/artist filters',
-    changed2 === true && sb.state.readyFilter.ready === false && sb.state.readyFilter.inProgress === false &&
+    changed2 !== '' && sb.state.readyFilter.ready === false && sb.state.readyFilter.inProgress === false &&
     sb.state.readyFilter.notReady === true && sb.state.tagFilter === '' && sb.state.artistFilter === '');
   resetApp();
-  check('new-song guard: no-op when filters already admit the song', sb.ensureFiltersAdmitSongs([g]) === false);
+  check('new-song guard: no-op when filters already admit the song', sb.ensureFiltersAdmitSongs([g]) === '');
   const t = { name: 'Original', type: 'original', readyStatus: 'ready', tags: ['jazz'], artist: 'Esperanza' };
   sb.state.songTypeFilter = { cover: true, original: false };
   sb.state.readyFilter = { ready: false, notReady: true, inProgress: true };
   sb.state.tagFilter = 'jazz'; sb.state.artistFilter = 'Esperanza';
   const changed3 = sb.ensureFiltersAdmitSongs([t]);
   check('new-song guard: matching tags/artists kept, missing type/status buckets widen',
-    changed3 === true && sb.state.songTypeFilter.original === true && sb.state.readyFilter.ready === true &&
+    changed3 !== '' && sb.state.songTypeFilter.original === true && sb.state.readyFilter.ready === true &&
     sb.state.tagFilter === 'jazz' && sb.state.artistFilter === 'Esperanza');
 }
 
