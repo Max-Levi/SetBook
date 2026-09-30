@@ -32,6 +32,13 @@ No build step, no server — it's one self-contained HTML file.
   The optional file argument loads any SetBook JSON (never copied or
   modified) and verifies every section survives the mass-entry editor's
   text conversion losslessly.
+- `setbook-mcp/` — MCP server exposing the song pipeline to any AI agent
+  (`scrape_song`, `parse_song_text`, `add_song_to_file`, `list_songs`).
+  Its parsing core (`core/setbook-core.mjs`) is extracted verbatim from the
+  marked regions of `index.html` — the app is the source of truth. After app
+  changes touching those regions: `node setbook-mcp/build-core.mjs`, then
+  `npm test` in `setbook-mcp/` (the parity test fails if the core went stale).
+  See `setbook-mcp/README.md`.
 - `storage/` — prototype of pluggable storage backends (local file,
   IndexedDB, GitHub, S3, generic REST) behind one adapter interface.
   See `storage/STORAGE_SPIKE_README.md`. `storage/spike-demo.html` is a
