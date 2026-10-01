@@ -103,6 +103,16 @@ All persistent data is a JSON serialization of the `state` object:
   dir }`, `sidebarWidth`, `songTypeFilter`, `readyFilter`,
   `autoNumberSections`, `numberSingleSections`, `focusedGroupId`,
   `lastFolderName`.
+- `recentlyViewed[]` — the last six opened songs (`{ id, at }`, most
+  recent first), powering Songs → Recently viewed songs….
+- `recentlyDeleted[]` — the last five deleted songs as full snapshots
+  (`{ group, sections, index, at }`, most recent first), powering
+  Songs → Recently deleted songs…. Restoring re-inserts the song at its
+  original position with all its sections; the undo-restore path drops
+  the entry so a song restored via Undo can't be restored twice. Named
+  deleted songs also count as "real work" for the crash-recovery offer
+  (`recoveryHasContent`), so wiping the songbook still triggers "Pick up
+  where you left off?".
 
 ## 4. Code organization and invariants
 
@@ -310,6 +320,12 @@ browser with the console visible):
   clears only chords; Clear lyrics clears only lyrics; delete removes the
   row. Each destructive row action offers Undo via toast, the File menu,
   or Ctrl/Cmd+Z. No console errors.
+- Recently deleted songs: delete a song (confirm the ✕ popover) and
+  confirm Songs → Recently deleted songs… lists it with a time-ago
+  label; Restore puts it back with all its sections at its original
+  position and opens it; deleting six songs keeps only the last five;
+  reloading the file keeps the list (it is saved with the file); using
+  Undo on the delete toast removes the entry from the list.
 - PDF modal: the song checklist lists the song; Select all checks
   everything, Select none clears, Ready only selects just Ready songs
   (mark one song Ready first to verify). Generate a Performance PDF in
@@ -384,8 +400,8 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 (25), `url-import-test.js` (124), `setbook-ext-test.js` (38),
 `section-autoconvert-test.js` (33), `auto-period-test.js` (12),
 `picker-filter-test.js` (9), `import-feedback-test.js` (7),
-`pdf-preview-test.js` (32), `section-pdf-preview-test.js` (19) — 30
-suites, 809 checks in total. A refactor that changes no user-visible
+`pdf-preview-test.js` (32), `section-pdf-preview-test.js` (19),
+`deleted-songs-test.js` (22) — 31 suites, 831 checks in total. A refactor that changes no user-visible
 behavior does not require a documentation update beyond this file's own
 revision note.
 
