@@ -103,32 +103,29 @@ function deglueTrailingTail(line){
 
 /* A leading run of chord tokens (and bar pipes / xN markers) followed by
    lyric text splits after the run: "C C# D   Take a silver dime" ->
-   "C C# D" / "Take a silver dime". A run of a single root-only chord
-   ("A Letter…") does not split — ordinary sentences starting with the
-   letters A–G must stay whole. Pure chord lines have no remainder and
-   are untouched. */
+   "C C# D" / "Take a silver dime". A lone chord token never splits —
+   "Am I sitting here" is an ordinary lyric line, and a single leading
+   chord ("A Letter…", "Am I…") is too ambiguous to break apart. Pure
+   chord lines have no remainder and are untouched. */
 function deglueLeadingChordRun(line){
   const parts = line.split(/([ \t]+)/);
-  let idx = 0, chords = 0, sawStrong = false;
+  let idx = 0, chords = 0;
   while (idx < parts.length){
     const t = parts[idx];
     if (t === '' || /^[ \t]+$/.test(t)){ idx++; continue; }
     if (/^\|+$/.test(t) || /^x\d+$/i.test(t)){ idx++; continue; }
     if (DEGLUE_CHORD_RE.test(t)){
       chords++;
-      if (t.length > 1) sawStrong = true;
       idx++;
       continue;
     }
     break;
   }
-  if (!chords) return null;
+  if (chords < 2) return null;
   const rest = parts.slice(idx).join('');
   // Only split when lyric text actually follows the run (a pure chord
-  // line — possibly with trailing pipes — has none), and never split a
-  // lone root-only chord off the front of a sentence.
+  // line — possibly with trailing pipes — has none).
   if (!rest || !/^[A-Za-z(]/.test(rest)) return null;
-  if (chords < 2 && !sawStrong) return null;
   return [parts.slice(0, idx).join('').replace(/[ \t]+$/, ''), rest];
 }function deglueChordLyricLines(text){
   const out = [];
