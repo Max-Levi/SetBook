@@ -1378,6 +1378,7 @@
         <button class="menu-item" id="btnCopySongs">Import songs</button>
         <button class="menu-item" id="btnExportFiltered">Export filtered songs as JSON…<span class="menu-item-hint" id="exportFilteredHint"></span></button>
         <button class="menu-item" id="btnRecentSongs">Recently viewed songs…</button>
+        <button class="menu-item" id="btnDeletedSongs">Recently deleted songs…</button>
       </div>
     </div>
     <div class="menu-wrap">
@@ -1407,6 +1408,7 @@
         <button class="menu-item" data-delegate="btnExportFiltered">Export filtered songs as JSON…</button>
         <div class="menu-sep"></div>
         <button class="menu-item" data-delegate="btnRecentSongs">Recently viewed songs…</button>
+        <button class="menu-item" data-delegate="btnDeletedSongs">Recently deleted songs…</button>
         <div class="menu-group-label">Help</div>
         <button class="menu-item" data-delegate="btnShareHelp">Getting PDFs onto your devices…</button>
         <button class="menu-item" data-delegate="btnHelp">Help & documentation</button>
@@ -1710,6 +1712,19 @@
   </div>
 </div>
 
+<!-- Recently deleted songs -->
+<div class="modal-overlay" id="deletedModalOverlay">
+  <div class="modal">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>Recently deleted songs</h2>
+    <p class="modal-sub">The last five songs you deleted, most recent first. Restoring puts the song back with all its sections.</p>
+    <div id="deletedSongList" class="song-checklist" aria-live="polite"></div>
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="deletedCloseBtn">Close</button>
+    </div>
+  </div>
+</div>
+
 <!-- Configuration modal -->
 <div class="modal-overlay" id="configModalOverlay">
   <div class="modal">
@@ -1962,7 +1977,7 @@
             <li><strong>Snapshots</strong> (File &rarr; Snapshots&hellip;): automatic backups inside the app. Compare versions, see what changed, restore any of them.</li>
             <li>If the app ever closes unexpectedly, it offers to <strong>pick up where you left off</strong> when you return.</li>
             <li>Back up now and then — Save as&hellip; or a downloaded copy. The Snapshots screen nudges you if it's been a while.</li>
-            <li>The <strong>Songs</strong> menu imports songs from another SetBook file, exports just the songs you're looking at, and lists recently viewed songs.</li>
+            <li>The <strong>Songs</strong> menu imports songs from another SetBook file, exports just the songs you're looking at, lists recently viewed songs, and recovers the last five songs you deleted.</li>
           </ul>
         </section>
         <section id="help-extension">
@@ -2100,6 +2115,7 @@ function defaultState(){
     songTypeFilter: { cover: true, original: true },
     readyFilter: { ready: true, notReady: true, inProgress: true },
     recentlyViewed: [],
+    recentlyDeleted: [],
     tagFilter: '', artistFilter: ''
   };
 }
@@ -2931,6 +2947,7 @@ function renderSidebar(){
         const prevSelGroup = selectedGroupId, prevSelSec = selectedSectionId;
         state.sections = state.sections.filter(s => s.groupId !== group.id);
         state.sectionGroups = state.sectionGroups.filter(g => g.id !== group.id);
+        recordSongDeleted(removedGroup, removedSections, groupIdx);
         if (selectedGroupId === group.id){ selectedGroupId = null; selectedSectionId = null; }
         if (state.focusedGroupId === group.id) state.focusedGroupId = null;
         scheduleSave();
@@ -2938,6 +2955,7 @@ function renderSidebar(){
         const entry = pushUndo(`Deleted "${removedGroup.name || 'Untitled song'}"`, () => {
           state.sectionGroups.splice(Math.min(groupIdx, state.sectionGroups.length), 0, removedGroup);
           state.sections.push(...removedSections);
+          dropDeletedSong(removedGroup.id);
           if (wasSelected){ selectedGroupId = prevSelGroup; selectedSectionId = prevSelSec; }
           if (wasFocused) state.focusedGroupId = removedGroup.id;
           scheduleSave();
@@ -6181,6 +6199,63 @@ function recordSongViewed(groupId){
   state.recentlyViewed = next.slice(0, 6);
 }
 
+/* Recently deleted songs (Songs menu): the last five deleted songs, most
+   recent first, each kept as a full snapshot (the song, its sections, and
+   its original position in the list). Saved with the file
+   (state.recentlyDeleted) so recovery survives close/reopen. */
+function recordSongDeleted(group, sections, index){
+  const list = Array.isArray(state.recentlyDeleted) ? state.recentlyDeleted : [];
+  const next = [{ group, sections, index, at: Date.now() },
+    ...list.filter(e => e && e.group && e.group.id !== group.id)];
+  state.recentlyDeleted = next.slice(0, 5);
+}
+function dropDeletedSong(groupId){
+  if (!Array.isArray(state.recentlyDeleted)) return;
+  state.recentlyDeleted = state.recentlyDeleted.filter(e => e && e.group && e.group.id !== groupId);
+}
+const deletedModal = wireModal({ overlayId:'deletedModalOverlay', openBtnId:'btnDeletedSongs', closeBtnId:'deletedCloseBtn',
+  onOpen: renderDeletedSongList });
+function renderDeletedSongList(){
+  const box = document.getElementById('deletedSongList');
+  box.innerHTML = '';
+  const entries = Array.isArray(state.recentlyDeleted) ? state.recentlyDeleted : [];
+  if (!entries.length){
+    box.innerHTML = '<div class="search-empty">No deleted songs to recover — deleted songs will appear here.</div>';
+    return;
+  }
+  entries.forEach((entry) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'recent-song-row';
+    row.innerHTML = `
+      <span class="recent-song-name">${escapeHtml(entry.group.name || 'Untitled song')}</span>
+      <span class="recent-song-ago">${escapeHtml(viewedAgoText(entry.at))}</span>
+      <span class="recent-song-open">Restore →</span>`;
+    row.addEventListener('click', () => {
+      deletedModal.close();
+      restoreDeletedSong(entry);
+    });
+    box.appendChild(row);
+  });
+}
+function restoreDeletedSong(entry){
+  if (!state.sectionGroups.some(g => g.id === entry.group.id)){
+    state.sectionGroups.splice(Math.min(Math.max(0, entry.index), state.sectionGroups.length), 0, entry.group);
+    const secIds = new Set(state.sections.map(s => s.id));
+    state.sections.push(...entry.sections.filter(s => !secIds.has(s.id)));
+  }
+  dropDeletedSong(entry.group.id);
+  selectedGroupId = entry.group.id;
+  const secs = groupSections(entry.group.id);
+  selectedSectionId = secs.length ? secs[0].id : null;
+  expandedGroups.add(entry.group.id);
+  scheduleSave();
+  renderAll();
+  closeSidebarAfterNavigate();
+  scrollSelectedSongHeadIntoView();
+  scrollEditorToSelectedSection();
+}
+
 function updateSaveStatus(status){
   currentSaveStatus = status;
   const dot = document.getElementById('saveDot');
@@ -7284,10 +7359,16 @@ function clearRecoverySnapshot(){
   try{ localStorage.removeItem(RECOVERY_KEY); }catch(err){} // legacy + fallback entries
 }
 // A snapshot is only worth offering when it holds real work — not the
-// default fresh file (one untitled song, one empty section).
+// default fresh file (one untitled song, one empty section). Deleted songs
+// count too: wiping the songbook and crashing before saving is exactly
+// when "pick up where you left off" matters.
 function recoveryHasContent(s){
-  return (s.sectionGroups || []).some(g => (g.name || '').trim() || (g.artist || '').trim()) ||
-         (s.sections || []).some(sec => (sec.lines || []).some(l => (l.text || '').trim() || (l.symbols || []).length));
+  const groupHasContent = g => ((g.name || '').trim() || (g.artist || '').trim());
+  const sectionHasContent = sec => (sec.lines || []).some(l => (l.text || '').trim() || (l.symbols || []).length);
+  return (s.sectionGroups || []).some(groupHasContent) ||
+         (s.sections || []).some(sectionHasContent) ||
+         (s.recentlyDeleted || []).some(e => (e.group && groupHasContent(e.group)) ||
+           (e.sections || []).some(sectionHasContent));
 }
 // True when the last-linked file on disk was modified after the recovery
 // snapshot was saved — restoring the snapshot would clobber newer work
@@ -7465,6 +7546,10 @@ function loadParsedState(parsed){
   if (!Array.isArray(state.recentlyViewed)) state.recentlyViewed = [];
   state.recentlyViewed = state.recentlyViewed
     .filter(r => r && typeof r.id === 'string' && typeof r.at === 'number').slice(0, 6);
+  if (!Array.isArray(state.recentlyDeleted)) state.recentlyDeleted = [];
+  state.recentlyDeleted = state.recentlyDeleted
+    .filter(e => e && e.group && typeof e.group.id === 'string' && Array.isArray(e.sections)
+      && typeof e.at === 'number' && typeof e.index === 'number').slice(0, 5);
   const sort = state.songSort;
   if (sort && (sort.field === 'title' || sort.field === 'artist') && (sort.dir === 'asc' || sort.dir === 'desc')){
     songSortField = sort.field;
