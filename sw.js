@@ -31,7 +31,9 @@ const PRECACHE_URLS = [
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
   // PDF.js — lazy-loaded by the per-song Performance preview's page-turning
   // strip (ensurePdfJs); cached here so the strip works offline after first use.
+  // The worker bundle is preloaded too (pdf.js runs it on the main thread).
   'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
   // Google Fonts (Work Sans + JetBrains Mono): the CSS and its font files
   // are added to the cache opportunistically on first fetch (they can't be
   // enumerated here because the CSS content varies by user agent).
