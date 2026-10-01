@@ -88,7 +88,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Everything else: cache-first with network fill (works for fonts, the
-  // jsPDF CDN, icons). Only cache successful basic/cors responses.
+  // jsPDF/PDF.js CDN, icons). Only cache successful basic/cors responses.
   event.respondWith(
     caches.match(req).then((hit) => {
       if (hit) return hit;
