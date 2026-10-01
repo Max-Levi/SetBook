@@ -642,6 +642,12 @@
     /* The wordmark is decorative; on phones the hamburger and the view
        itself identify the app, and the room goes to the controls. */
     .brand h1{ display:none; }
+    /* The disconnected Drive badge's label ("Cloud save disabled") is too
+       long for the phone header — it ran into the Menu button. Show the
+       icon alone in the off state; the connected green "Drive" badge keeps
+       its short label, and the badge title + File menu still explain the
+       off state. */
+    .drive-badge.off #driveBadgeLabel{ display:none; }
     #btnPdf{ white-space:nowrap; }
     nav.sidebar{
       position:fixed; top:0; left:0; bottom:0; height:100dvh;
@@ -1827,7 +1833,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook — Technical Documentation</h2>
-    <p class="modal-sub">Last updated 2026-09-30.</p>
+    <p class="modal-sub">Last updated 2026-10-01.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-overview">1. Overview</a>
@@ -1866,7 +1872,7 @@
             <li><code>sectionGroups[]</code> — songs. Fields: <code>id</code>, <code>name</code> (title), <code>artist</code>, <code>videoUrl</code> (album-version link, optional), <code>videoUrlLive</code> (live-performance link, optional), <code>type</code> (<code>"cover"</code> | <code>"original"</code>, defaults to <code>"cover"</code>), <code>readyStatus</code> (<code>"ready"</code> | <code>"in-progress"</code> | <code>"not-ready"</code>, defaults to <code>"not-ready"</code>; files from before In Progress existed only hold the two old values and keep working), <code>tags</code> (array of custom tag strings, defaults to <code>[]</code>), <code>updatedAt</code> (ms-epoch timestamp of the song's last edit; <code>null</code> on files saved before stamps existed, shown as "unknown" in comparisons).</li>
             <li><code>sections[]</code> — song sections. Fields: <code>id</code>, <code>groupId</code> (owning song), <code>nameType</code> (one of <code>"intro"</code>, <code>"verse"</code>, <code>"chorus"</code>, <code>"pre-chorus"</code>, <code>"bridge"</code>, <code>"instrumental"</code>, <code>"outro"</code>, or <code>"custom"</code>), <code>customName</code> (free text, used when <code>nameType</code> is <code>"custom"</code>), <code>nameSuffix</code> (optional informational tag appended after the number, e.g. <code>"(guitar solo)"</code>), <code>order</code> (position within the song), <code>lines[]</code>, <code>updatedAt</code> (ms-epoch timestamp of the section's last edit; <code>null</code> on older files, shown as "unknown"), and <code>name</code> — the derived display name, stamped at save time so the raw JSON stays readable and older SetBook versions still show a sensible title. The visible name is computed by <code>displaySectionName()</code>: sections sharing a base name within a song are numbered (<code>"Chorus"</code> alone, but <code>"Chorus 1"</code> / <code>"Chorus 2"</code> when there are two); custom names take part in the counting too, and a user-typed trailing number on a custom name (e.g. <code>"Solo 2"</code>) is ignored for grouping so numbering is never doubled. The <strong>Auto-number sections</strong> master switch (File → Configuration…, placed ahead of the singles switch) turns all automatic numbering off — every section then shows its plain base name; it is stored per file as <code>autoNumberSections</code> and defaults to on, and while it is off the singles switch is disabled. The <strong>Number single sections</strong> setting also numbers sections that appear only once (<code>"Chorus 1"</code> instead of <code>"Chorus"</code>); it is stored per file as <code>numberSingleSections</code> and defaults to off. Files saved before the name picker existed only have <code>name</code>; on load the whole old title becomes a custom name, with a trailing parenthetical aside moved into <code>nameSuffix</code> — then any custom name matching a section-type name, optionally with a trailing number (e.g. <code>"Verse 1"</code>), is converted to that picked type and the number is discarded.</li>
             <li>Line — <code>{ text, symbols[] }</code>. <code>text</code> is the lyric line; <code>symbols</code> is an array of <code>{ pos, value }</code> placing each chord symbol at an absolute character offset within the row, so chords stay aligned over the correct lyric characters in the preview and in PDF output.</li>
-            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryFields</code> — a list of <code>{ id, text, nameType, customName, nameSuffix }</code> fields, one per future section, each with its own section-naming row (type picker incl. Custom, suffix input, "Shows as" preview) carried through to the created sections. Every field shows a live preview overlay: lines are classified strictly by position — the first content line of each field is always chords, then chord/lyric strictly alternate — with chords gold, lyrics white, and dropped chord-diagram lines dimmed and struck. The preview and the Create-sections parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
+            <li>A section may be a mass-entry staging section (from Add song from URL) instead of a real section: it carries <code>massEntry: true</code>, <code>massEntryOriginal</code> (the exact scraped text, used by Reset), and <code>massEntryFields</code> — a list of <code>{ id, text, nameType, customName, nameSuffix }</code> fields, one per future section, each with its own section-naming row (type picker incl. Custom, suffix input, "Shows as" preview) carried through to the created sections. Every field shows a live preview overlay: lines are classified by content, not by position — a line of pure chord symbols is chords, a line containing lyric words is lyrics, so doubled lines (two chord lines or two lyric lines in a row, common after deglueing) can't flip the phase for everything below them. Ambiguous lines (a lone <code>Am</code>, an exotic chord spelling) fall back to strict positional alternation, with the first content line of each field counted as chords; blank and dropped lines don't disturb the rhythm — with chords gold, lyrics white, and dropped chord-diagram lines dimmed and struck. The preview and the Create-sections parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. These fields exist only while the staging section is open; submitting the mass entry deletes the section and replaces it with normal sections.</li>
             <li><code>songSubsets[]</code> — named song selections, <code>{ id, name, songIds[] }</code>, used to scope which songs are included in a PDF export.</li>
             <li>UI preferences persisted in the file: <code>projectName</code>, <code>songSort { field, dir }</code>, <code>sidebarWidth</code>, <code>songTypeFilter</code>, <code>readyFilter</code>, <code>autoNumberSections</code>, <code>numberSingleSections</code>, <code>focusedGroupId</code>, <code>lastFolderName</code>.</li>
           </ul>
@@ -1930,7 +1936,7 @@
           <h3>8. File management</h3>
           <ul>
             <li>Libraries are stored as <code>.json</code> files. In browsers that support the File System Access API (Chrome, Edge), SetBook opens a file by handle and autosaves back to it as you work; a default folder can be linked for quicker access. Other browsers (Safari, Firefox) fall back to explicit open and save-as download flows.</li>
-            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more and revokes the saved Google authorization (the Drive file stays in your folder). With work open it first offers a handoff: <strong>Save &amp; open locally</strong> writes a local copy, links it, and keeps editing there; <strong>Just disconnect</strong> leaves the work unlinked in memory. Reopening the app re-links the same Drive file automatically and re-authorizes silently. File → Save as… while Drive-linked asks where the copy goes: <strong>Into Drive</strong> writes a “… copy” songbook in the connected folder and autosaves there, <strong>Local file…</strong> opens the local save dialog (pausing Drive syncing). Opening a local file while a Drive link is active (or saving one with Save as…) offers a handoff: <strong>Sync to Drive</strong> uploads the local work as a new songbook in the linked folder and continues there, or <strong>Keep it local</strong> pauses Drive syncing (nothing is overwritten; Connect resumes). Connecting to Drive with local work open pre-selects uploading that work as a new songbook named after the open file. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. While connected, the header shows a green <strong>Drive</strong> badge (visible on phones too, where the save text is hidden) — it is also a link that opens the Drive folder in a new tab; <strong>Connect Google Drive…</strong> appears when disconnected (or when a saved link needs re-authorization — clicking it resumes the same folder and file), and <strong>Disconnect Google Drive</strong> only while actively connected. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
+            <li>Google Drive cloud save: File → Connect Google Drive… links the library to a songbook file in a Drive folder you pick (via Google's own folder picker). SetBook then lists the <code>.json</code> songbooks already in that folder — pick one to open it, or name a new one and it is created on connect (the name gets the <code>.json</code> extension automatically). File → Open from Google Drive… opens a songbook by picking it in Google's file picker — any accessible <code>.json</code>, in any folder, not just the linked one. Changes are scheduled for upload on a throttled cadence — 15 seconds after your last edit, and never more than a minute after the first unsynced change (pending work also flushes when the tab is hidden or closed) — so continuous editing doesn't stream the whole library to Google on every keystroke; the header shows "unsynced changes" until then, then "saved to Drive · <em>age</em>". The crash-recovery snapshot still captures every change immediately. If the Drive copy changes after your last save (another device or tab), the next save pauses and a "Drive copy changed" modal compares the two versions side by side (same diff view as Snapshots, with last-modified times) and offers <strong>Overwrite Drive</strong> or <strong>Reload from Drive</strong> — the local work is snapshotted first, so either choice is undoable; nothing is ever merged silently or written without a choice. File → Disconnect Google Drive saves once more and revokes the saved Google authorization (the Drive file stays in your folder). With work open it first offers a handoff: <strong>Save &amp; open locally</strong> writes a local copy, links it, and keeps editing there; <strong>Just disconnect</strong> leaves the work unlinked in memory. Reopening the app re-links the same Drive file automatically and re-authorizes silently. File → Save as… while Drive-linked asks where the copy goes: <strong>Into Drive</strong> writes a “… copy” songbook in the connected folder and autosaves there, <strong>Local file…</strong> opens the local save dialog (pausing Drive syncing). Opening a local file while a Drive link is active (or saving one with Save as…) offers a handoff: <strong>Sync to Drive</strong> uploads the local work as a new songbook in the linked folder and continues there, or <strong>Keep it local</strong> pauses Drive syncing (nothing is overwritten; Connect resumes). Connecting to Drive with local work open pre-selects uploading that work as a new songbook named after the open file. Access is granted via Google's per-file <code>drive.file</code> scope: SetBook can only see files it created or that were explicitly picked — never the rest of the Drive. Access tokens live in memory only. While connected, the header shows a green <strong>Drive</strong> badge (visible on phones too, where the save text is hidden) — it is also a link that opens the Drive folder in a new tab. When disconnected the badge is red and reads "Cloud save disabled" (on phones just the red cloud icon — the full label is too long for the phone header); <strong>Connect Google Drive…</strong> appears when disconnected (or when a saved link needs re-authorization — clicking it resumes the same folder and file), and <strong>Disconnect Google Drive</strong> only while actively connected. Setup (one-time, maintainer): the two credential constants at the top of the script (<code>DRIVE_CLIENT_ID</code>, <code>DRIVE_API_KEY</code>) must be filled in from a Google Cloud project with the Drive API and Google Picker API enabled, with the hosting origin (and localhost) in the OAuth client's authorized JavaScript origins.</li>
             <li>Crash recovery: every change is also snapshotted (debounced) to the browser's IndexedDB (with a localStorage fallback and one-time migration from the pre-IndexedDB localStorage store, which had a ~5MB quota large songbooks could silently hit). If the app restarts with unsaved work — after a crash, or a tab closed on a browser without the File System Access API — the welcome screen offers to restore it ("Pick up where you left off?") or start fresh. The offer is suppressed when the last-linked file on disk was edited more recently than the auto-saved data — restoring would overwrite the newer file with old browser data — and the restore click re-checks the file's age, refusing with an explanatory message if the file changed since boot. When a recovery snapshot is offered, the welcome modal switches to a compact layout — the feature tour is hidden so the recovery banner and the file buttons fit without scrolling (choosing "Start fresh" keeps the compact layout; the recovery buttons are 44px touch targets on mobile). The banner names the file the work was last linked to, and restoring re-links it automatically (the handle is kept in the browser's IndexedDB; the browser may ask for permission once, and the restore click counts as the gesture that allows the prompt). Before the restored work is written back, the file's current on-disk contents are kept as a "Before re-linking…" snapshot, so the overwrite stays undoable via Snapshots. If permission is denied or the file moved, the work still restores — just unlinked. If restored-but-unlinked work is in memory and a different JSON is opened, a "Keep which version?" modal compares the two with the Snapshots diff view — each song and section shows its last-modified time on both sides, the later highlighted — and offers a choice of which to keep; the restored work is first stashed as a "Restored work (before opening …)" snapshot so either choice stays undoable, identical files load directly with no modal, and choosing the file clears the recovery snapshot so it is not re-offered. A persisted Drive link never auto-applies the remote copy over offered or restored recovery work — the remote copy is only linked on a boot where no recovery offer appeared.</li>
             <li>Snapshots: File → Snapshots… keeps session-scoped backups of the library (in memory only — they do not survive a reload). One is taken automatically every time a file is loaded — both the outgoing work ("Before opening X") and the loaded file ("Opened X") — plus on crash-recovery restore, before New file, and manually via "Take snapshot" (newest first, capped at 12). Each snapshot can be compared against what's currently open ("A → B" diff: added/removed songs, renames, Ready/type changes, added/removed sections, +N/−N rows per section, and section renames), the open library can be compared against another JSON file on disk, and any snapshot can be restored — the pre-restore state is snapshotted first so restoring is undoable, and the linked file binding is kept. Empty songs (no lyric/chord content and no real name, e.g. a fresh session's "Untitled song") are never listed, so placeholders don't pollute the diff. A "Restored work (before opening …)" snapshot is also taken automatically when the open-file conflict modal appears, preserving restored-but-unlinked work before the user chooses which version to keep.</li>
             <li>The header holds three menus: <strong>File</strong> (Undo, then New file, Open…, Save as…, Snapshots…, then Set folder…, — while linked — Close current file, then Connect Google Drive… (hidden once linked or when the credential constants are empty) / Disconnect Google Drive (shown only while a Drive link is active), then Configuration…), <strong>Songs</strong> (Import songs, Export filtered songs as JSON…, Recently viewed songs…), and <strong>Help</strong> (Getting PDFs onto your devices…, Help & documentation). On phones the three menus collapse into a single grouped Menu. The Save as… item shows its Ctrl/Cmd+S shortcut hint, and the header Export PDF button shows Ctrl/Cmd+E (hidden at phone width where the button truncates).</li>
@@ -2862,7 +2868,11 @@ function renderSidebar(){
     let nameFocusValue = group.name;
     nameInput.addEventListener('focus', () => { nameFocusValue = group.name; });
     nameInput.addEventListener('blur', () => {
-      if (group.name !== nameFocusValue) renderSidebar();
+      // Deferred: a mousedown on a sidebar button blurs this field first,
+      // and a synchronous re-render here would detach that button before
+      // its click event fires, silently swallowing the click (rename a
+      // song, then immediately hit Details — nothing happens).
+      setTimeout(() => { if (group.name !== nameFocusValue) renderSidebar(); }, 0);
     });
 
     updateArtistSummary(head, group);
@@ -3615,11 +3625,11 @@ function printableSections(groupId){
 /* Chord/lyric deglue for URL imports. Scraped chord sheets often glue chord
    symbols to lyric text: a chord at the start of a lyric ("GSlowin'"), a
    chord run into the next lyric ("D   CSuch a fine sight"), or chords
-   trailing a lyric line ("…Arizona   D   C", "…mindG"). The mass-entry
-   classifier alternates chord/lyric strictly by position, so glued lines
-   misclassify wholesale — this pass inserts the missing line breaks before
-   the text reaches the staging section. Chord grids ("| G | D |") are
-   untouched: "|" never triggers a split. */
+   trailing a lyric line ("…Arizona   D   C", "…mindG"). Without this pass
+   glued lines misclassify (a "GSlowin'" line reads as lyrics and the chord
+   is lost) — deglue inserts the missing line breaks before the text reaches
+   the staging section. Chord grids ("| G | D |") are untouched: "|"
+   never triggers a split. */
 /*__SETBOOK_MCP_CORE_BEGIN__*/
 /* NOTE (MCP core): this region is extracted verbatim into
    setbook-mcp/core/setbook-core.mjs by setbook-mcp/build-core.mjs. Keep it
@@ -3676,32 +3686,29 @@ function deglueTrailingTail(line){
 
 /* A leading run of chord tokens (and bar pipes / xN markers) followed by
    lyric text splits after the run: "C C# D   Take a silver dime" ->
-   "C C# D" / "Take a silver dime". A run of a single root-only chord
-   ("A Letter…") does not split — ordinary sentences starting with the
-   letters A–G must stay whole. Pure chord lines have no remainder and
-   are untouched. */
+   "C C# D" / "Take a silver dime". A lone chord token never splits —
+   "Am I sitting here" is an ordinary lyric line, and a single leading
+   chord ("A Letter…", "Am I…") is too ambiguous to break apart. Pure
+   chord lines have no remainder and are untouched. */
 function deglueLeadingChordRun(line){
   const parts = line.split(/([ \t]+)/);
-  let idx = 0, chords = 0, sawStrong = false;
+  let idx = 0, chords = 0;
   while (idx < parts.length){
     const t = parts[idx];
     if (t === '' || /^[ \t]+$/.test(t)){ idx++; continue; }
     if (/^\|+$/.test(t) || /^x\d+$/i.test(t)){ idx++; continue; }
     if (DEGLUE_CHORD_RE.test(t)){
       chords++;
-      if (t.length > 1) sawStrong = true;
       idx++;
       continue;
     }
     break;
   }
-  if (!chords) return null;
+  if (chords < 2) return null;
   const rest = parts.slice(idx).join('');
   // Only split when lyric text actually follows the run (a pure chord
-  // line — possibly with trailing pipes — has none), and never split a
-  // lone root-only chord off the front of a sentence.
+  // line — possibly with trailing pipes — has none).
   if (!rest || !/^[A-Za-z(]/.test(rest)) return null;
-  if (chords < 2 && !sawStrong) return null;
   return [parts.slice(0, idx).join('').replace(/[ \t]+$/, ''), rest];
 }function deglueChordLyricLines(text){
   const out = [];
@@ -6993,12 +7000,14 @@ function updateDriveStatus(){
       badge.href = folderHref || fileHref || '#';
       badge.setAttribute('target', '_blank');
       if (label) label.textContent = 'Drive';
+      badge.setAttribute('aria-label', 'Google Drive connected — open the Drive folder in a new tab');
       badge.title = folderHref ? 'Autosaving to Google Drive — click to open the folder in a new tab' : 'Autosaving to Google Drive — click to open the file in a new tab';
     } else {
       badge.classList.add('off');
       badge.removeAttribute('href');
       badge.removeAttribute('target');
       if (label) label.textContent = 'Cloud save disabled';
+      badge.setAttribute('aria-label', 'Cloud save disabled — Google Drive is not connected');
       badge.title = 'Google Drive is not connected — File → Connect Google Drive…';
     }
   }
