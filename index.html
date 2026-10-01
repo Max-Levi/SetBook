@@ -518,6 +518,20 @@
   .pdf-preview-controls .modal-select{ width:auto; max-width:100%; }
   .pdf-preview-viewer{ position:relative; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--card); }
   #pvFrame{ display:block; width:100%; height:60vh; min-height:320px; border:0; background:#fff; }
+  #pvFrame[hidden], #pvStripWrap[hidden]{ display:none; }
+  /* Performance preview: a horizontal page-turning strip (Print Friendly
+     keeps the vertical-scrolling iframe above). Pages snap to center; the
+     ‹ › buttons and arrow keys turn pages like a book. */
+  #pvStripWrap{ position:relative; display:block; width:100%; height:60vh; min-height:320px; background:#262626; overflow:hidden; }
+  #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
+  .pv-page{ scroll-snap-align:center; flex:0 0 auto; line-height:0; box-shadow:0 6px 22px rgba(0,0,0,.5); border-radius:3px; }
+  .pv-page canvas{ display:block; border-radius:3px; }
+  .pv-turn{ position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.28); background:rgba(0,0,0,.55); color:#fff; font-size:22px; line-height:1; padding:0 0 3px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:2; }
+  .pv-turn:hover{ background:rgba(0,0,0,.78); }
+  .pv-turn[disabled]{ opacity:.22; cursor:default; }
+  #pvPrevPage{ left:10px; }
+  #pvNextPage{ right:10px; }
+  #pvPageIndicator{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.62); color:#fff; font-size:12px; padding:4px 12px; border-radius:999px; z-index:2; white-space:nowrap; }
   .pdf-preview-loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }
   #pdfPreviewOverlay .mode-btn{ white-space:nowrap; }
   #pdfPreviewOverlay a.pdf-download-link{ margin-bottom:0; }
@@ -528,6 +542,9 @@
     .pdf-preview-controls .mode-toggle{ display:flex; }
     .pdf-preview-controls .mode-toggle .mode-btn{ flex:1; }
     #pvFrame{ height:52vh; min-height:280px; }
+    #pvStripWrap{ height:52vh; min-height:280px; }
+    #pvStrip{ padding:10px 48px; gap:14px; }
+    .pv-turn{ width:40px; height:40px; }
   }
   button.pdf-download-link[hidden]{ display:none; }
   /* Drive connected badge: a compact always-visible status chip in the
@@ -1532,6 +1549,12 @@
     <div class="pdf-preview-viewer">
       <div class="pdf-preview-loading" id="pvLoading">Rendering preview…</div>
       <iframe id="pvFrame" title="PDF preview"></iframe>
+      <div id="pvStripWrap" hidden>
+        <div id="pvStrip" role="region" aria-label="Performance PDF pages, left to right"></div>
+        <button type="button" class="pv-turn" id="pvPrevPage" aria-label="Previous page">‹</button>
+        <button type="button" class="pv-turn" id="pvNextPage" aria-label="Next page">›</button>
+        <div id="pvPageIndicator" aria-live="polite"></div>
+      </div>
     </div>
     <div class="modal-actions">
       <button type="button" class="ghost small" id="pvCloseBtn">Close</button>
@@ -1973,7 +1996,7 @@
           <ul>
             <li><strong>Performance PDF.</strong> One page per song section (long sections paginate across pages). The page is sized for a target device — picked from a grouped dropdown of iPad models (10.2", 10.9"/11", Pro 11", Pro 12.9"/13", mini 7.9", mini 8.3"), iPhones (SE, 14/15/16, Pro Max), Android tablets and phones by screen size, or US Letter/A4 paper — in portrait or landscape, rendered in dark or light mode. It includes a tappable table of contents — each song row is a full-width, finger-sized tap target (capped at 10 songs per page; long titles and artists trim with an ellipsis so they never collide with the page indicator); when the contents span multiple pages, previous/next navigation appears at the bottom and later pages get a small "Contents · page X of Y" header — one title page per song, a "back to Contents" link and the song title on every page, and previous/next-section navigation links at the bottom of each section page. All tappable links use generous tap targets sized for fingers on a phone screen. The body font size is unified per song — every section page within one song uses the same size, the largest at which all of that song's sections still fit on their pages (the minimum of the per-section best-fit sizes, picked from fixed tiers so content fits without overflow); the layout is designed for use with Bluetooth page-turner pedals.</li>
             <li><strong>Print-Friendly PDF.</strong> A continuous document stacking all selected songs and sections with page numbers. The body font size is auto-selected once for the whole document.</li>
-            <li><strong>Per-song PDF preview.</strong> Each song header has a PDF icon button (next to the ◎ focus button) that renders just that song through the real PDF pipelines — the same code the export dialog uses — and shows the result in an embedded viewer, so the preview is the actual output, not an approximation. The preview starts from the export dialog's current settings (PDF type, device, orientation, light/dark) and re-renders as you change them; a Download button saves the rendered file.</li>
+            <li><strong>Per-song PDF preview.</strong> Each song header has a PDF icon button (next to the ◎ focus button; the icon stays visible in focus mode) that renders just that song through the real PDF pipelines — the same code the export dialog uses — so the preview is the actual output, not an approximation. The Performance PDF shows as a horizontal page-turning strip (pages scroll left to right with snap, ‹ › buttons, and arrow-key turning) to simulate page turning; the Print Friendly PDF keeps a vertical-scrolling viewer. The preview starts from the export dialog's current settings (PDF type, device, orientation, light/dark) and re-renders as you change them; a Download button saves the rendered file.</li>
             <li>Both pipelines use the embedded IBM Plex Mono typeface so chord alignment is exact in any PDF viewer.</li>
             <li>Export scope: all songs in the library, one saved subset, or a manual per-song checklist. The checklist offers bulk selection — Select all, Select none, and Ready only (songs whose ready status is Ready). Like a manual checkbox change, a bulk selection clears the subset dropdown so the selection is clearly custom.</li>
             <li>On phones the PDF dialog keeps its Generate button visible in a sticky footer while the options scroll; the desktop layout is unchanged. Regenerating the same PDF in one session appends " (1)", " (2)", … to the filename so repeat downloads never fail on a name collision. After a PDF is generated, a <strong>↗ Share PDF…</strong> button appears beside the download link wherever the device supports sharing files (iPad and iPhone Safari, Chrome on Android, …): it opens the system share sheet, so the generated file can be sent straight to Apple Books, Mail, Messages, or any other share target. Where file sharing isn't supported the button stays hidden and downloading remains the way out.</li>
@@ -2011,7 +2034,7 @@
             <li>All display-affecting transforms (lyric-continuation grouping, comment-line stripping, repeat markers) are centralized in <code>groupLinesForDisplay</code> and its helpers so the preview and both PDF pipelines share one code path. Editor source data is never mutated by display logic.</li>
             <li>UI icons are hand-drawn inline SVGs (<code>&lt;svg class="svg-icon" viewBox="0 0 512 512"&gt;</code>) embedded directly in the markup — there is no icon font or icon CDN. To add an icon, inline a new SVG with the <code>svg-icon</code> class; it sizes to <code>1em</code> and inherits <code>currentColor</code>. Do not reintroduce an external icon library.</li>
             <li>Design tokens are disciplined: gold (<code>--gold</code>) is reserved for the brand mark, chord symbols, active states, and focus — never for general labels, tags, or status text. Radii follow a three-step scale: <code>6px</code> controls, <code>10px</code> surfaces, <code>999px</code> pills. Only two typefaces load — Work Sans for UI, JetBrains Mono for chords and code. Pressable controls translate 1px on press (<code>:active</code>), and every focusable element shows a gold <code>:focus-visible</code> ring. In light mode the dimmed gold (<code>--gold-dim #7a5f16</code>) is the darkest that still keeps the brand look while holding ≈4.9:1 contrast against the paper background for preview chord symbols. The empty preview state shows a hand-drawn open-book illustration, not blank paper.</li>
-            <li>The jsPDF library lazy-loads from the cdnjs CDN on first PDF export (<code>ensurePdfLib()</code> injects the script tag) with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update the constant in <code>ensurePdfLib()</code>, the <code>PRECACHE_URLS</code> entry in <code>sw.js</code>, and <code>setbook-qa/security-test.js</code>, which asserts the exact hash.</li>
+            <li>The jsPDF library lazy-loads from the cdnjs CDN on first PDF export (<code>ensurePdfLib()</code> injects the script tag) with a pinned Subresource Integrity hash (<code>integrity</code> + <code>crossorigin="anonymous"</code>), verified against the CDN's published value for the pinned version — a tampered or substituted file is rejected by the browser instead of executing. If jsPDF is ever upgraded, regenerate the hash from the new file (e.g. <code>openssl dgst -sha512 -binary</code>, base64-encoded) and update the constant in <code>ensurePdfLib()</code>, the <code>PRECACHE_URLS</code> entry in <code>sw.js</code>, and <code>setbook-qa/security-test.js</code>, which asserts the exact hash. The PDF.js page renderer (<code>ensurePdfJs()</code>, cdnjs <code>pdf.js/3.11.174/pdf.min.js</code> + <code>pdf.worker.min.js</code>) follows the same pattern — pinned SRI hashes, same places to update on upgrade. The worker bundle is preloaded so pdf.js runs it on the main thread (its "fake worker"); with <code>window.pdfjsWorker</code> already present, <code>getDocument()</code> performs no extra fetch. If either file can't load, the preview falls back to the plain iframe viewer.</li>
             <li>Offline support is a service worker (<code>sw.js</code>) plus <code>manifest.webmanifest</code> and placeholder icons (<code>tools/make-icons.js</code> regenerates them). The worker is network-first for the app shell (a Pages deploy must never be pinned stale) and cache-first for immutable CDN assets (jsPDF, fonts); Drive/auth traffic is bypassed so tokens never transit the cache. Bump <code>CACHE_VERSION</code> in <code>sw.js</code> whenever the pre-cached asset list changes. Registration is guarded to https/localhost and never blocks the app — including the Node test sandbox, which provides no service worker.</li>
             <li>Google Drive autosave uses Google's Picker flow with the per-file <code>drive.file</code> scope (non-sensitive: no OAuth app verification or security assessment). The credentials are bring-your-own constants (<code>DRIVE_CLIENT_ID</code>/<code>DRIVE_API_KEY</code>) — the app ships with them empty and hides the Drive menu items until they are filled; tokens are memory-only and the persisted link (file/folder ids) lives in the same IndexedDB store as local file handles. Drive v3 has no conditional writes: conflict detection compares <code>modifiedTime</code> before each write — a documented check-then-write race, the same honesty as the storage spike's S3 adapter.</li>
             <li>Section display names are derived in exactly one place — <code>displaySectionName()</code>, with <code>sectionBaseName()</code> and <code>migrateSectionName()</code> beside it. Never read <code>sec.name</code> for display; <code>sec.name</code> is only stamped at save time by <code>stampSectionDisplayNames()</code> for JSON readability and backwards compatibility.</li>
@@ -2051,7 +2074,7 @@
             <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); toggle <strong>Auto-number sections</strong> off and confirm all numbering disappears and the singles checkbox disables, then toggle it back on; open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
             <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the File menu, or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
-            <li><strong>Per-song PDF preview:</strong> click the PDF icon on a song header — the modal opens with the song's name, the viewer renders the actual PDF, and the Download button appears. Switch to Print Friendly PDF and to dark mode; each change re-renders without errors.</li>
+            <li><strong>Per-song PDF preview:</strong> click the PDF icon on a song header (also present in focus mode) — the modal opens with the song's name, the Performance PDF renders as a left-to-right page strip, and the Download button appears. Turn pages with the ‹ › buttons and the arrow keys; switch to Print Friendly PDF (vertical scrolling) and to dark mode; each change re-renders without errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
             <li><strong>Sidebar:</strong> search filters the song list; the Sort &amp; Filter toggle collapses and expands the sort/filter controls and its summary line reflects the active filters; Expand/Collapse all sit outside the panel and highlight gold to show the expansion state (Collapse all also closes all open Details panels); the <strong>Clear all</strong> button appears beside the toggle whenever anything narrows the list — panel open or closed — and resets search plus every filter at once, while each dropdown's <strong>✕</strong> clears just that dropdown; title and artist sorting reorder correctly; Cover/Original, Ready/In progress/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
@@ -2887,7 +2910,7 @@ function renderSidebar(){
           <span class="group-artist-summary"></span>
         </div>
         <span class="group-count">${secs.length}</span>
-        ${focusGroup ? '' : `<button class="icon" data-action="pdf-preview" data-gid="${escapeAttr(group.id)}" title="Preview this song's PDF"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 1.8h5.8l3.2 3.2v9.2h-9Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.3 1.8V5h3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>`}
+        <button class="icon" data-action="pdf-preview" data-gid="${escapeAttr(group.id)}" title="Preview this song's PDF"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 1.8h5.8l3.2 3.2v9.2h-9Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.3 1.8V5h3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
         ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${escapeAttr(group.id)}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
         <button class="icon danger" data-action="del-group" data-gid="${escapeAttr(group.id)}" title="Delete song">✕</button>
       </div>
@@ -8422,15 +8445,64 @@ function showPdfShareBtn(){
 }
 
 /* ---- per-song PDF preview ----
-   The PDF icon button on each song header opens a small modal that renders
-   just this song through the real PDF pipelines (same generatePerformancePdf /
-   generatePrintFriendlyPdf the export dialog uses) and shows the result in an
-   embedded viewer. Settings start from the export dialog's current choices so
-   the preview matches what Generate would produce; changing them re-renders. */
+   The PDF icon button on each song header (visible in focus mode too) opens
+   a small modal that renders just this song through the real PDF pipelines
+   (same generatePerformancePdf / generatePrintFriendlyPdf the export dialog
+   uses). Performance renders as a horizontal page-turning strip (PDF.js
+   rasterizes each page to a canvas; swipe, the ‹ › buttons, or the arrow
+   keys turn pages) to simulate page turning; Print Friendly keeps the
+   vertical-scrolling embedded viewer. Settings start from the export
+   dialog's current choices so the preview matches what Generate would
+   produce; changing them re-renders. */
 let pvSongId = null;
 let pvType = 'performance', pvDevice = 'ipad', pvOrientation = 'landscape', pvMode = 'light';
 let pvBlob = null, pvFileName = '', pvBlobUrl = null, pvDownloadUrl = null;
 let pvRenderTimer = null, pvRenderSeq = 0;
+
+// PDF.js renders the Performance preview's page-turning strip. Both the main
+// bundle and the worker bundle lazy-load from cdnjs with pinned SRI hashes,
+// mirroring ensurePdfLib(). The worker bundle is preloaded (also SRI-pinned)
+// so pdf.js runs it on the main thread via its "fake worker" —
+// window.pdfjsWorker is already present, so getDocument() needs no separate
+// Worker and performs no extra fetch. Rejects when offline, in which case
+// the preview falls back to the plain iframe viewer.
+const PDFJS_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+const PDFJS_CDN_SRI = 'sha512-q+4liFwdPC/bNdhUpZx6aXDx/h77yEQtn4I1slHydcbZK34nLaR3cAeYSJshoxIOq3mjEf7xJE8YWIUHMn+oCQ==';
+const PDFJS_WORKER_CDN_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+const PDFJS_WORKER_CDN_SRI = 'sha512-BbrZ76UNZq5BhH7LL7pn9A4TKQpQeNCHOo65/akfelcIBbcVvYWOFQKPXIrykE3qZxYjmDX573oa4Ywsc7rpTw==';
+const pdfJsLoadedScripts = new Set();
+function loadPdfJsScript(url, sri){
+  if (pdfJsLoadedScripts.has(url)) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    try{
+      const s = document.createElement('script');
+      s.src = url;
+      s.integrity = sri;
+      s.crossOrigin = 'anonymous';
+      s.onload = () => { pdfJsLoadedScripts.add(url); resolve(); };
+      s.onerror = () => reject(new Error('PDF page viewer did not load — check your internet connection and try again.'));
+      document.head.appendChild(s);
+    }catch(err){
+      reject(new Error('PDF page viewer did not load — check your internet connection and try again.'));
+    }
+  });
+}
+let pdfJsPromise = null;
+function ensurePdfJs(){
+  if (window.pdfjsLib && window.pdfjsWorker) return Promise.resolve(window.pdfjsLib);
+  if (pdfJsPromise) return pdfJsPromise;
+  pdfJsPromise = Promise.all([
+    loadPdfJsScript(PDFJS_CDN_URL, PDFJS_CDN_SRI),
+    loadPdfJsScript(PDFJS_WORKER_CDN_URL, PDFJS_WORKER_CDN_SRI),
+  ]).then(() => {
+    if (window.pdfjsLib && window.pdfjsWorker) return window.pdfjsLib;
+    throw new Error('PDF page viewer loaded but did not initialize — check your internet connection and try again.');
+  }).catch((err) => {
+    pdfJsPromise = null; // allow a later retry (e.g. back online)
+    throw err;
+  });
+  return pdfJsPromise;
+}
 
 const pdfPreviewModal = wireModal({ overlayId:'pdfPreviewOverlay', closeBtnId:'pvCloseBtn' });
 
@@ -8466,6 +8538,7 @@ async function renderPvPdf(){
   const seq = ++pvRenderSeq;
   const loading = document.getElementById('pvLoading');
   const frame = document.getElementById('pvFrame');
+  const stripWrap = document.getElementById('pvStripWrap');
   const link = document.getElementById('pvDownloadLink');
   try{
     const { blob, filename } = pvType === 'print-friendly'
@@ -8477,9 +8550,23 @@ async function renderPvPdf(){
     pvFileName = filename;
     if (pvBlobUrl) URL.revokeObjectURL(pvBlobUrl);
     pvBlobUrl = URL.createObjectURL(blob);
-    frame.src = pvBlobUrl;
     link.textContent = `↓ Download ${previewUniquePdfName(filename)}`;
     link.style.display = '';
+    if (pvType === 'performance'){
+      try{
+        await ensurePdfJs();
+        await renderPvStrip(blob, seq);
+      }catch(pdfJsErr){
+        // PDF.js unavailable (e.g. offline on first use): the vertical
+        // iframe viewer still shows the exact same PDF.
+        console.warn('PDF.js unavailable, falling back to iframe viewer:', pdfJsErr);
+        showPvFrame();
+        frame.src = pvBlobUrl;
+      }
+    }else{
+      showPvFrame();
+      frame.src = pvBlobUrl;
+    }
   }catch(err){
     console.error(err);
     showErrorToast('Could not render the preview: ' + err.message);
@@ -8488,13 +8575,161 @@ async function renderPvPdf(){
   }
 }
 
-// Releasing the viewer URL when the modal closes (every close path funnels
-// through the overlay's class); the next render mints a fresh one.
+// Viewer-mode switching: the iframe (vertical scroll) and the strip
+// (horizontal page-turning) never show at once.
+function showPvFrame(){
+  document.getElementById('pvStripWrap').hidden = true;
+  document.getElementById('pvFrame').hidden = false;
+}
+function showPvStrip(){
+  const frame = document.getElementById('pvFrame');
+  frame.hidden = true;
+  frame.removeAttribute('src'); // release the embedded-viewer instance
+  document.getElementById('pvStripWrap').hidden = false;
+}
+
+// Page-turning strip state.
+let pvStripDoc = null, pvStripPages = 0, pvStripRenderTasks = [], pvStripReady = false;
+
+function pvDestroyStripDoc(){
+  pvStripRenderTasks.forEach(t => { try{ t.cancel(); }catch(e){} });
+  pvStripRenderTasks = [];
+  const d = pvStripDoc;
+  pvStripDoc = null;
+  pvStripPages = 0;
+  if (d){ try{ d.destroy().catch(()=>{}); }catch(e){} }
+}
+
+// Rasterize each Performance PDF page to a canvas and lay the pages out
+// left-to-right with scroll-snap, so swiping/arrowing through them feels
+// like turning pages.
+async function renderPvStrip(blob, seq){
+  pvDestroyStripDoc();
+  pvStripReady = false;
+  const strip = document.getElementById('pvStrip');
+  strip.innerHTML = ''; // clearing the children also resets scrollLeft to 0
+  showPvStrip();
+  const data = await blob.arrayBuffer();
+  if (seq !== pvRenderSeq || !pdfPreviewModal.overlay.classList.contains('open')) return;
+  const pdf = await window.pdfjsLib.getDocument({ data }).promise;
+  if (seq !== pvRenderSeq || !pdfPreviewModal.overlay.classList.contains('open')){
+    try{ await pdf.destroy(); }catch(e){}
+    return;
+  }
+  pvStripDoc = pdf;
+  pvStripPages = pdf.numPages;
+  // Fit page height to the strip; render at up to 2x for crisp text.
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const targetCssH = Math.max(200, strip.clientHeight - 28);
+  for (let n = 1; n <= pdf.numPages; n++){
+    if (seq !== pvRenderSeq || !pdfPreviewModal.overlay.classList.contains('open')){
+      pvDestroyStripDoc();
+      strip.innerHTML = '';
+      return;
+    }
+    const page = await pdf.getPage(n);
+    const unit = page.getViewport({ scale: 1 });
+    const viewport = page.getViewport({ scale: (targetCssH * dpr) / unit.height });
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.floor(viewport.width);
+    canvas.height = Math.floor(viewport.height);
+    canvas.style.height = targetCssH + 'px';
+    canvas.style.width = 'auto';
+    canvas.setAttribute('role', 'img');
+    canvas.setAttribute('aria-label', `Page ${n} of ${pdf.numPages}`);
+    const wrap = document.createElement('div');
+    wrap.className = 'pv-page';
+    wrap.appendChild(canvas);
+    strip.appendChild(wrap);
+    const task = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+    pvStripRenderTasks.push(task);
+    try{ await task.promise; }catch(e){ /* cancelled by a newer render */ }
+  }
+  pvStripRenderTasks = [];
+  updatePvIndicator(1);
+  updatePvTurnButtons();
+  pvStripReady = true;
+}
+
+// Which page is nearest the strip's center (for the indicator + buttons).
+function pvCurrentPage(){
+  const strip = document.getElementById('pvStrip');
+  const pages = strip.children;
+  if (!pages.length) return 0;
+  const mid = strip.scrollLeft + strip.clientWidth / 2;
+  let best = 1, bestDist = Infinity;
+  for (let i = 0; i < pages.length; i++){
+    const el = pages[i];
+    const d = Math.abs((el.offsetLeft + el.offsetWidth / 2) - mid);
+    if (d < bestDist){ bestDist = d; best = i + 1; }
+  }
+  return best;
+}
+function updatePvIndicator(n){
+  const el = document.getElementById('pvPageIndicator');
+  const show = pvStripPages > 1;
+  el.style.display = show ? '' : 'none';
+  if (show) el.textContent = `Page ${n} of ${pvStripPages}`;
+}
+function updatePvTurnButtons(){
+  const n = pvCurrentPage();
+  const show = pvStripPages > 1;
+  const prev = document.getElementById('pvPrevPage');
+  const next = document.getElementById('pvNextPage');
+  prev.style.display = show ? '' : 'none';
+  next.style.display = show ? '' : 'none';
+  prev.disabled = n <= 1;
+  next.disabled = n >= pvStripPages;
+}
+function pvGoToPage(n){
+  n = Math.max(1, Math.min(pvStripPages, n));
+  const strip = document.getElementById('pvStrip');
+  const el = strip.children[n - 1];
+  if (!el) return;
+  // Reflect the target page immediately so taps feel instant; the
+  // scroll listener re-derives the same values once the smooth
+  // scroll settles.
+  updatePvIndicator(n);
+  const show = pvStripPages > 1;
+  const prev = document.getElementById('pvPrevPage');
+  const next = document.getElementById('pvNextPage');
+  prev.style.display = show ? '' : 'none';
+  next.style.display = show ? '' : 'none';
+  prev.disabled = n <= 1;
+  next.disabled = n >= pvStripPages;
+  strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
+}
+
+// Strip controls: turn buttons, scroll-synced indicator, arrow keys.
+let pvScrollTimer = null;
+document.getElementById('pvStrip').addEventListener('scroll', () => {
+  clearTimeout(pvScrollTimer);
+  pvScrollTimer = setTimeout(() => {
+    const n = pvCurrentPage();
+    if (n){ updatePvIndicator(n); updatePvTurnButtons(); }
+  }, 120);
+});
+document.getElementById('pvPrevPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() - 1));
+document.getElementById('pvNextPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() + 1));
+document.addEventListener('keydown', (e) => {
+  if (!pdfPreviewModal.overlay.classList.contains('open')) return;
+  if (pvType !== 'performance') return;
+  if (document.getElementById('pvStripWrap').hidden) return;
+  const tag = (document.activeElement && document.activeElement.tagName) || '';
+  if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
+  if (e.key === 'ArrowRight'){ e.preventDefault(); pvGoToPage(pvCurrentPage() + 1); }
+  else if (e.key === 'ArrowLeft'){ e.preventDefault(); pvGoToPage(pvCurrentPage() - 1); }
+});
+
+// Releasing viewer resources when the modal closes (every close path funnels
+// through the overlay's class); the next render mints fresh ones.
 new MutationObserver(() => {
   if (!pdfPreviewModal.overlay.classList.contains('open')){
     if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
     if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
     pvBlob = null;
+    pvDestroyStripDoc();
+    document.getElementById('pvStrip').innerHTML = '';
     document.getElementById('pvFrame').removeAttribute('src');
   }
 }).observe(pdfPreviewModal.overlay, { attributes: true, attributeFilter: ['class'] });
