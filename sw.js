@@ -4,7 +4,7 @@
  *   - Navigation / index.html: NETWORK-FIRST with cache fallback. A GitHub
  *     Pages deploy must never be pinned stale: users always get the newest
  *     app when online, and the cache only serves when the network fails.
- *   - Immutable, versioned assets (jsPDF on cdnjs, Google Fonts CSS + font
+ *   - Immutable, versioned assets (jsPDF + PDF.js on cdnjs, Google Fonts CSS + font
  *     files): CACHE-FIRST. Those URLs are content-addressed or effectively
  *     immutable, so a cached copy is always correct; this is what makes PDF
  *     export work offline after the jsPDF lazy-load.
@@ -16,7 +16,7 @@
  * Bump CACHE_VERSION whenever the app's cached asset list changes; old
  * caches are deleted on activate.
  */
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const CACHE_NAME = `setbook-${CACHE_VERSION}`;
 
 // Same-origin shell + cross-origin immutable assets to pre-cache.
@@ -29,6 +29,9 @@ const PRECACHE_URLS = [
   './icons/icon-512.png',
   // jsPDF — loaded lazily by the app, cached here so offline exports work.
   'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
+  // PDF.js — lazy-loaded by the per-song Performance preview's page-turning
+  // strip (ensurePdfJs); cached here so the strip works offline after first use.
+  'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
   // Google Fonts (Work Sans + JetBrains Mono): the CSS and its font files
   // are added to the cache opportunistically on first fetch (they can't be
   // enumerated here because the CSS content varies by user agent).
