@@ -9080,13 +9080,11 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     if (tp === 0){
       doc.setFont('helvetica','bold'); doc.setFontSize(sc(26));
       doc.text(state.projectName || 'Set List', MARGIN, sc(55));
-      doc.setFont('helvetica','normal'); doc.setFontSize(sc(12));
-      doc.setTextColor(...palette.muted);
-      doc.text('Tap a song to jump to it', MARGIN, sc(74));
       doc.setFont('helvetica','normal'); doc.setFontSize(sc(11));
+      doc.setTextColor(...palette.muted);
       doc.text(
         `Formatted for ${device.label} \u2014 ${landscape ? 'Landscape' : 'Portrait'} \u2014 ${isDark ? 'Dark mode' : 'Light mode'}`,
-        MARGIN, sc(92)
+        MARGIN, sc(74)
       );
     } else {
       // continuation pages get a small header so they still read as the contents
