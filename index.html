@@ -1163,24 +1163,17 @@
     background:transparent; color:var(--text-muted); font-size:16px; line-height:1; cursor:pointer;
   }
   .mass-field-focus:hover{ color:var(--gold); border-color:var(--gold); }
-  /* Per-section preview accordions (mass-style editor) */
-  .mass-preview-accordion{ margin-top:8px; }
-  .mass-preview-accordion summary,
+  /* Per-section preview accordion (mass-style editor) */
   .mass-pdf-preview-accordion summary{
     display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none;
     font-size:11px; font-weight:700; letter-spacing:.5px; text-transform:uppercase;
     color:var(--text-muted); padding:4px 2px; user-select:none;
   }
-  .mass-preview-accordion summary::-webkit-details-marker,
   .mass-pdf-preview-accordion summary::-webkit-details-marker{ display:none; }
-  .mass-preview-accordion summary::before,
   .mass-pdf-preview-accordion summary::before{ content:'▸'; font-size:10px; }
-  .mass-preview-accordion[open] summary::before,
   .mass-pdf-preview-accordion[open] summary::before{ content:'▾'; }
-  .mass-preview-accordion summary:hover,
   .mass-pdf-preview-accordion summary:hover{ color:var(--gold); }
-  .mass-preview-accordion .preview-block{ max-width:none; margin:4px 0 0; }
-  /* New Section Preview: the Performance PDF page for this section, on
+  /* Section Preview: the Performance PDF page for this section, on
      canvas. The PDF is light mode, so the page gets its own white surface
      and shadow to read on either app theme. */
   .mass-pdf-preview-accordion{ margin-top:8px; }
@@ -2000,7 +1993,7 @@
             <li>Lyric continuation rows: a lyric-only row that follows a row containing both chords and lyrics is rendered stacked beneath that row's lyric line, under the same chord line, in the preview and in PDFs. The editor keeps one row per source line. A file-load migration also splits any stray newline left in a lyric line into chord-less continuation rows, so the formatting survives as plain rows.</li>
             <li>Repeat shorthand: if a row's chord line contains a standalone <code>(xN)</code> token and its lyric line contains the same <code>(xN)</code>, the row is understood to repeat N times. The preview and both PDF pipelines strip both tokens and display a single condensed <code>(xN)</code> marker one character to the right of the widest line, vertically centered between the chord and lyric lines. Editor source data is never modified by this transform.</li>
             <li><strong>Mass entry (Add song from URL):</strong> the scraped text arrives as a special staging section that replaces the normal section editor: one field per future section, each editable freely with its own <strong>Section type</strong> picker above it. Tab sites get light handling: chord-diagram lines (e.g. <code>Am7/G&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;302013</code>) and their <code>Chords:</code> introducer are dropped; a standalone <code>x2</code>-style repeat becomes SetBook's <code>(xN)</code> shorthand. With <strong>Auto-split mass entry on [headers]</strong> on (the default, File → Configuration…), recognized <code>[Verse 1]</code>/<code>[Chorus]</code>-style lines split the text into typed fields as it arrives — each field takes the header's type (Solo/Interlude map to Instrumental), the header line itself is dropped, and unrecognized <code>[Name]</code> lines stay ordinary text; with the setting off they are ordinary text you split or delete by hand. Lines are classified by content, not by position: a line of pure chord symbols is chords, a line containing lyric words is lyrics — so doubled lines (two chord lines or two lyric lines in a row, common after deglueing) can't flip the phase for everything below them. Ambiguous lines (a lone <code>Am</code>, an exotic chord spelling) fall back to strict positional alternation, with the first content line of each field counted as chords; blank and dropped lines don't disturb the rhythm. The live preview colors them exactly this way — chords gold, lyrics white, dropped lines dimmed and struck — because the preview and the parse share one line classifier (<code>classifyMassEntryLines()</code>), so the preview can never disagree with the parse. Every blank line carries a <strong>Split</strong> button that divides its field in two at that line (lines above stay, lines below move to the new field, which takes the type that naturally follows — Verse after Intro, Chorus after Verse, and so on); the page stays exactly where it is when you split or delete a field — no scroll jump. Each field sizes itself to its text: fields grow as you type and shrink when you delete, so a field with two lines takes two lines' worth of space. Each field's naming row matches the normal section editor — <strong>Section type</strong> picker (including <strong>Custom</strong>, which reveals a free-text name input; typing a real section-type name there, e.g. <code>Chorus 2</code>, converts it to that picked type when you leave the field), a suffix input for informational tags like <code>(guitar solo)</code>, and a <strong>Shows as</strong> line previewing the derived name with auto-numbering across the fields. The × beside a field's picker deletes the field, merging its text into the neighbor so nothing is lost. To drop a line, delete it. <strong>Reset to scraped text</strong> restores the original text as one Intro field after a two-tap confirmation; <strong>Create sections</strong> turns each field into a typed section in order (chord lines become positioned chord symbols via the normal chord parser), deletes the staging section, and selects the first new section. A window-level <code>setbook-url-import</code> event carrying <code>{ detail: { text } }</code> feeds the same workflow — this is how the SetBook scraper extension (section 12) delivers text. The extension's delivery always asks first: an <strong>Import from extension</strong> dialog offers the text as a new song or as a takeover of an existing Not Ready / In Progress song (same picker rules as the URL dialog — Ready songs are never targetable), and only imports straight into a new song when there is nothing to take over. Before the staging section is built, the text is deglued: chord symbols glued to lyric text get their line breaks back — a chord at the start of a lyric (<code>GSlowin'</code>), a chord run into the next lyric (<code>D&nbsp;&nbsp;&nbsp;CSuch a fine sight</code>), and chords trailing a lyric line (<code>…Arizona&nbsp;&nbsp;&nbsp;D&nbsp;&nbsp;&nbsp;C</code>, <code>…mindG</code>) each split onto their own lines, while chord grids (<code>| G | D |</code>) and lyric words that merely start like chords (<code>Amazing</code>, <code>Email</code>) are left alone. Extended chords keep their full spelling — <code>E7sus4</code>, <code>F#7sus4</code>, <code>Dadd9</code> are matched greedily, so a chord ending in <code>sus</code>/<code>add</code> is never shredded into a bare chord plus a stray lyric line, and non-breaking spaces from web pages count as ordinary spaces during import.</li>
-  <li><strong>Mass-entry style section editor:</strong> with <strong>Use mass-entry editor for section editing</strong> on (the default, File → Configuration…), every section of every song edits as a mass-entry field — the same free-text style as the URL-import staging area, with the live chord (gold) / lyric (white) coloring and fields that size to their text. The song's sections stack as one field each, each with its own <strong>Section type</strong> picker, Custom name and suffix inputs, and a <strong>Shows as</strong> preview — plus a ◎ <strong>Focus</strong> button that collapses the editor to just that section (an "← All sections" exit bar returns, mirroring the song focus in the sidebar) and a × that deletes the section after confirmation. A line of chord symbols pairs with the lyric line under it into one chord-over-lyric row; a chord line with no lyric under it is a chords-only row. <strong>Split</strong> chips on blank lines divide a section in two at that line — the lines above stay, the lines below become a new section typed to follow (Verse after Intro, Chorus after Verse) — so the bracket rule isn't the only way to section a song. Every detected line also carries a swap chip: <strong>as lyrics</strong> on a chord line and <strong>as chords</strong> on a lyric line flip that one line's kind, overriding the automatic detection (useful for ambiguous lines like <code>Am</code>, chord runs with words such as <code>D (ring out)</code>, or lyric lines that merely look chordish); the chip becomes <strong>auto</strong>, which removes the override and returns the line to detection. Overrides belong to their text line and survive splitting (each half keeps its lines' overrides). Rows without overrides keep the normal "every other line" alternation from that point on. Opening an existing song converts it faithfully: every stored chord line is carried into the field as an explicit chord line, so real-world content — annotated lines like <code>Cm (quick chugs x2 builds into the chorus)</code>, grid lines like <code>|D |D A | x12</code>, parentheticals like <code>F/D (5th Fret) D5</code> — round-trips unchanged, and the layout of a fully chords-only section is preserved exactly. Each field has its own folded <strong>Legacy Section Preview</strong> accordion beneath it: unfold it to see that section rendered as it will print (chords gold over lyrics, section title, repeat markers), and it stays live while you type; folded previews cost nothing until opened. Beneath that sits a folded <strong>New Section Preview</strong> accordion: unfold it to see the real Performance PDF for just that section — light mode, iPad landscape, rasterized to a canvas — exactly as it would come out of the PDF export. It refreshes on a short delay after you stop typing (900ms), so rapid edits don't rebuild the PDF on every keystroke, and it re-renders when the section is renamed, re-typed, transposed, or chord/lyric-swapped while open. <strong>+ Add section</strong> appends a typed section at the end and focuses its field. Turning the setting off brings back the legacy row editor with nothing lost — both editors read and write the same sections, and you can switch freely at any time.</li>
+  <li><strong>Mass-entry style section editor:</strong> with <strong>Use mass-entry editor for section editing</strong> on (the default, File → Configuration…), every section of every song edits as a mass-entry field — the same free-text style as the URL-import staging area, with the live chord (gold) / lyric (white) coloring and fields that size to their text. The song's sections stack as one field each, each with its own <strong>Section type</strong> picker, Custom name and suffix inputs, and a <strong>Shows as</strong> preview — plus a ◎ <strong>Focus</strong> button that collapses the editor to just that section (an "← All sections" exit bar returns, mirroring the song focus in the sidebar) and a × that deletes the section after confirmation. A line of chord symbols pairs with the lyric line under it into one chord-over-lyric row; a chord line with no lyric under it is a chords-only row. <strong>Split</strong> chips on blank lines divide a section in two at that line — the lines above stay, the lines below become a new section typed to follow (Verse after Intro, Chorus after Verse) — so the bracket rule isn't the only way to section a song. Every detected line also carries a swap chip: <strong>as lyrics</strong> on a chord line and <strong>as chords</strong> on a lyric line flip that one line's kind, overriding the automatic detection (useful for ambiguous lines like <code>Am</code>, chord runs with words such as <code>D (ring out)</code>, or lyric lines that merely look chordish); the chip becomes <strong>auto</strong>, which removes the override and returns the line to detection. Overrides belong to their text line and survive splitting (each half keeps its lines' overrides). Rows without overrides keep the normal "every other line" alternation from that point on. Opening an existing song converts it faithfully: every stored chord line is carried into the field as an explicit chord line, so real-world content — annotated lines like <code>Cm (quick chugs x2 builds into the chorus)</code>, grid lines like <code>|D |D A | x12</code>, parentheticals like <code>F/D (5th Fret) D5</code> — round-trips unchanged, and the layout of a fully chords-only section is preserved exactly. Each field has its own folded <strong>Section Preview</strong> accordion beneath it: unfold it to see the real Performance PDF for just that section — light mode, iPad landscape, rasterized to a canvas — exactly as it would come out of the PDF export. It refreshes on a short delay after you stop typing (900ms), so rapid edits don't rebuild the PDF on every keystroke, and it re-renders when the section is renamed, re-typed, transposed, or chord/lyric-swapped while open; folded previews cost nothing until opened. <strong>+ Add section</strong> appends a typed section at the end and focuses its field. Turning the setting off brings back the legacy row editor with nothing lost — both editors read and write the same sections, and you can switch freely at any time.</li>
           </ul>
         </section>
         <section id="help-preview">
@@ -2091,7 +2084,7 @@
             <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the File menu, or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
             <li><strong>Per-song PDF preview:</strong> click the PDF icon on a song header (also present in focus mode) — the modal opens with the song's name, the Performance PDF renders as a left-to-right page strip, and the Download button appears. Turn pages with the ‹ › buttons and the arrow keys; switch to Print Friendly PDF (vertical scrolling) and to dark mode; each change re-renders without errors.</li>
-            <li><strong>Section previews:</strong> each section editor field has a <strong>Legacy Section Preview</strong> accordion (the old live HTML preview) with a <strong>New Section Preview</strong> accordion beneath it — unfolding the latter renders the Performance PDF page for just that section (light mode, iPad landscape) on a canvas; typing while it is open refreshes the canvas after a short delay rather than on every keystroke; renaming, re-typing, transposing, or chord/lyric-swapping the section updates it; closing the accordion cancels any in-flight render.</li>
+            <li><strong>Section Preview:</strong> each section editor field has a folded <strong>Section Preview</strong> accordion beneath it — unfolding it renders the Performance PDF page for just that section (light mode, iPad landscape) on a canvas; typing while it is open refreshes the canvas after a short delay rather than on every keystroke; renaming, re-typing, transposing, or chord/lyric-swapping the section updates it; closing the accordion cancels any in-flight render.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
             <li><strong>Sidebar:</strong> search filters the song list; the Sort &amp; Filter toggle collapses and expands the sort/filter controls and its summary line reflects the active filters; Expand/Collapse all sit outside the panel and highlight gold to show the expansion state (Collapse all also closes all open Details panels); the <strong>Clear all</strong> button appears beside the toggle whenever anything narrows the list — panel open or closed — and resets search plus every filter at once, while each dropdown's <strong>✕</strong> clears just that dropdown; title and artist sorting reorder correctly; Cover/Original, Ready/In progress/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
@@ -4728,12 +4721,8 @@ function renderSectionMassEditor(main, group, sec){
         <textarea class="bulk-paste-textarea mono-edit mass-entry-textarea" rows="2" autocorrect="off" autocapitalize="off" autocomplete="off" spellcheck="false" aria-label="Section text: chords line above lyric line"></textarea>
         <div class="mass-split-layer"></div>
       </div>
-      <details class="mass-preview-accordion">
-        <summary>Legacy Section Preview</summary>
-        <div class="preview-block mass-preview-paper-wrap"><div class="paper"></div></div>
-      </details>
       <details class="mass-pdf-preview-accordion">
-        <summary>New Section Preview</summary>
+        <summary>Section Preview</summary>
         <div class="mass-pdf-preview-body">
           <div class="mass-pdf-preview-status"></div>
           <div class="mass-pdf-pages"></div>
@@ -4769,7 +4758,7 @@ function renderSectionMassEditor(main, group, sec){
     fwrap.querySelector('.mass-field-focus').addEventListener('click', () => { sectionFocusId = s.id; renderMain(); });
     const keySelInit = fwrap.querySelector('.transpose-key-select');
     keySelInit.value = s.key || '';
-    wireTransposeControls(fwrap, s, () => { renderPreviewIfOpen(s); scheduleSectionPdfPreview(); });
+    wireTransposeControls(fwrap, s, () => { scheduleSectionPdfPreview(); });
     fwrap.querySelector('.mass-field-del-sec').addEventListener('click', (e) => {
       showConfirmPopover(e.currentTarget, `Delete section "${displaySectionName(s)}"?`, 'Delete', () => {
         state.sections = state.sections.filter(x => x.id !== s.id);
@@ -4787,13 +4776,8 @@ function renderSectionMassEditor(main, group, sec){
     const textarea = fwrap.querySelector('textarea');
     const backdrop = fwrap.querySelector('.bulk-paste-backdrop');
     const splitLayer = fwrap.querySelector('.mass-split-layer');
-    const details = fwrap.querySelector('.mass-preview-accordion');
-    const paperEl = details.querySelector('.paper');
-    // Render on first open and on every edit while open — a folded accordion
-    // costs nothing until the person wants to see it.
-    details.addEventListener('toggle', () => { if (details.open) renderPreview(s, paperEl); });
 
-    // ---- New Section Preview: the real Performance PDF (light mode, iPad
+    // ---- Section Preview: the real Performance PDF (light mode, iPad
     // landscape) for just this section, rasterized to canvas. Regeneration
     // is debounced ~900ms so rapid typing settles before the PDF rebuilds;
     // a sequence counter drops stale renders when edits overlap in flight.
@@ -4908,7 +4892,6 @@ function renderSectionMassEditor(main, group, sec){
       syncFromText();
       autogrow();
       syncBackdrop();
-      renderPreviewIfOpen(s);
       scheduleSectionPdfPreview();
     });
     textarea.addEventListener('scroll', () => {
@@ -4925,7 +4908,6 @@ function renderSectionMassEditor(main, group, sec){
         scheduleSave();
         syncFromText();
         syncBackdrop();
-        renderPreviewIfOpen(s);
         scheduleSectionPdfPreview();
         return;
       }
@@ -4967,7 +4949,7 @@ function renderSectionMassEditor(main, group, sec){
       renderAll();
     });
     fieldsBox.appendChild(fwrap);
-    fieldSyncs.push(() => { autogrow(); syncBackdrop(); if (details.open) renderPreview(s, paperEl); });
+    fieldSyncs.push(() => { autogrow(); syncBackdrop(); });
   });
 
   const actions = document.createElement('div');
@@ -5720,16 +5702,6 @@ function renderPreview(sec, paper){
 }
 
 function renderAll(){ renderSidebar(); renderMain(); initSectionSpy(); }
-
-/* In the mass-style section editor each section owns a folded preview
-   accordion; refresh only the ones currently unfolded (a folded one
-   re-renders on open via its toggle listener). */
-function renderPreviewIfOpen(sec){
-  const fwrap = document.querySelector(`.section-mass-field[data-sec-id="${CSS.escape(sec.id)}"]`);
-  if (!fwrap) return;
-  const details = fwrap.querySelector('.mass-preview-accordion');
-  if (details && details.open) renderPreview(sec, details.querySelector('.paper'));
-}
 
 /* ---------------------------------------------------------
    Local file linking: open a JSON file, keep a handle to it,
@@ -9041,7 +9013,7 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
   const palette = PDF_PALETTES[isDark ? 'dark' : 'light'];
   let songs = collectPdfSongs(selectedGroupIds);
 
-  // Section-preview mode (the section editor's "New Section Preview"
+  // Section-preview mode (the section editor's "Section Preview"
   // accordion): render exactly one section — no set list, no song title
   // page, no navigation chrome. onlySectionId is a section id; anything
   // falsy keeps the normal full-songbook behavior.
