@@ -157,6 +157,16 @@ All persistent data is a JSON serialization of the `state` object:
 - `generatePerformancePdf()` accepts an optional fifth argument
   `onlySectionId` for the per-section Section Preview. That parameter is
   deliberately **not** part of the MCP-extracted core (see below).
+- Never call `renderSidebar()` on a text field's `input` event: it tears
+  down and rebuilds the whole song list per keystroke, which reads as
+  scroll/paint jank in a long library. The section-name fields follow
+  this split — the type picker and custom-name field still re-render
+  (typing a custom name can renumber siblings, since `sectionBaseName()`
+  feeds the numbering key), but `renderSidebar()` there preserves and
+  restores `#sidebarList.scrollTop`; the suffix field skips the sidebar
+  entirely and patches the one `.section-row .name` label, because
+  `nameSuffix` is only ever appended to the derived name and cannot
+  renumber, re-sort, or re-filter anything.
 
 ## 5. Design system
 
@@ -215,6 +225,13 @@ filled; tokens are memory-only and the persisted link (file/folder ids)
 lives in the same IndexedDB store as local file handles. Drive v3 has no
 conditional writes: conflict detection compares `modifiedTime` before
 each write — a documented check-then-write race.
+
+The file Picker itself is factored as `drivePickJsonFile(title)`, shared
+by File → Open from Google Drive… (`drivePickAndOpen`) and the Import
+songs modal's "Choose from Drive…" button (`drivePickCopySource`). The
+import path downloads the picked file and loads it as the copy source
+only — it never opens or links it, so the open file stays the import
+target and autosave is untouched.
 
 ## 8. MCP server
 
@@ -401,7 +418,7 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 `section-autoconvert-test.js` (33), `auto-period-test.js` (12),
 `picker-filter-test.js` (9), `import-feedback-test.js` (7),
 `pdf-preview-test.js` (32), `section-pdf-preview-test.js` (19),
-`deleted-songs-test.js` (22) — 31 suites, 831 checks in total. A refactor that changes no user-visible
+`deleted-songs-test.js` (22), `suffix-scroll-test.js` (17) — 32 suites, 848 checks in total. A refactor that changes no user-visible
 behavior does not require a documentation update beyond this file's own
 revision note.
 
