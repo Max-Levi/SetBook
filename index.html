@@ -513,6 +513,22 @@
   }
   .pdf-download-link:hover{ background: var(--gold-tint-strong); }
   button.pdf-download-link{ display:block; width:100%; cursor:pointer; font-family:inherit; }
+  /* ---- per-song PDF preview modal ---- */
+  .pdf-preview-controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:2px 0 12px; }
+  .pdf-preview-controls .modal-select{ width:auto; max-width:100%; }
+  .pdf-preview-viewer{ position:relative; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--card); }
+  #pvFrame{ display:block; width:100%; height:60vh; min-height:320px; border:0; background:#fff; }
+  .pdf-preview-loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }
+  #pdfPreviewOverlay .mode-btn{ white-space:nowrap; }
+  #pdfPreviewOverlay a.pdf-download-link{ margin-bottom:0; }
+  #pdfPreviewOverlay .modal-actions{ align-items:center; }
+  #pdfPreviewOverlay .modal-actions .pdf-download-link{ flex:1; }
+  @media (max-width:560px){
+    .pdf-preview-controls{ flex-direction:column; align-items:stretch; }
+    .pdf-preview-controls .mode-toggle{ display:flex; }
+    .pdf-preview-controls .mode-toggle .mode-btn{ flex:1; }
+    #pvFrame{ height:52vh; min-height:280px; }
+  }
   button.pdf-download-link[hidden]{ display:none; }
   /* Drive connected badge: a compact always-visible status chip in the
      header, shown while a Drive link is active (any viewport — on phones
@@ -1493,6 +1509,37 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="pdfPreviewOverlay">
+  <div class="modal modal-wide">
+    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
+    <h2>PDF preview</h2>
+    <p class="modal-sub" id="pdfPreviewSub"></p>
+    <div class="pdf-preview-controls">
+      <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
+        <button type="button" class="mode-btn active" data-pvtype="performance">Performance PDF</button>
+        <button type="button" class="mode-btn" data-pvtype="print-friendly">Print Friendly PDF</button>
+      </div>
+      <select id="pvDeviceSelect" class="modal-select" aria-label="Device"></select>
+      <div class="mode-toggle" id="pvOrientationToggle" role="group" aria-label="Orientation">
+        <button type="button" class="mode-btn" data-pvorientation="portrait">Portrait</button>
+        <button type="button" class="mode-btn active" data-pvorientation="landscape">Landscape</button>
+      </div>
+      <div class="mode-toggle" id="pvAppearanceToggle" role="group" aria-label="Appearance">
+        <button type="button" class="mode-btn active" data-pvmode="light">Light mode</button>
+        <button type="button" class="mode-btn" data-pvmode="dark">Dark mode</button>
+      </div>
+    </div>
+    <div class="pdf-preview-viewer">
+      <div class="pdf-preview-loading" id="pvLoading">Rendering preview…</div>
+      <iframe id="pvFrame" title="PDF preview"></iframe>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="pvCloseBtn">Close</button>
+      <a id="pvDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="urlImportOverlay">
   <div class="modal">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
@@ -1926,6 +1973,7 @@
           <ul>
             <li><strong>Performance PDF.</strong> One page per song section (long sections paginate across pages). The page is sized for a target device — picked from a grouped dropdown of iPad models (10.2", 10.9"/11", Pro 11", Pro 12.9"/13", mini 7.9", mini 8.3"), iPhones (SE, 14/15/16, Pro Max), Android tablets and phones by screen size, or US Letter/A4 paper — in portrait or landscape, rendered in dark or light mode. It includes a tappable table of contents — each song row is a full-width, finger-sized tap target (capped at 10 songs per page; long titles and artists trim with an ellipsis so they never collide with the page indicator); when the contents span multiple pages, previous/next navigation appears at the bottom and later pages get a small "Contents · page X of Y" header — one title page per song, a "back to Contents" link and the song title on every page, and previous/next-section navigation links at the bottom of each section page. All tappable links use generous tap targets sized for fingers on a phone screen. The body font size is unified per song — every section page within one song uses the same size, the largest at which all of that song's sections still fit on their pages (the minimum of the per-section best-fit sizes, picked from fixed tiers so content fits without overflow); the layout is designed for use with Bluetooth page-turner pedals.</li>
             <li><strong>Print-Friendly PDF.</strong> A continuous document stacking all selected songs and sections with page numbers. The body font size is auto-selected once for the whole document.</li>
+            <li><strong>Per-song PDF preview.</strong> Each song's Details panel has a <strong>Preview PDF</strong> button that renders just that song through the real PDF pipelines — the same code the export dialog uses — and shows the result in an embedded viewer, so the preview is the actual output, not an approximation. The preview starts from the export dialog's current settings (PDF type, device, orientation, light/dark) and re-renders as you change them; a Download button saves the rendered file.</li>
             <li>Both pipelines use the embedded IBM Plex Mono typeface so chord alignment is exact in any PDF viewer.</li>
             <li>Export scope: all songs in the library, one saved subset, or a manual per-song checklist. The checklist offers bulk selection — Select all, Select none, and Ready only (songs whose ready status is Ready). Like a manual checkbox change, a bulk selection clears the subset dropdown so the selection is clearly custom.</li>
             <li>On phones the PDF dialog keeps its Generate button visible in a sticky footer while the options scroll; the desktop layout is unchanged. Regenerating the same PDF in one session appends " (1)", " (2)", … to the filename so repeat downloads never fail on a name collision. After a PDF is generated, a <strong>↗ Share PDF…</strong> button appears beside the download link wherever the device supports sharing files (iPad and iPhone Safari, Chrome on Android, …): it opens the system share sheet, so the generated file can be sent straight to Apple Books, Mail, Messages, or any other share target. Where file sharing isn't supported the button stays hidden and downloading remains the way out.</li>
@@ -2003,6 +2051,7 @@
             <li><strong>Section naming:</strong> pick each section type and confirm the sidebar, preview, and a generated PDF show the derived name; add a second Chorus and confirm both become "Chorus 1" / "Chorus 2", then delete one and confirm the other reverts to "Chorus"; set a Custom name and a label like <code>(guitar solo)</code>; toggle <strong>Number single sections</strong> in File → Configuration… and confirm a lone Chorus becomes "Chorus 1" (and that a legacy custom "Verse 1" does not become "Verse 1 1"); toggle <strong>Auto-number sections</strong> off and confirm all numbering disappears and the singles checkbox disables, then toggle it back on; open a legacy JSON whose sections only have <code>name</code> and confirm type-like titles (e.g. <code>Verse 1</code>, <code>Bridge (quiet)</code>) become picked types while other titles (including trailing parentheticals) survive as Custom names.</li>
             <li><strong>Row actions:</strong> copy appends a duplicate with the same chords and lyrics at the bottom of the section; move up/down reorders; dragging the line-number gutter reorders live and dropping commits the new order (Escape cancels, a press without moving does nothing); Clear chords clears only chords; Clear lyrics clears only lyrics; delete removes the row. Each destructive row action offers Undo via toast, the File menu, or Ctrl/Cmd+Z. No console errors.</li>
             <li><strong>PDF modal:</strong> the song checklist lists the song; Select all checks everything, Select none clears, Ready only selects just Ready songs (mark one song Ready first to verify). Generate a Performance PDF in light mode and in dark mode, and a Print-Friendly PDF — each must complete and produce a download with no errors.</li>
+            <li><strong>Per-song PDF preview:</strong> open a song's Details panel and click Preview PDF — the modal opens with the song's name, the viewer renders the actual PDF, and the Download button appears. Switch to Print Friendly PDF and to dark mode; each change re-renders without errors.</li>
             <li><strong>Modals:</strong> Help, share/device-transfer help, copy-songs, Configuration, and the PDF dialog each open from their buttons and close via their close buttons, via clicking the overlay background, and via Escape (focus returns to the opener).</li>
             <li><strong>Configuration:</strong> open File → Configuration…; switch Appearance to Light and confirm the theme applies, then reload and confirm the choice persists; set Watch video links to Same tab and confirm the Watch button's tooltip changes, then set it back to New tab.</li>
             <li><strong>Sidebar:</strong> search filters the song list; the Sort &amp; Filter toggle collapses and expands the sort/filter controls and its summary line reflects the active filters; Expand/Collapse all sit outside the panel and highlight gold to show the expansion state (Collapse all also closes all open Details panels); the <strong>Clear all</strong> button appears beside the toggle whenever anything narrows the list — panel open or closed — and resets search plus every filter at once, while each dropdown's <strong>✕</strong> clears just that dropdown; title and artist sorting reorder correctly; Cover/Original, Ready/In progress/Not ready, tag, and artist filters apply. Hiding the open song with a filter closes the editor to the empty starting view, and restoring the filter leaves the empty view (nothing auto-reopens).</li>
@@ -2780,6 +2829,18 @@ function buildDetailsPanel(group, gDiv){
   buildVideoRow('videoUrl', 'Album video', 'Paste album-version link');
   buildVideoRow('videoUrlLive', 'Live video', 'Paste live-performance link');
   refreshVideoWatch();
+
+  // --- PDF preview: render this song through the real PDF pipelines ---
+  const pdfPrevLabel = document.createElement('div');
+  pdfPrevLabel.className = 'details-label';
+  pdfPrevLabel.textContent = 'PDF';
+  const pdfPrevBtn = document.createElement('button');
+  pdfPrevBtn.type = 'button';
+  pdfPrevBtn.className = 'group-video-open';
+  pdfPrevBtn.textContent = 'Preview PDF';
+  pdfPrevBtn.title = 'Preview this song in the Performance or Print-Friendly PDF';
+  pdfPrevBtn.addEventListener('click', () => openPdfPreview(group.id));
+  panel.append(pdfPrevLabel, pdfPrevBtn);
 
   return panel;
 }
@@ -8365,6 +8426,110 @@ function showPdfShareBtn(){
   const hint = document.getElementById('pdfShareBooksHint');
   if (hint) hint.style.display = (can && /iPad|iPhone|iPod/.test(navigator.userAgent)) ? 'block' : 'none';
 }
+
+/* ---- per-song PDF preview ----
+   The Details panel's "Preview PDF" button opens a small modal that renders
+   just this song through the real PDF pipelines (same generatePerformancePdf /
+   generatePrintFriendlyPdf the export dialog uses) and shows the result in an
+   embedded viewer. Settings start from the export dialog's current choices so
+   the preview matches what Generate would produce; changing them re-renders. */
+let pvSongId = null;
+let pvType = 'performance', pvDevice = 'ipad', pvOrientation = 'landscape', pvMode = 'light';
+let pvBlob = null, pvFileName = '', pvBlobUrl = null, pvDownloadUrl = null;
+let pvRenderTimer = null, pvRenderSeq = 0;
+
+const pdfPreviewModal = wireModal({ overlayId:'pdfPreviewOverlay', closeBtnId:'pvCloseBtn' });
+
+function syncPvControls(){
+  document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvtype === pvType));
+  document.querySelectorAll('#pvOrientationToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvorientation === pvOrientation));
+  document.querySelectorAll('#pvAppearanceToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvmode === pvMode));
+  document.getElementById('pvAppearanceToggle').style.display = pvType === 'print-friendly' ? 'none' : '';
+  const sel = document.getElementById('pvDeviceSelect');
+  if (!sel.options.length) sel.innerHTML = document.getElementById('pdfDeviceSelect').innerHTML;
+  sel.value = pvDevice;
+}
+
+function openPdfPreview(songId){
+  const group = state.sectionGroups.find(g => g.id === songId);
+  if (!group) return;
+  pvSongId = songId;
+  pvType = pdfType; pvDevice = pdfDevice; pvOrientation = pdfOrientation; pvMode = pdfMode;
+  document.getElementById('pdfPreviewSub').textContent = group.name || 'Untitled song';
+  document.getElementById('pvDownloadLink').style.display = 'none';
+  syncPvControls();
+  pdfPreviewModal.open();
+  schedulePvRender();
+}
+
+function schedulePvRender(){
+  clearTimeout(pvRenderTimer);
+  document.getElementById('pvLoading').style.display = 'flex';
+  pvRenderTimer = setTimeout(renderPvPdf, 350);
+}
+
+async function renderPvPdf(){
+  const seq = ++pvRenderSeq;
+  const loading = document.getElementById('pvLoading');
+  const frame = document.getElementById('pvFrame');
+  const link = document.getElementById('pvDownloadLink');
+  try{
+    const { blob, filename } = pvType === 'print-friendly'
+      ? await generatePrintFriendlyPdf(pvDevice, pvOrientation, new Set([pvSongId]))
+      : await generatePerformancePdf(pvMode, pvDevice, pvOrientation, new Set([pvSongId]));
+    if (seq !== pvRenderSeq) return; // superseded by a newer render
+    if (!pdfPreviewModal.overlay.classList.contains('open')) return;
+    pvBlob = blob;
+    pvFileName = filename;
+    if (pvBlobUrl) URL.revokeObjectURL(pvBlobUrl);
+    pvBlobUrl = URL.createObjectURL(blob);
+    frame.src = pvBlobUrl;
+    link.textContent = `↓ Download ${previewUniquePdfName(filename)}`;
+    link.style.display = '';
+  }catch(err){
+    console.error(err);
+    showErrorToast('Could not render the preview: ' + err.message);
+  }finally{
+    if (seq === pvRenderSeq) loading.style.display = 'none';
+  }
+}
+
+// Releasing the viewer URL when the modal closes (every close path funnels
+// through the overlay's class); the next render mints a fresh one.
+new MutationObserver(() => {
+  if (!pdfPreviewModal.overlay.classList.contains('open')){
+    if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
+    if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
+    pvBlob = null;
+    document.getElementById('pvFrame').removeAttribute('src');
+  }
+}).observe(pdfPreviewModal.overlay, { attributes: true, attributeFilter: ['class'] });
+
+document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => { pvType = btn.dataset.pvtype; syncPvControls(); schedulePvRender(); });
+});
+document.querySelectorAll('#pvOrientationToggle .mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => { pvOrientation = btn.dataset.pvorientation; syncPvControls(); schedulePvRender(); });
+});
+document.querySelectorAll('#pvAppearanceToggle .mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => { pvMode = btn.dataset.pvmode; syncPvControls(); schedulePvRender(); });
+});
+document.getElementById('pvDeviceSelect').addEventListener('change', (e) => {
+  pvDevice = e.target.value;
+  schedulePvRender();
+});
+// Every tap mints a fresh blob URL and claims the next unique filename, same
+// as the export dialog's download link.
+document.getElementById('pvDownloadLink').addEventListener('click', () => {
+  if (!pvBlob) return;
+  const link = document.getElementById('pvDownloadLink');
+  if (pvDownloadUrl) URL.revokeObjectURL(pvDownloadUrl);
+  pvDownloadUrl = URL.createObjectURL(pvBlob);
+  const uniqueName = claimUniquePdfName(pvFileName);
+  link.href = pvDownloadUrl;
+  link.download = uniqueName;
+  link.textContent = `↓ Download ${uniqueName}`;
+});
 
 /* ---------------------------------------------------------
    Performance PDF generation
