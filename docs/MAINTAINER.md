@@ -373,6 +373,11 @@ browser with the console visible):
   and the PDF dialog each open from their buttons and close via their
   close buttons, via clicking the overlay background, and via Escape
   (focus returns to the opener).
+- Report a bug: Help → Report a bug… builds a mailto: to
+  nozomu1000@gmail.com with subject "SetBook bug report" and the
+  Steps-taken / Expected-outcome / Actual-outcome template body; clicking
+  it must not navigate the app away or raise console errors (covered by
+  bug-report-test.js).
 - Configuration: open File → Configuration…; switch Appearance to Light
   and confirm the theme applies, then reload and confirm the choice
   persists; set Watch video links to Same tab and confirm the Watch
