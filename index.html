@@ -1147,6 +1147,14 @@
     background:transparent; color:var(--text-muted); font-size:16px; line-height:1; cursor:pointer;
   }
   .mass-field-focus:hover{ color:var(--gold); border-color:var(--gold); }
+  /* Per-section reorder buttons (mass-style editor header): move this
+     section one slot up/down within the song. */
+  .mass-field-move{
+    min-width:44px; min-height:44px; border-radius:8px; border:1px solid var(--border);
+    background:transparent; color:var(--text-muted); font-size:16px; line-height:1; cursor:pointer;
+  }
+  .mass-field-move:hover:not(:disabled){ color:var(--gold); border-color:var(--gold); }
+  .mass-field-move:disabled{ opacity:.3; cursor:default; }
   /* Per-section preview accordion (mass-style editor) */
   .mass-pdf-preview-accordion summary{
     display:inline-flex; align-items:center; gap:6px; cursor:pointer; list-style:none;
@@ -1946,7 +1954,7 @@
           <ul>
             <li>Each section is a free-text field. Type a line of chords, then the lyric line under it — chords show gold, lyrics white, so you can see at a glance what the app heard.</li>
             <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own.</li>
-            <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two.</li>
+            <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two — the new section lands directly below the one you split. <strong>↑ ↓</strong> in a section's header moves it one slot up or down within the song.</li>
             <li>If the app misreads a line, the little chip on it flips it: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line.</li>
             <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible.</li>
             <li><strong>Private notes:</strong> wrap a lyric line in <code>/* &hellip; */</code> and it stays out of your PDFs.</li>
@@ -4606,7 +4614,7 @@ function renderSectionMassEditor(main, group, sec){
   wrap.appendChild(fieldsBox);
   const fieldSyncs = [];
 
-  visible.forEach((s) => {
+  visible.forEach((s, vidx) => {
     const fwrap = document.createElement('div');
     fwrap.className = 'mass-field section-mass-field';
     fwrap.dataset.secId = s.id;
@@ -4618,6 +4626,8 @@ function renderSectionMassEditor(main, group, sec){
         <input class="section-suffix-input mass-field-suffix" placeholder="Suffix, e.g. (guitar solo)" title="Extra text appended after the section name" aria-label="Section name suffix">
         <span class="spacer"></span>
         <span class="transpose-wrap">${TRANSPOSE_UI_HTML.trim()}</span>
+        <button type="button" class="mass-field-move" data-dir="-1" aria-label="Move section up" title="Move section up">\u2191</button>
+        <button type="button" class="mass-field-move" data-dir="1" aria-label="Move section down" title="Move section down">\u2193</button>
         <button type="button" class="mass-field-focus" title="Focus on this section — hide the other sections" aria-label="Focus on this section">◎</button>
         <button type="button" class="mass-field-del mass-field-del-sec" aria-label="Delete section" title="Delete this section">\u00d7</button>
       </div>
@@ -4687,6 +4697,31 @@ function renderSectionMassEditor(main, group, sec){
     });
     suffixInput.addEventListener('input', e => { s.nameSuffix = e.target.value; refreshSuffix(); });
     fwrap.querySelector('.mass-field-focus').addEventListener('click', () => { sectionFocusId = s.id; renderMain(); });
+    // Section reorder: ↑ ↓ move this section one slot within the song.
+    // Hidden while focusing a single section (reordering against hidden
+    // neighbors would give no visible feedback); the boundary buttons
+    // disable at the ends.
+    const moveBtns = fwrap.querySelectorAll('.mass-field-move');
+    if (focused){
+      moveBtns.forEach(b => b.remove());
+    } else {
+      moveBtns.forEach(b => {
+        const dir = +b.dataset.dir;
+        if ((dir < 0 && vidx === 0) || (dir > 0 && vidx === sections.length - 1)) b.disabled = true;
+        b.addEventListener('click', () => {
+          moveSection(s, dir);
+          // moveSection() rebuilds everything; keep the moved section in
+          // view with a minimal scroll, like scrollEditorToSelectedSection.
+          requestAnimationFrame(() => {
+            const main = document.getElementById('main');
+            const f = main && main.querySelector(`.mass-field[data-sec-id="${CSS.escape(s.id)}"]`);
+            if (!f || !main) return;
+            const fr = f.getBoundingClientRect(), mr = main.getBoundingClientRect();
+            if (fr.top < mr.top || fr.bottom > mr.bottom) f.scrollIntoView({ block: 'nearest' });
+          });
+        });
+      });
+    }
     const keySelInit = fwrap.querySelector('.transpose-key-select');
     keySelInit.value = s.key || '';
     wireTransposeControls(fwrap, s, () => { scheduleSectionPdfPreview(); });
@@ -4869,8 +4904,15 @@ function renderSectionMassEditor(main, group, sec){
       };
       newSec.lines = parseMassFieldRows(lowerText, lowerRoles)
         .map(p => ({ symbols: parseChordLine(p.chords || ''), text: p.text || '' }));
-      state.sections.splice(at + 1, 0, newSec);
-      groupSections(group.id).forEach((x, i) => { x.order = i; });
+      state.sections.splice(state.sections.indexOf(s) + 1, 0, newSec);
+      // Renumber this group's order from the pre-split display sequence
+      // with the new section right after s. (`at` is s's index within the
+      // group's sorted list — state.sections holds every song, so the old
+      // code's splice(at + 1) into it misplaced the new section far from
+      // the split one, and order 0 sorted it to the top.)
+      const ordered = sections.slice();
+      ordered.splice(at + 1, 0, newSec);
+      ordered.forEach((x, i) => { x.order = i; });
       newSec.name = displaySectionName(newSec);
       selectedSectionId = newSec.id;
       touchSection(s);
@@ -4878,6 +4920,7 @@ function renderSectionMassEditor(main, group, sec){
       touchGroup(group);
       scheduleSave();
       renderAll();
+      scrollEditorToSelectedSection();
     });
     fieldsBox.appendChild(fwrap);
     fieldSyncs.push(() => { autogrow(); syncBackdrop(); });
