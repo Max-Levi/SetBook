@@ -337,6 +337,14 @@ browser with the console visible):
   clears only chords; Clear lyrics clears only lyrics; delete removes the
   row. Each destructive row action offers Undo via toast, the File menu,
   or Ctrl/Cmd+Z. No console errors.
+- Section split and reorder (mass editor): in a song with three sections,
+  put a blank line in the middle section's field and press its Split chip —
+  the new section must appear directly below the split one (both in the
+  editor and in the sidebar), carrying the lower text, with the head
+  keeping the upper text; the song's other sections must not move. The
+  ↑ ↓ buttons in each section header move that section one slot within
+  the song (up disabled on the first section, down disabled on the last);
+  they are hidden while focusing a single section. No console errors.
 - Recently deleted songs: delete a song (confirm the ✕ popover) and
   confirm Songs → Recently deleted songs… lists it with a time-ago
   label; Restore puts it back with all its sections at its original
