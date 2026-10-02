@@ -1394,6 +1394,7 @@
       <div class="menu-dropdown" id="menuHelpDropdown">
         <button class="menu-item" id="btnShareHelp">Getting PDFs onto your devices…</button>
         <button class="menu-item" id="btnHelp">Help & documentation</button>
+        <button class="menu-item" id="btnReportBug">Report a bug…</button>
       </div>
     </div>
     <div class="menu-wrap menu-all-wrap">
@@ -1420,6 +1421,7 @@
         <div class="menu-group-label">Help</div>
         <button class="menu-item" data-delegate="btnShareHelp">Getting PDFs onto your devices…</button>
         <button class="menu-item" data-delegate="btnHelp">Help & documentation</button>
+        <button class="menu-item" data-delegate="btnReportBug">Report a bug…</button>
       </div>
     </div>
     <input type="file" id="fileInput" accept="application/json">
@@ -10625,6 +10627,19 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
 
   // Technical documentation / Help modal
   wireModal({ overlayId:'helpModalOverlay', openBtnId:'btnHelp', closeBtnId:'helpCloseBtn' });
+  /* Report a bug (Help menu): opens the user's own email client with a
+     pre-addressed, pre-templated bug report. The mailto: URL is built by
+     bugReportMailto() so tests can assert its exact contents. */
+  function bugReportMailto(){
+    const body = 'Steps taken:\n1.\n2.\n\nExpected outcome:\n\nActual outcome:\n';
+    return 'mailto:nozomu1000@gmail.com'
+      + '?subject=' + encodeURIComponent('SetBook bug report')
+      + '&body=' + encodeURIComponent(body);
+  }
+  document.getElementById('btnReportBug').addEventListener('click', () => {
+    window.location.href = bugReportMailto();
+  });
+  window.bugReportMailto = bugReportMailto; // exposed so QA can assert the exact mailto: URL
   /* Scraper extension download link (Help → section 12): filled at runtime from
      ext-version.json so the docs never name a stale version. Only fetched when
      Help is opened; silent when offline. */
