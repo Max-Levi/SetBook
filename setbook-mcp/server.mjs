@@ -5,9 +5,29 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { scrapeSong, buildSongFromText, addSongToFile, listSongs } from './song-tools.mjs';
 
-const server = new McpServer({ name: 'setbook', version: '1.0.0' });
+const here = dirname(fileURLToPath(import.meta.url));
+const CONVENTIONS_PATH = join(here, 'conventions', 'CONVENTIONS.md');
+
+const server = new McpServer({ name: 'setbook', version: '1.1.0' });
+
+server.tool(
+  'get_songbook_conventions',
+  'Read the user\'s versioned songbook conventions BEFORE converting song text or tabs into SetBook JSON: section naming and numbering, nameSuffix usage, chord-only rows, chord symbol offsets, tab cleanup rules, and judgment-call norms. Gleaned from the user\'s Ready songs; the user improves them over time by submitting more example files, so read this fresh for each conversion job.',
+  {},
+  async () => {
+    try {
+      const text = readFileSync(CONVENTIONS_PATH, 'utf8');
+      return { content: [{ type: 'text', text }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: 'Error: conventions file not available: ' + e.message }], isError: true };
+    }
+  }
+);
 
 server.tool(
   'scrape_song',
