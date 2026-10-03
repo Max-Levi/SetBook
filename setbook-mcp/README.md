@@ -35,6 +35,11 @@ JSON-RPC over stdio.
 
 ## Tools
 
+- `get_songbook_conventions()` — Read the user's versioned songbook
+  conventions **before** converting song text or tabs into SetBook JSON:
+  section naming/numbering, `nameSuffix` usage, chord-only rows, chord
+  symbol offsets, tab cleanup rules, and judgment-call norms. Gleaned from
+  the user's Ready songs; read it fresh for each conversion job.
 - `scrape_song(url)` — Fetch a URL and extract song text exactly like SetBook's
   Add-song-from-URL: http(s) only, HTML stripped to text (scripts never run),
   chord/lyric deglue applied. Returns the normalized text.
@@ -74,3 +79,18 @@ never ship silently. The MCP server and the app then parse identically, always.
 `song-tools.mjs` (the song-building and file helpers) and `server.mjs` (the
 MCP wiring) are hand-written; they only call the extracted core, so they need
 no regeneration — update them only when the tool surface itself changes.
+
+## Songbook conventions
+
+`conventions/CONVENTIONS.md` is the user's versioned rule set for turning
+tabs and scraped text into SetBook JSON in their style — gleaned from the
+Ready songs in their private `master_songbook.json` (read-only reference;
+never modified, never committed) plus example conversions. The
+`get_songbook_conventions` tool serves it to any AI agent, so every tool
+works from the same inferences.
+
+Improving the rules: the user submits more example song files; the assistant
+analyzes them against the doc, proposes additions or corrections, and
+publishes a new versioned edition. Submitted examples live in
+`conventions/examples/` — private working material that is **never pushed to
+the public repo** (the publish step skips it).
