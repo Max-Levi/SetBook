@@ -1,6 +1,6 @@
 # SetBook Songbook Conventions
 
-Version: 1.0.0 (2026-10-03)
+Version: 1.0.1 (2026-10-03)
 
 How an AI agent turns a tab or scraped song text into a SetBook song JSON in
 this user's style. These rules were gleaned from the user's `master_songbook.json`
@@ -36,8 +36,9 @@ repo, or used beyond learning these conventions.
   "Chorus" still numbers together with picked choruses, so don't hand-number
   it — write `customName: "Chorus"` and let the app number.
 - `nameSuffix` is an informational tag appended after the name, e.g.
-  `"(guitar solo)"`, `"(x4)"`, `"(x5)"`. Use it for performance notes
-  (solo, jam, optional) and repeat counts — never bake those into the name.
+  `"(guitar solo)"`. Use it for performance notes (solo, jam, optional) —
+  never bake those into the name, and never use it for repeat counts (see
+  Repeats below).
 
 ## Rows: chords and lyrics
 
@@ -75,9 +76,17 @@ Keep verbatim:
 ## Repeats
 
 - A repeated form (e.g. the same 12-bar progression for Solo and Outro) is
-  written out per section as chord-only rows, with `nameSuffix` carrying the
-  count: `"(x4)"`, `"(x5)"`. Don't collapse repeats into a bare "x4" label
-  with no chords.
+  written out per section as chord-only rows.
+- The repeat count or instruction — `(x4)`, `(x2, w/ option to extend
+  solo)`, `(repeat as needed)` — goes on **its own chord line below the
+  final chord line** of the repeated section: a closing row with `text: ""`
+  and the annotation stored as `symbols`, e.g.
+  `[{ "pos": 0, "value": "(x4)" }]`. Multi-word annotations split into one
+  symbol per word at its character offset, exactly as if typed on a chord
+  line in the app (`(repeat as needed)` → `(repeat` @0, `as` @8,
+  `needed)` @11).
+- Never put the count in `nameSuffix`, and don't collapse repeats into a
+  bare "x4" label with no chords.
 
 ## Judgment calls
 
@@ -92,6 +101,9 @@ user's music.
 - 1.0.0 (2026-10-03): initial rules from 41 Ready songs in
   `master_songbook.json` plus five agent-converted examples (Meatstick,
   Hey Jude, Funky Bitch, One Way Out, Closing Time).
+- 1.0.1 (2026-10-03): corrected the repeats rule — the `(x#)` count goes on
+  its own chord line below the final chord line, not in `nameSuffix`. The
+  1.0.0 guidance was wrong: no Ready song uses a suffix for repeat counts.
 
 ## Improving these rules
 
