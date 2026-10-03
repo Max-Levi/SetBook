@@ -143,6 +143,9 @@
     box-shadow:0 0 0 2px rgba(192,57,43,.35);
   }
   .file-status{ display:flex; align-items:center; gap:7px; margin-left:6px; padding-left:12px; border-left:1px solid var(--border); }
+  /* No file open and nothing to save: the "No file open" label says it
+     all — hide the save dot/text rather than repeating "not linked". */
+  .file-status.no-file-quiet .save-dot, .file-status.no-file-quiet .save-text{ display:none; }
   .file-name{ font-size:12.5px; color:var(--text-muted); }
   .save-dot{ width:7px; height:7px; border-radius:50%; background: var(--save-dot-idle); flex-shrink:0; }
   .save-dot.saved{ background: var(--success); }
@@ -501,12 +504,12 @@
   .pdf-preview-controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:2px 0 12px; }
   .pdf-preview-controls .modal-select{ width:auto; max-width:100%; }
   .pdf-preview-viewer{ position:relative; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--card); }
-  #pvFrame{ display:block; width:100%; height:60vh; min-height:320px; border:0; background:#fff; }
+  #pvFrame{ display:block; width:100%; height:54vh; min-height:300px; border:0; background:#fff; }
   #pvFrame[hidden], #pvStripWrap[hidden]{ display:none; }
   /* Performance preview: a horizontal page-turning strip (Print Friendly
      keeps the vertical-scrolling iframe above). Pages snap to center; the
      ‹ › buttons and arrow keys turn pages like a book. */
-  #pvStripWrap{ position:relative; display:block; width:100%; height:60vh; min-height:320px; background:#262626; overflow:hidden; }
+  #pvStripWrap{ position:relative; display:block; width:100%; height:54vh; min-height:300px; background:#262626; overflow:hidden; }
   #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
   .pv-page{ scroll-snap-align:center; flex:0 0 auto; line-height:0; box-shadow:0 6px 22px rgba(0,0,0,.5); border-radius:3px; }
   .pv-page canvas{ display:block; border-radius:3px; }
@@ -521,6 +524,16 @@
   #pdfPreviewOverlay a.pdf-download-link{ margin-bottom:0; }
   #pdfPreviewOverlay .modal-actions{ align-items:center; }
   #pdfPreviewOverlay .modal-actions .pdf-download-link{ flex:1; }
+  /* Song PDF preview: wider than other modals so the embedded viewer has
+     room, a slightly shorter viewer so the dialog usually fits without
+     scrolling, and a sticky footer so Close/Download stay reachable on
+     short viewports when it doesn't. */
+  #pdfPreviewOverlay .modal-wide{ width:880px; }
+  #pdfPreviewOverlay .modal-actions{
+    position:sticky; bottom:0; z-index:2;
+    margin:12px -26px -24px; padding:12px 26px 24px;
+    background:var(--panel); border-top:1px solid var(--border);
+  }
   @media (max-width:560px){
     .pdf-preview-controls{ flex-direction:column; align-items:stretch; }
     .pdf-preview-controls .mode-toggle{ display:flex; }
@@ -544,13 +557,16 @@
   .drive-badge svg{ width:14px; height:14px; }
   a.drive-badge{ text-decoration:none; cursor:pointer; }
   a.drive-badge:hover{ background: color-mix(in srgb, var(--success) 22%, transparent); }
-  /* Disconnected (or stale-link) state: red, not a link, no pointer. */
+  /* Disconnected (or stale-link) state: neutral gray, not a link, no
+     pointer. A disconnected cloud is a normal resting state, not an
+     error, so it must not use the red danger styling (reserved for
+     genuine failures like a failed save). */
   .drive-badge.off{
-    color:var(--danger); border-color:var(--danger);
-    background: color-mix(in srgb, var(--danger) 10%, transparent);
+    color:var(--text-muted); border-color:var(--border);
+    background: color-mix(in srgb, var(--text-muted) 8%, transparent);
   }
   a.drive-badge.off{ cursor:default; }
-  a.drive-badge.off:hover{ background: color-mix(in srgb, var(--danger) 14%, transparent); }
+  a.drive-badge.off:hover{ background: color-mix(in srgb, var(--text-muted) 14%, transparent); }
   /* Drive connect chooser: existing songbooks in the picked folder + a
      new-file row with its own name field. */
   .drive-choose-list{
@@ -902,6 +918,18 @@
     font-size:10px; text-transform:uppercase; letter-spacing:.07em; color: var(--text-muted);
   }
   .details-label .hint{ text-transform:none; letter-spacing:0; }
+  /* Videos live in a collapsed disclosure so the Details panel stays
+     compact; it auto-expands when the song already has a video link. */
+  .details-videos{ margin-top:6px; }
+  .details-videos > summary{
+    font-size:10px; text-transform:uppercase; letter-spacing:.07em;
+    color:var(--text-muted); cursor:pointer; list-style:none;
+    display:flex; align-items:center; gap:6px; user-select:none;
+  }
+  .details-videos > summary::-webkit-details-marker{ display:none; }
+  .details-videos > summary::before{ content:'\u25b8'; font-size:9px; }
+  .details-videos[open] > summary::before{ content:'\u25be'; }
+  .details-videos > summary:hover{ color:var(--text); }
   .details-artist-field{
     display:block; width:100%; box-sizing:border-box;
     background: var(--panel); border:1px solid var(--border); border-radius:6px;
@@ -1133,20 +1161,38 @@
   }
   .mass-split-btn:hover{ background:color-mix(in srgb, var(--gold) 15%, transparent); }
   .mass-split-btn{ transform:translateY(var(--mass-scroll, 0px)); }
-  /* Swap chips: flip a line between chords and lyrics (per-line override) */
+  /* Swap chips: flip a line between chords and lyrics (per-line override).
+     Hidden until their field is hovered or focused, to keep the editor
+     visually quiet — except the "auto" chip, which marks a manual
+     override and stays visible so overridden lines are recognizable.
+     Hidden chips are pointer-transparent so they never block textarea
+     clicks near the right edge. */
   .mass-swap-btn{
-    position:absolute; right:10px; pointer-events:auto; cursor:pointer;
+    position:absolute; right:10px; pointer-events:none; cursor:pointer;
     font-size:10px; font-weight:600; line-height:1.4; white-space:nowrap;
-    padding:2px 8px; border-radius:999px; opacity:.55;
+    padding:2px 8px; border-radius:999px; opacity:0;
     border:1px solid var(--border); color:var(--text-muted); background:var(--panel);
+    transition:opacity .15s ease;
   }
-  .mass-swap-btn:hover{ opacity:1; border-color:var(--gold); color:var(--gold); }
+  .bulk-paste-editor:hover .mass-swap-btn,
+  .bulk-paste-editor:focus-within .mass-swap-btn,
+  .bulk-paste-editor .mass-swap-btn[data-to="auto"]{ pointer-events:auto; }
+  .bulk-paste-editor:hover .mass-swap-btn,
+  .bulk-paste-editor:focus-within .mass-swap-btn{ opacity:.55; }
+  .bulk-paste-editor .mass-swap-btn[data-to="auto"]{ opacity:.85; }
+  .bulk-paste-editor .mass-swap-btn:hover{ opacity:1; border-color:var(--gold); color:var(--gold); }
   .mass-swap-btn{ transform:translateY(var(--mass-scroll, 0px)); }
   .mass-field-focus{
     min-width:44px; min-height:44px; border-radius:8px; border:1px solid var(--border);
     background:transparent; color:var(--text-muted); font-size:16px; line-height:1; cursor:pointer;
   }
   .mass-field-focus:hover{ color:var(--gold); border-color:var(--gold); }
+  /* Active state: the button's section is the focused one — visible at a
+     glance, since the ◎ glyph alone doesn't say whether focus is on. */
+  .mass-field-focus[aria-pressed="true"]{
+    color:var(--gold); border-color:var(--gold);
+    background:color-mix(in srgb, var(--gold) 12%, transparent);
+  }
   /* Per-section reorder buttons (mass-style editor header): move this
      section one slot up/down within the song. */
   .mass-field-move{
@@ -1653,7 +1699,7 @@
          local row above. -->
     <div id="welcomeDriveSection" hidden>
       <div class="modal-actions" id="welcomeDriveConnectRow" hidden style="justify-content:center; margin-top:6px;">
-        <button type="button" class="primary small" id="welcomeDriveConnectBtn">Keep it in Google Drive…</button>
+        <button type="button" class="ghost small" id="welcomeDriveConnectBtn">Keep it in Google Drive…</button>
       </div>
       <div class="modal-actions" id="welcomeDrivePickRow" hidden style="justify-content:center; margin-top:6px;">
         <button type="button" class="ghost small" id="welcomeDriveNewBtn">New file in Drive…</button>
@@ -1947,7 +1993,7 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Details</strong> (under each song): artists (one per line), tags, and links to an album version and a live video, with a Watch button.</li>
+            <li><strong>Details</strong> (under each song): artists (one per line), tags, and links to an album version and a live video under a collapsed <strong>Videos</strong> row, with a Watch button.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
           </ul>
         </section>
@@ -1957,7 +2003,7 @@
             <li>Each section is a free-text field. Type a line of chords, then the lyric line under it — chords show gold, lyrics white, so you can see at a glance what the app heard.</li>
             <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own.</li>
             <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two — the new section lands directly below the one you split. <strong>↑ ↓</strong> in a section's header moves it one slot up or down within the song.</li>
-            <li>If the app misreads a line, the little chip on it flips it: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line.</li>
+            <li>If the app misreads a line, hover over or tap into its field to reveal the little chip on the line — it flips the reading: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line. A line you've overridden keeps a small <strong>auto</strong> chip so you can switch it back.</li>
             <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible.</li>
             <li><strong>Private notes:</strong> wrap a lyric line in <code>/* &hellip; */</code> and it stays out of your PDFs.</li>
             <li><strong>Undo</strong> (File menu or Ctrl/Cmd+Z) covers clears, deletes, moves, and drags.</li>
@@ -2686,10 +2732,15 @@ function buildDetailsPanel(group, gDiv){
   // --- Video links: one for the album version, one for a live performance ---
   // A single Watch button opens the only link directly, or offers a picker
   // when both are present. Each row below edits its own link.
-  const videosLabel = document.createElement('div');
-  videosLabel.className = 'details-label';
-  videosLabel.textContent = 'Videos';
-  panel.appendChild(videosLabel);
+  // Collapsed in a disclosure by default so the Details panel stays
+  // compact; auto-expanded when the song already has a video link.
+  const videosDetails = document.createElement('details');
+  videosDetails.className = 'details-videos';
+  videosDetails.open = !!(group.videoUrl || group.videoUrlLive);
+  const videosSummary = document.createElement('summary');
+  videosSummary.textContent = 'Videos';
+  videosDetails.appendChild(videosSummary);
+  panel.appendChild(videosDetails);
   const videoWatchBtn = document.createElement('button');
   videoWatchBtn.type = 'button';
   videoWatchBtn.className = 'group-video-open';
@@ -2726,7 +2777,7 @@ function buildDetailsPanel(group, gDiv){
       openVideoLink(album || live);
     }
   });
-  panel.appendChild(videoWatchBtn);
+  videosDetails.appendChild(videoWatchBtn);
   function buildVideoRow(field, labelText, placeholderText){
     const videoLabel = document.createElement('div');
     videoLabel.className = 'details-label';
@@ -2771,7 +2822,7 @@ function buildDetailsPanel(group, gDiv){
     preventAutoReplace(videoInput);
     videoRow.append(videoEditBtn, videoInput);
     setVideoEditing(false);
-    panel.append(videoLabel, videoRow);
+    videosDetails.append(videoLabel, videoRow);
   }
   buildVideoRow('videoUrl', 'Album video', 'Paste album-version link');
   buildVideoRow('videoUrlLive', 'Live video', 'Paste live-performance link');
@@ -4420,7 +4471,7 @@ function renderMassEntryEditor(main, group, sec){
       let btns = '';
       classified.forEach((c, i) => {
         if (c.type !== null || !spans[i]) return;
-        btns += `<button type="button" class="mass-split-btn" data-line="${i}" style="top:${Math.max(0, spans[i].offsetTop - 2)}px">Split</button>`;
+        btns += `<button type="button" class="mass-split-btn" data-line="${i}" style="top:${Math.max(0, spans[i].offsetTop + 3)}px">Split</button>`;
       });
       splitLayer.innerHTML = btns;
       splitLayer.style.setProperty('--mass-scroll', (-textarea.scrollTop) + 'px');
@@ -4599,7 +4650,7 @@ function renderSectionMassEditor(main, group, sec){
   head.className = 'editor-head';
   head.innerHTML = `<div class="editor-head-titles">
     <div class="group-label">${escapeHtml(group.name || 'Untitled song')}${displayArtists(group) ? ' <span class="artist">\u2014 ' + escapeHtml(displayArtists(group)) + '</span>' : ''}</div>
-    <div class="section-name-preview">One field per section — a line of chord symbols (gold) pairs with the lyric line under it. Press <strong>Split</strong> on a blank line to make two sections; [Chorus]-style headers split automatically on import.</div>
+    <div class="section-name-preview editor-hint"${isSongEmpty(group) ? '' : ' hidden'}>One field per section — a line of chord symbols (gold) pairs with the lyric line under it. Press <strong>Split</strong> on a blank line to make two sections; [Chorus]-style headers split automatically on import.</div>
   </div>`;
   wrap.appendChild(head);
 
@@ -4630,7 +4681,7 @@ function renderSectionMassEditor(main, group, sec){
         <span class="transpose-wrap">${TRANSPOSE_UI_HTML.trim()}</span>
         <button type="button" class="mass-field-move" data-dir="-1" aria-label="Move section up" title="Move section up">\u2191</button>
         <button type="button" class="mass-field-move" data-dir="1" aria-label="Move section down" title="Move section down">\u2193</button>
-        <button type="button" class="mass-field-focus" title="Focus on this section — hide the other sections" aria-label="Focus on this section">◎</button>
+        <button type="button" class="mass-field-focus" title="Focus on this section — hide the other sections" aria-label="Focus on this section" aria-pressed="${sectionFocusId === s.id}">◎</button>
         <button type="button" class="mass-field-del mass-field-del-sec" aria-label="Delete section" title="Delete this section">\u00d7</button>
       </div>
       <div class="section-name-preview mass-field-showsas">Shows as: <strong></strong></div>
@@ -4840,7 +4891,7 @@ function renderSectionMassEditor(main, group, sec){
       classified.forEach((c, i) => {
         if (!spans[i]) return;
         if (c.type === null){
-          btns += `<button type="button" class="mass-split-btn" data-line="${i}" style="top:${Math.max(0, spans[i].offsetTop - 2)}px">Split</button>`;
+          btns += `<button type="button" class="mass-split-btn" data-line="${i}" style="top:${Math.max(0, spans[i].offsetTop + 3)}px">Split</button>`;
         } else if (s.lineRoles[i] === 'chord' || s.lineRoles[i] === 'lyric'){
           btns += `<button type="button" class="mass-swap-btn" data-line="${i}" data-to="auto" style="top:${Math.max(0, spans[i].offsetTop - 2)}px" title="Back to automatic chords/lyrics detection">auto</button>`;
         } else if (c.type === 'chord'){
@@ -4861,6 +4912,9 @@ function renderSectionMassEditor(main, group, sec){
       autogrow();
       syncBackdrop();
       scheduleSectionPdfPreview();
+      // The editor hint retires itself once the song has any content.
+      const hint = head.querySelector('.editor-hint');
+      if (hint && !hint.hidden && !isSongEmpty(group)) hint.hidden = true;
     });
     textarea.addEventListener('scroll', () => {
       backdrop.scrollTop = textarea.scrollTop;
@@ -6353,6 +6407,11 @@ function updateSaveStatus(status){
   dot.className = 'save-dot' + (status ? ' ' + status : '');
   const onDrive = !!driveLink;
   const toFile = !!(supportsFsApi && fileHandle);
+  // No file linked and nothing to save: "No file open" already says it —
+  // hide the save indicator instead of repeating "not linked to a file".
+  // (With unsaved work but no file link, the prompt stays visible.)
+  const quiet = status === 'nofile' && !onDrive && !toFile && !recoveryHasContent(state);
+  document.getElementById('fileStatus').classList.toggle('no-file-quiet', quiet);
   if (status === 'saved' && (toFile || onDrive)) lastDiskSaveAt = Date.now();
   const messages = {
     saved: onDrive ? 'saved to cloud' : (toFile ? 'saved to disk' : 'not linked to a file yet'),
