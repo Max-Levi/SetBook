@@ -345,6 +345,26 @@ browser with the console visible):
   ↑ ↓ buttons in each section header move that section one slot within
   the song (up disabled on the first section, down disabled on the last);
   they are hidden while focusing a single section. No console errors.
+- Line classifier chips: with a song open, the per-line "as chords" /
+  "as lyrics" chips are hidden until the section field is hovered or
+  focused (tap into the field on touch); a line with a manual override
+  always shows its "auto" chip, and clicking it reverts to automatic.
+- Editor hint: the "One field per section" coaching line at the top of
+  the editor disappears as soon as the song has any content (and stays
+  hidden on re-render).
+- Section focus button: the ◎ button in a section header shows a gold
+  active state while its section is the focused one.
+- Details videos: the Videos row in a song's Details panel is collapsed
+  by default and expands automatically when the song has an album or
+  live video link.
+- Disconnected cloud badge: with Drive not connected, the header badge
+  reads "Cloud save disabled" in neutral gray (not red); the green
+  "Drive" badge is unchanged while connected.
+- Welcome modal: "Open existing file…" is the single gold primary;
+  "Start new file" and "Keep it in Google Drive…" are secondary.
+- Header status: with no file open and an empty songbook, only "No file
+  open" shows — the save dot/text are hidden; adding content without a
+  file link still shows the "not linked to a file yet" prompt.
 - Recently deleted songs: delete a song (confirm the ✕ popover) and
   confirm Songs → Recently deleted songs… lists it with a time-ago
   label; Restore puts it back with all its sections at its original
