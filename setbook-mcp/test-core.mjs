@@ -133,3 +133,18 @@ test('add_song_to_file rejects text with no sections', () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('conventions doc is present, versioned, and covers the key rules', () => {
+  const doc = readFileSync(join(here, 'conventions', 'CONVENTIONS.md'), 'utf8');
+  assert.match(doc, /^Version: \d+\.\d+\.\d+/m, 'versioned');
+  assert.ok(doc.includes('readyStatus'), 'reference scope rule present');
+  assert.ok(doc.includes('nameSuffix'), 'suffix rule present');
+  assert.ok(doc.includes('absolute character offset'), 'chord offset rule present');
+  assert.ok(doc.includes('never be modified'), 'master file treated as read-only reference');
+});
+
+test('server exposes get_songbook_conventions', () => {
+  const src = readFileSync(join(here, 'server.mjs'), 'utf8');
+  assert.ok(src.includes("'get_songbook_conventions'"), 'tool registered');
+  assert.ok(src.includes('CONVENTIONS.md'), 'tool reads the conventions doc');
+});
