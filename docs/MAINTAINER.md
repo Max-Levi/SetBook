@@ -22,7 +22,12 @@ The hosted app is served from this repo via GitHub Pages. The deploy
 script (`setbook_deploy.py` in the maintainer's tooling) pushes
 `index.html` (plus this doc and the README) through the GitHub Contents
 API; the deployed bytes get a `noindex,nofollow` meta tag injected so the
-site stays unlisted. GitHub Pages can take ~45s–2min to serve new bytes —
+site stays unlisted. Before pushing, a freshness gate compares the working
+`index.html` against the latest commit on the branch and the live site:
+if the branch moved after the working file was last touched, the deploy
+is refused rather than clobbering newer work (`--force` bypasses it only
+for an intentional revert; `--check` runs the gate without pushing).
+GitHub Pages can take ~45s–2min to serve new bytes —
 re-fetch with a cache-buster before diagnosing a stale deploy.
 
 ## 2. Architecture
