@@ -1996,7 +1996,7 @@
           <h3>3. Writing charts</h3>
           <ul>
             <li>Each section is a free-text field. Type a line of chords, then the lyric line under it — chords show gold, lyrics white, so you can see at a glance what the app heard.</li>
-            <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own.</li>
+            <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, <strong>(Continued)</strong>, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own. <strong>(Continued)</strong> borrows the previous section's name — a Verse 1 followed by (Continued) shows as "Verse 1 (Continued)", and another (Continued) after that becomes "Verse 1 (Continued 2)".</li>
             <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two — the new section lands directly below the one you split. <strong>↑ ↓</strong> in a section's header moves it one slot up or down within the song.</li>
             <li>If the app misreads a line, hover over or tap into its field to reveal the little chip on the line — it flips the reading: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line. A line you've overridden keeps a small <strong>auto</strong> chip so you can switch it back.</li>
             <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible.</li>
@@ -3355,6 +3355,7 @@ const SECTION_TYPES = [
   { id:'bridge', label:'Bridge' },
   { id:'instrumental', label:'Instrumental' },
   { id:'outro', label:'Outro' },
+  { id:'continued', label:'(Continued)' },
   { id:'custom', label:'Custom' },
 ];
 // A custom name that is really a section-type name, optionally with a
@@ -3391,20 +3392,51 @@ function sectionNumberBase(sec){
 }
 function displaySectionName(sec){
   if (!sec) return 'Untitled section';
+  let name;
+  if (sec.nameType === 'continued'){
+    name = continuedDisplayName(sec, groupSections(sec.groupId), sectionNumberedBase);
+  } else {
+    name = sectionNumberedBase(sec);
+  }
+  const suffix = (sec.nameSuffix || '').trim();
+  if (suffix) name += ' ' + suffix;
+  return name;
+}
+// Numbered display base without the nameSuffix (callers append the suffix).
+// Split out of displaySectionName so "(Continued)" sections can inherit a
+// clean "Verse 1" root name.
+function sectionNumberedBase(sec){
+  if (!sec) return 'Untitled section';
   const base = sectionBaseName(sec);
   if (!base) return 'Untitled section';
   const numBase = sectionNumberBase(sec);
   const key = numBase.toLowerCase();
   const sibs = groupSections(sec.groupId).filter(s => sectionNumberBase(s).toLowerCase() === key);
-  let name;
   if (state.autoNumberSections && (sibs.length > 1 || state.numberSingleSections)){
-    name = numBase + ' ' + (sibs.findIndex(s => s.id === sec.id) + 1);
-  } else {
-    name = base; // as typed — a legacy custom "Verse 1" keeps its number
+    return numBase + ' ' + (sibs.findIndex(s => s.id === sec.id) + 1);
   }
-  const suffix = (sec.nameSuffix || '').trim();
-  if (suffix) name += ' ' + suffix;
-  return name;
+  return base; // as typed — a legacy custom "Verse 1" keeps its number
+}
+// A "(Continued)" section inherits its name from the run it continues:
+// "[previous section name] (Continued)". A run of consecutive continued
+// sections shares the root and numbers up — "Verse 1 (Continued)",
+// "Verse 1 (Continued 2)" — with the numbers following the auto-numbering
+// setting (numbering off: every continued section is plain "(Continued)").
+// `items` is the ordered section/field list; `numberedBase` names a
+// non-continued item the way its display name reads without the suffix.
+function continuedDisplayName(item, items, numberedBase){
+  const list = items || [];
+  let idx = list.indexOf(item);
+  if (idx < 0 && item && item.id) idx = list.findIndex(x => x && x.id === item.id);
+  let root = null, runIdx = 0;
+  for (let i = idx; i >= 0; i--){
+    if (list[i].nameType === 'continued'){ runIdx++; continue; }
+    root = list[i];
+    break;
+  }
+  const rootName = root ? numberedBase(root) : '';
+  const tag = (state.autoNumberSections !== false && runIdx > 1) ? `(Continued ${runIdx})` : '(Continued)';
+  return (rootName ? rootName + ' ' : '') + tag;
 }
 // Derived display name for a mass-entry staging field, numbered across the
 // field list the same way displaySectionName() numbers real sections. The
@@ -3412,20 +3444,28 @@ function displaySectionName(sec){
 // and sectionNumberBase only read nameType/customName, so field objects
 // work directly.
 function massFieldDisplayName(field, fields){
+  let name;
+  if (field.nameType === 'continued'){
+    name = continuedDisplayName(field, fields, (f) => massFieldNumberedBase(f, fields));
+  } else {
+    name = massFieldNumberedBase(field, fields);
+  }
+  const suffix = (field.nameSuffix || '').trim();
+  if (suffix) name += ' ' + suffix;
+  return name;
+}
+// Staging-field equivalent of sectionNumberedBase: the "Shows as" preview
+// names a field without its suffix.
+function massFieldNumberedBase(field, fields){
   const base = sectionBaseName(field);
   if (!base) return 'Untitled section';
   const numBase = sectionNumberBase(field);
   const key = numBase.toLowerCase();
   const sibs = (fields || []).filter(f => sectionNumberBase(f).toLowerCase() === key);
-  let name;
   if (state.autoNumberSections && (sibs.length > 1 || state.numberSingleSections)){
-    name = numBase + ' ' + (sibs.indexOf(field) + 1);
-  } else {
-    name = base;
+    return numBase + ' ' + (sibs.indexOf(field) + 1);
   }
-  const suffix = (field.nameSuffix || '').trim();
-  if (suffix) name += ' ' + suffix;
-  return name;
+  return base;
 }
 // Smart default for "+ Add section": songs usually alternate verse and
 // chorus, so a bottom section whose name starts with Verse is followed by
@@ -4006,6 +4046,7 @@ function massHeaderSectionType(headerText){
   if (mapped) return mapped;
   const norm = (headerText || '').trim().toLowerCase();
   if (norm === 'solo' || norm === 'interlude') return 'instrumental';
+  if (norm === 'continued' || norm === '(continued)') return 'continued';
   return null;
 }
 
