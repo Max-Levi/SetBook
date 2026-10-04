@@ -834,8 +834,12 @@
     border-radius:6px;
   }
   .group-head-main{
-    display:flex; align-items:center; gap:8px;
+    display:flex; align-items:center; gap:6px;
   }
+  /* Four action buttons share the header row now (PDF, details, focus,
+     delete); keep them compact so the song name keeps its room instead
+     of wrapping to three lines. */
+  .group-head-main button.icon{ padding:4px 5px; }
   .group-badges{ padding-left:22px; }
   .group-badges .group-type{ margin-top:0; }
   .group-head:hover{ background: var(--panel-2); }
@@ -901,35 +905,29 @@
   .group-artist-summary{
     color: var(--text-muted); font-size:11px; line-height:1.35; overflow-wrap:break-word;
   }
-  .details-toggle{
-    background:none; border:none; cursor:pointer;
-    color: var(--text-muted); font-family:inherit; font-size:11px;
-    display:inline-flex; align-items:center; gap:4px;
-    padding:4px 4px; border-radius:6px;
+  /* Song details page: dedicated full-page view for song-level data,
+     opened from the song card's details icon. */
+  .song-details-page{
+    max-width:680px; margin:0 auto; padding:28px 24px 80px;
+    display:flex; flex-direction:column; gap:20px;
   }
-  .details-toggle:hover{ color: var(--gold); }
-  .details-toggle .dt-chev{ font-size:9px; }
-  .group-details{
-    margin:4px 6px 8px 32px; padding:11px 12px;
-    background: var(--panel-2); border:1px solid var(--border); border-radius:10px;
-    display:flex; flex-direction:column; gap:9px;
+  .song-details-page .sdp-back{ align-self:flex-start; }
+  .song-details-page .sdp-title{
+    font-size:25px; font-weight:700; color:var(--text); font-family:inherit;
+    background:transparent; border:1px solid transparent; border-radius:8px;
+    padding:6px 10px; margin:0 -10px; width:calc(100% + 20px); box-sizing:border-box;
   }
+  .song-details-page .sdp-title:hover{ border-color:var(--border); }
+  .song-details-page .sdp-title:focus{ border-color:var(--gold); outline:none; background:var(--panel); }
+  .song-details-page .sdp-title::placeholder{ color:var(--placeholder); }
+  .song-details-page .sdp-meta-row{ display:flex; gap:36px; flex-wrap:wrap; }
+  .song-details-page .sdp-meta-row .details-label{ margin-bottom:7px; }
+  .song-details-page .details-artist-field{ font-size:14px; }
+  .song-details-page .group-video-open{ align-self:flex-start; }
   .details-label{
     font-size:10px; text-transform:uppercase; letter-spacing:.07em; color: var(--text-muted);
   }
   .details-label .hint{ text-transform:none; letter-spacing:0; }
-  /* Videos live in a collapsed disclosure so the Details panel stays
-     compact; it auto-expands when the song already has a video link. */
-  .details-videos{ margin-top:6px; }
-  .details-videos > summary{
-    font-size:10px; text-transform:uppercase; letter-spacing:.07em;
-    color:var(--text-muted); cursor:pointer; list-style:none;
-    display:flex; align-items:center; gap:6px; user-select:none;
-  }
-  .details-videos > summary::-webkit-details-marker{ display:none; }
-  .details-videos > summary::before{ content:'\25b8'; font-size:9px; }
-  .details-videos[open] > summary::before{ content:'\25be'; }
-  .details-videos > summary:hover{ color:var(--text); }
   .details-artist-field{
     display:block; width:100%; box-sizing:border-box;
     background: var(--panel); border:1px solid var(--border); border-radius:6px;
@@ -938,7 +936,6 @@
   }
   .details-artist-field:focus{ outline:none; border-color: var(--gold); }
   .details-artist-field::placeholder{ color: var(--placeholder); }
-  .group-details .song-tags-row{ margin-top:0; }
   .artist-suggest-popover{
     position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
     border-radius:6px; padding:4px; max-height:180px; overflow-y:auto;
@@ -1363,8 +1360,6 @@
     .filter-select{ min-height:44px; font-size:14px; }
     .tag-pill{ font-size:13px; }
     .tag-pill button{ min-width:44px; min-height:44px; }
-    .group-type .details-toggle{ min-height:44px; align-self:center; justify-content:flex-start; font-size:12.5px; }
-    .group-details{ margin-left:20px; }
     .details-artist-field{ font-size:16px; }
     .tag-add-input{ min-height:44px; font-size:14px; flex-basis:140px; }
   }
@@ -1993,7 +1988,7 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Details</strong> (under each song): artists (one per line), tags, and links to an album version and a live video under a collapsed <strong>Videos</strong> row, with a Watch button.</li>
+            <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
           </ul>
         </section>
@@ -2180,7 +2175,6 @@ let state = defaultState();
 let selectedGroupId = null;
 let selectedSectionId = null;
 let expandedGroups = new Set();
-const detailsOpen = new Set(); // song ids whose Details panel is expanded (session-only)
 
 /*__SETBOOK_MCP_CORE_BEGIN__*/
 /* NOTE (MCP core): this region is extracted verbatim into
@@ -2612,6 +2606,7 @@ function searchSections(query){
 --------------------------------------------------------- */
 function setSongFocus(gid){
   state.focusedGroupId = gid;
+  if (detailsGroupId){ detailsGroupId = null; detailsReturn = null; }
   if (gid){
     searchQuery = '';
     const sb = document.getElementById('sidebarSearch');
@@ -2631,11 +2626,63 @@ function setSongFocus(gid){
 /* ---------------------------------------------------------
    Sidebar rendering
 --------------------------------------------------------- */
-// The Details panel: song-level data (artists, tags, video links) nested in its
-// own collapsible area under the song header, so the card stays scannable.
-function buildDetailsPanel(group, gDiv){
-  const panel = document.createElement('div');
-  panel.className = 'group-details';
+// The song details page: song-level data (title, artists, tags, type,
+// ready status, video links) on its own focused page in main, opened from
+// the song card's details icon. Replaces the old sidebar accordion, which
+// had grown too cramped — videos no longer hide under a disclosure.
+let detailsGroupId = null; // song whose details page is open in main (null = section editor)
+let detailsReturn = null;  // {groupId, sectionId} to restore when leaving the details page
+
+function openSongDetails(gid){
+  if (detailsGroupId !== gid) detailsReturn = { groupId: selectedGroupId, sectionId: selectedSectionId };
+  detailsGroupId = gid;
+  selectedGroupId = gid;
+  renderAll();
+  closeSidebarAfterNavigate();
+}
+function closeSongDetails(){
+  detailsGroupId = null;
+  if (detailsReturn){
+    selectedGroupId = detailsReturn.groupId;
+    selectedSectionId = detailsReturn.sectionId;
+    detailsReturn = null;
+  }
+  renderAll();
+}
+
+function renderSongDetailsPage(main, group){
+  const page = document.createElement('div');
+  page.className = 'song-details-page';
+
+  const backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'ghost small sdp-back';
+  backBtn.innerHTML = '&larr; Back to chart';
+  backBtn.addEventListener('click', closeSongDetails);
+  page.appendChild(backBtn);
+
+  // --- Title ---
+  const titleInput = document.createElement('input');
+  titleInput.type = 'text';
+  titleInput.className = 'sdp-title';
+  titleInput.value = group.name || '';
+  titleInput.placeholder = 'Untitled song';
+  titleInput.setAttribute('aria-label', 'Song title');
+  preventAutoReplace(titleInput);
+  titleInput.addEventListener('input', () => {
+    group.name = titleInput.value;
+    touchGroup(group);
+    scheduleSave();
+    // keep the sidebar's inline name field in sync without re-rendering it
+    const nameField = document.querySelector(`.group[data-gid="${CSS.escape(group.id)}"] .group-name-field`);
+    if (nameField && nameField !== document.activeElement) nameField.value = group.name;
+  });
+  page.appendChild(titleInput);
+
+  const syncSidebarArtistSummary = () => {
+    const card = document.querySelector(`.group[data-gid="${CSS.escape(group.id)}"]`);
+    if (card) updateArtistSummary(card, group);
+  };
 
   // --- Artists, one per line ---
   const artistLabel = document.createElement('div');
@@ -2650,8 +2697,7 @@ function buildDetailsPanel(group, gDiv){
   const syncArtistUI = () => {
     autoGrowTextarea(artistInput);
     updateArtistDatalist();
-    updateArtistSummary(gDiv, group);
-    if (selectedGroupId === group.id) renderMain();
+    syncSidebarArtistSummary();
   };
   artistInput.addEventListener('input', () => {
     group.artist = artistInput.value;
@@ -2673,7 +2719,7 @@ function buildDetailsPanel(group, gDiv){
   });
   artistInput.addEventListener('blur', () => setTimeout(closeArtistSuggestions, 150));
   preventAutoReplace(artistInput);
-  panel.append(artistLabel, artistInput);
+  page.append(artistLabel, artistInput);
   deferAutoGrow(artistInput);
 
   // --- Tags: removable pills plus an add box ---
@@ -2727,20 +2773,69 @@ function buildDetailsPanel(group, gDiv){
   });
   tagInput.addEventListener('blur', () => commitTag(false));
   tagsRow.appendChild(tagInput);
-  panel.append(tagsLabel, tagsRow);
+  page.append(tagsLabel, tagsRow);
+
+  // --- Type + ready status, side by side ---
+  const metaRow = document.createElement('div');
+  metaRow.className = 'sdp-meta-row';
+  const typeWrap = document.createElement('div');
+  const typeLabel = document.createElement('div');
+  typeLabel.className = 'details-label';
+  typeLabel.textContent = 'Type';
+  const typeBtn = document.createElement('button');
+  typeBtn.type = 'button';
+  typeBtn.className = 'group-type-badge';
+  function renderTypeBadge(){
+    const type = group.type || 'cover';
+    typeBtn.textContent = type === 'original' ? 'Original' : 'Cover';
+    typeBtn.classList.toggle('is-original', type === 'original');
+    typeBtn.title = 'Click to mark as ' + (type === 'original' ? 'a cover' : 'an original');
+  }
+  renderTypeBadge();
+  typeBtn.addEventListener('click', () => {
+    group.type = (group.type || 'cover') === 'cover' ? 'original' : 'cover';
+    touchGroup(group);
+    renderTypeBadge();
+    scheduleSave();
+    renderSidebar();
+  });
+  typeWrap.append(typeLabel, typeBtn);
+  const statusWrap = document.createElement('div');
+  const statusLabel = document.createElement('div');
+  statusLabel.className = 'details-label';
+  statusLabel.textContent = 'Status';
+  const readyBtn = document.createElement('button');
+  readyBtn.type = 'button';
+  readyBtn.className = 'group-type-badge';
+  // Status cycles with each click: Not Ready → In Progress → Ready → Not Ready.
+  function renderReadyBadge(){
+    const st = songStatus(group);
+    readyBtn.textContent = st === 'ready' ? 'Ready' : st === 'in-progress' ? 'In Progress' : 'Not Ready';
+    readyBtn.classList.toggle('is-ready', st === 'ready');
+    readyBtn.classList.toggle('is-in-progress', st === 'in-progress');
+    readyBtn.title = 'Click to mark as ' + (st === 'ready' ? 'In Progress' : st === 'in-progress' ? 'Not Ready' : 'Ready');
+  }
+  renderReadyBadge();
+  readyBtn.addEventListener('click', () => {
+    const st = songStatus(group);
+    group.readyStatus = st === 'not-ready' ? 'in-progress' : st === 'in-progress' ? 'ready' : 'not-ready';
+    touchGroup(group);
+    renderReadyBadge();
+    scheduleSave();
+    renderSidebar();
+  });
+  statusWrap.append(statusLabel, readyBtn);
+  metaRow.append(typeWrap, statusWrap);
+  page.appendChild(metaRow);
 
   // --- Video links: one for the album version, one for a live performance ---
   // A single Watch button opens the only link directly, or offers a picker
-  // when both are present. Each row below edits its own link.
-  // Collapsed in a disclosure by default so the Details panel stays
-  // compact; auto-expanded when the song already has a video link.
-  const videosDetails = document.createElement('details');
-  videosDetails.className = 'details-videos';
-  videosDetails.open = !!(group.videoUrl || group.videoUrlLive);
-  const videosSummary = document.createElement('summary');
-  videosSummary.textContent = 'Videos';
-  videosDetails.appendChild(videosSummary);
-  panel.appendChild(videosDetails);
+  // when both are present. Each row below edits its own link. Fully visible
+  // here — no disclosure needed on a dedicated page.
+  const videosLabel = document.createElement('div');
+  videosLabel.className = 'details-label';
+  videosLabel.textContent = 'Videos';
+  page.appendChild(videosLabel);
   const videoWatchBtn = document.createElement('button');
   videoWatchBtn.type = 'button';
   videoWatchBtn.className = 'group-video-open';
@@ -2777,7 +2872,7 @@ function buildDetailsPanel(group, gDiv){
       openVideoLink(album || live);
     }
   });
-  videosDetails.appendChild(videoWatchBtn);
+  page.appendChild(videoWatchBtn);
   function buildVideoRow(field, labelText, placeholderText){
     const videoLabel = document.createElement('div');
     videoLabel.className = 'details-label';
@@ -2822,13 +2917,13 @@ function buildDetailsPanel(group, gDiv){
     preventAutoReplace(videoInput);
     videoRow.append(videoEditBtn, videoInput);
     setVideoEditing(false);
-    videosDetails.append(videoLabel, videoRow);
+    page.append(videoLabel, videoRow);
   }
   buildVideoRow('videoUrl', 'Album video', 'Paste album-version link');
   buildVideoRow('videoUrlLive', 'Live video', 'Paste live-performance link');
   refreshVideoWatch();
 
-  return panel;
+  main.appendChild(page);
 }
 
 function updateArtistSummary(scopeEl, group){
@@ -2876,7 +2971,7 @@ function renderSidebar(){
     head.className = 'group-head' + (selectedGroupId === group.id ? ' active' : '');
     /* Two-row card: the main row holds the expand chevron, editable name,
        artist summary, and action buttons; the badges row below spans the
-       full card width so Cover / Ready / Details always share one line. */
+       full card width so Cover / Ready always share one line. */
     head.innerHTML = `
       <div class="group-head-main">
         ${focusGroup ? '' : `<span class="chev">${isExpanded ? '▾' : '▸'}</span>`}
@@ -2886,6 +2981,7 @@ function renderSidebar(){
         </div>
         <span class="group-count">${secs.length}</span>
         <button class="icon" data-action="pdf-preview" data-gid="${escapeAttr(group.id)}" title="Preview this song's PDF"><svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path d="M3.5 1.8h5.8l3.2 3.2v9.2h-9Z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/><path d="M9.3 1.8V5h3.2" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/></svg></button>
+        <button class="icon" data-action="song-details" data-gid="${escapeAttr(group.id)}" title="Song details"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7.4v4.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="4.7" r="1.15" fill="currentColor"/></svg></button>
         ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${escapeAttr(group.id)}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
         <button class="icon danger" data-action="del-group" data-gid="${escapeAttr(group.id)}" title="Delete song">✕</button>
       </div>
@@ -2972,16 +3068,6 @@ function renderSidebar(){
     });
     typeSpan.appendChild(readyBtn);
 
-    /* Details toggle lives inline with the type/ready badges so each song
-       card costs one fewer vertical line. */
-    const detailsToggleBtn = document.createElement('button');
-    detailsToggleBtn.type = 'button';
-    detailsToggleBtn.className = 'details-toggle';
-    detailsToggleBtn.setAttribute('aria-expanded', 'false');
-    detailsToggleBtn.title = 'Show song details: artists, tags, video links';
-    detailsToggleBtn.innerHTML = '<span class="dt-chev">▸</span> Details';
-    typeSpan.appendChild(detailsToggleBtn);
-
     const focusBtn = head.querySelector('[data-action="focus"]');
     if (focusBtn) focusBtn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -2992,9 +3078,15 @@ function renderSidebar(){
       e.stopPropagation();
       openPdfPreview(group.id);
     });
+    const songDetailsBtn = head.querySelector('[data-action="song-details"]');
+    if (songDetailsBtn) songDetailsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      openSongDetails(group.id);
+    });
     head.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
       selectedGroupId = group.id;
+      if (detailsGroupId){ detailsGroupId = null; detailsReturn = null; }
       if (focusGroup) return; // the focused song stays expanded
       if (isExpanded) expandedGroups.delete(group.id); else expandedGroups.add(group.id);
       renderSidebar();
@@ -3012,6 +3104,7 @@ function renderSidebar(){
         recordSongDeleted(removedGroup, removedSections, groupIdx);
         if (selectedGroupId === group.id){ selectedGroupId = null; selectedSectionId = null; }
         if (state.focusedGroupId === group.id) state.focusedGroupId = null;
+        if (detailsGroupId === group.id){ detailsGroupId = null; detailsReturn = null; }
         scheduleSave();
         renderAll();
         const entry = pushUndo(`Deleted "${removedGroup.name || 'Untitled song'}"`, () => {
@@ -3026,17 +3119,7 @@ function renderSidebar(){
         showUndoToastFor(entry);
       });
     });
-    const detailsToggle = head.querySelector('.details-toggle');
-    const isDetailsOpen = detailsOpen.has(group.id);
-    detailsToggle.querySelector('.dt-chev').textContent = isDetailsOpen ? '\u25be' : '\u25b8';
-    detailsToggle.setAttribute('aria-expanded', isDetailsOpen ? 'true' : 'false');
-    detailsToggle.addEventListener('click', (e) => {
-      e.stopPropagation();
-      if (detailsOpen.has(group.id)) detailsOpen.delete(group.id); else detailsOpen.add(group.id);
-      renderSidebar();
-    });
     gDiv.appendChild(head);
-    if (isDetailsOpen) gDiv.appendChild(buildDetailsPanel(group, gDiv));
 
     if (isExpanded){
       const list = document.createElement('div');
@@ -3057,6 +3140,7 @@ function renderSidebar(){
           if (e.target.closest('button')) return;
           selectedGroupId = group.id;
           selectedSectionId = sec.id;
+          if (detailsGroupId){ detailsGroupId = null; detailsReturn = null; }
           renderAll();
           closeSidebarAfterNavigate();
           scrollEditorToSelectedSection();
@@ -3234,7 +3318,6 @@ document.getElementById('expandAllBtn').addEventListener('click', () => {
 });
 document.getElementById('collapseAllBtn').addEventListener('click', () => {
   expandedGroups = new Set();
-  detailsOpen.clear(); // Collapse all also closes every open Details panel
   renderSidebar();
 });
 
@@ -3514,7 +3597,7 @@ function buildCoachCard(){
     <button type="button" class="coach-dismiss" aria-label="Dismiss">✕</button>
     <h3>Start your first song</h3>
     <ol>
-      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> under the song for artists (one per line), tags, and video links.</li>
+      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> (the ⓘ icon on the song) for artists (one per line), tags, and video links.</li>
       <li><strong>Add sections</strong> — a song is its sections in playing order; add them with <strong>+ Add section</strong> under the song in the library.</li>
       <li><strong>Write rows</strong> — pick a section, then type chords on each row's top line and lyrics underneath. The preview below keeps them lined up.</li>
     </ol>`;
@@ -5018,6 +5101,15 @@ function renderMain(){
   // renderMain() rebuilds main's contents. It takes no layout space and
   // stays translated out of view until a pull gesture reveals it.
   if (typeof ptrIndicator !== 'undefined' && ptrEnabled) main.prepend(ptrIndicator);
+
+  // Song details page: a dedicated view for song-level data, opened from
+  // the song card's details icon. Takes over main until closed; the section
+  // editor below is skipped while it is open.
+  if (detailsGroupId){
+    const dg = state.sectionGroups.find(g => g.id === detailsGroupId);
+    if (dg){ renderSongDetailsPage(main, dg); return; }
+    detailsGroupId = null; // the song was deleted; fall through to the editor
+  }
 
   const sec = state.sections.find(s => s.id === selectedSectionId);
   const group = state.sectionGroups.find(g => g.id === selectedGroupId);
@@ -10103,7 +10195,9 @@ function scrollEditorToSelectedSection(){
    long expanded section list), and then just enough to expose it again. */
 function scrollSelectedSongHeadIntoView(){
   if (!selectedGroupId) return;
-  setTimeout(() => {
+  // Measure after a double rAF so auto-growing textareas have settled:
+  // setTimeout(0) can catch the pre-grow heights and land the scroll short.
+  requestAnimationFrame(() => requestAnimationFrame(() => {
     const el = document.querySelector(`.group[data-gid="${CSS.escape(selectedGroupId)}"]`);
     const scroller = document.getElementById('sidebarList');
     if (!el || !scroller) return;
@@ -10112,7 +10206,7 @@ function scrollSelectedSongHeadIntoView(){
     if (r.top < box.top || r.top > box.bottom - 1){
       animateScrollTo(scroller, scroller.scrollTop + (r.top - box.top));
     }
-  }, 0);
+  }));
 }
 
 /* Scroll-spy: while the person scrolls through a song's stacked sections in
