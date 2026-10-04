@@ -7559,6 +7559,22 @@ async function isDiskFileNewerThanSnapshot(snap, allowPrompt){
     return file.lastModified > snap.savedAt;
   }catch(err){ return null; }
 }
+// Drive twin of isDiskFileNewerThanSnapshot: true when the Drive copy of the
+// snapshotted file was modified after the recovery snapshot was saved —
+// restoring the snapshot would clobber newer Drive work (an import, another
+// device) with old browser data. Resolves null when the snapshot has no
+// Drive file id or Drive can't be reached (no token yet at boot) — callers
+// treat null as "can't tell", exactly like the disk check.
+async function isDriveFileNewerThanSnapshot(snap){
+  try{
+    if (!snap || !snap.source || !snap.source.fileId) return null;
+    const head = await driveApi('GET', `drive/v3/files/${snap.source.fileId}`, { params: { fields: 'modifiedTime' } });
+    if (!head || !head.ok) return null;
+    const meta = await head.json();
+    if (!meta || !meta.modifiedTime) return null;
+    return new Date(meta.modifiedTime).getTime() > snap.savedAt;
+  }catch(err){ return null; }
+}
 // At boot, offer to restore the last session's work inside the welcome
 // modal — the one gate every launch passes through.
 // The offer is suppressed when the linked file on disk is newer than the
@@ -7586,6 +7602,10 @@ async function maybeOfferRecovery(){
   const snap = await readRecoverySnapshot();
   if (!snap || !recoveryHasContent(snap.state)) return;
   if (await isDiskFileNewerThanSnapshot(snap, false)) return;
+  // Same staleness rule for Drive files: when the Drive copy moved on after
+  // the snapshot (an import, another device), the browser copy is stale and
+  // offering to restore it would invite overwriting the newer Drive work.
+  if (await isDriveFileNewerThanSnapshot(snap)) return;
   const when = new Date(snap.savedAt).toLocaleString(undefined, { weekday:'short', hour:'numeric', minute:'2-digit' });
   const ctaLabel = document.querySelector('#welcomeModalOverlay .welcome-cta-label');
   if (!ctaLabel) return;
@@ -7642,6 +7662,15 @@ async function maybeOfferRecovery(){
         restoreWelcomeFileButtons();
         banner.remove();
         showToast('The file on disk is newer than the auto-saved data — open it directly to keep the newest work.');
+        return;
+      }
+      // Drive twin of the disk guard above: the Drive copy may have moved on
+      // since boot (an import, another device) — never restore stale browser
+      // data over it.
+      if (await isDriveFileNewerThanSnapshot(snap)){
+        restoreWelcomeFileButtons();
+        banner.remove();
+        showToast('The Google Drive copy is newer than the auto-saved data — open it from Drive to keep the newest work.');
         return;
       }
       loadParsedState(JSON.parse(JSON.stringify(snap.state)));
