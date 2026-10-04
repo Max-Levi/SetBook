@@ -229,7 +229,14 @@ ships with them empty and hides the Drive menu items until they are
 filled; tokens are memory-only and the persisted link (file/folder ids)
 lives in the same IndexedDB store as local file handles. Drive v3 has no
 conditional writes: conflict detection compares `modifiedTime` before
-each write — a documented check-then-write race.
+each write — a documented check-then-write race. The same staleness rule
+guards the crash-recovery offer: "Pick up where you left off?" is
+suppressed (at boot and at restore-click time) when the snapshotted file
+is newer on disk — or on Drive, via `isDriveFileNewerThanSnapshot()`,
+which compares the Drive file's `modifiedTime` against the snapshot (an
+external import or another device moving the Drive copy on must not be
+overwritten by a stale browser restore). Unreachable Drive resolves to
+"can't tell" and keeps the old behavior.
 
 The file Picker itself is factored as `drivePickJsonFile(title)`, shared
 by File → Open from Google Drive… (`drivePickAndOpen`) and the Import
@@ -453,13 +460,13 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 `pdf-redownload-test.js` (11), `recovery-relink-test.js` (13),
 `filter-panel-test.js` (68), `pull-refresh-test.js` (14),
 `welcome-compact-test.js` (13), `section-numbering-test.js` (18),
-`recovery-stale-test.js` (11), `recovery-open-conflict-test.js` (38),
+`recovery-stale-test.js` (11), `recovery-drive-stale-test.js` (9), `recovery-open-conflict-test.js` (38),
 `save-age-test.js` (15), `security-test.js` (24), `video-links-test.js`
 (25), `url-import-test.js` (124), `setbook-ext-test.js` (38),
 `section-autoconvert-test.js` (33), `auto-period-test.js` (12),
 `picker-filter-test.js` (9), `import-feedback-test.js` (8),
 `pdf-preview-test.js` (32), `section-pdf-preview-test.js` (19),
-`deleted-songs-test.js` (22), `suffix-scroll-test.js` (17) — 32 suites, 848 checks in total. A refactor that changes no user-visible
+`deleted-songs-test.js` (22), `suffix-scroll-test.js` (17) — 33 suites, 857 checks in total. A refactor that changes no user-visible
 behavior does not require a documentation update beyond this file's own
 revision note.
 
