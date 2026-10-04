@@ -369,9 +369,15 @@ browser with the console visible):
   hidden on re-render).
 - Section focus button: the ◎ button in a section header shows a gold
   active state while its section is the focused one.
-- Details videos: the Videos row in a song's Details panel is collapsed
-  by default and expands automatically when the song has an album or
-  live video link.
+- Song details page: the ⓘ icon on a song card opens a dedicated details
+  page (title, artists, tags, type, ready status, both video links fully
+  visible with a Watch button); editing there syncs the sidebar card;
+  "← Back to chart" returns to the previously open section; navigating to
+  a section, focusing, or deleting the song closes the page. No console
+  errors.
+- Sidebar scroll timing: `scrollSelectedSongHeadIntoView()` measures after
+  a double rAF (not setTimeout 0) so auto-growing name fields have settled;
+  otherwise the scroll can land short when cards grow post-measure.
 - Disconnected cloud badge: with Drive not connected, the header badge
   reads "Cloud save disabled" in neutral gray (not red); the green
   "Drive" badge is unchanged while connected.
@@ -456,7 +462,7 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 `row-drag-test.js` (24), `polish4-test.js` (27),
 `mobile-drawer-test.js` (14), `snapshot-test.js` (33),
 `pdf-toc-links-test.js` (10), `tag-filter-test.js` (18),
-`export-filtered-test.js` (12), `song-details-test.js` (30),
+`export-filtered-test.js` (12), `song-details-test.js` (33),
 `pdf-redownload-test.js` (11), `recovery-relink-test.js` (13),
 `filter-panel-test.js` (68), `pull-refresh-test.js` (14),
 `welcome-compact-test.js` (13), `section-numbering-test.js` (18),
