@@ -236,7 +236,10 @@ by File → Open from Google Drive… (`drivePickAndOpen`) and the Import
 songs modal's "Choose from Drive…" button (`drivePickCopySource`). The
 import path downloads the picked file and loads it as the copy source
 only — it never opens or links it, so the open file stays the import
-target and autosave is untouched.
+target and autosave is untouched. Every imported song is marked
+In Progress on the way in (regardless of the status the source file
+claimed), so freshly pulled-in songs are easy to find and review via
+the status filter.
 
 ## 8. MCP server
 
@@ -454,7 +457,7 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 `save-age-test.js` (15), `security-test.js` (24), `video-links-test.js`
 (25), `url-import-test.js` (124), `setbook-ext-test.js` (38),
 `section-autoconvert-test.js` (33), `auto-period-test.js` (12),
-`picker-filter-test.js` (9), `import-feedback-test.js` (7),
+`picker-filter-test.js` (9), `import-feedback-test.js` (8),
 `pdf-preview-test.js` (32), `section-pdf-preview-test.js` (19),
 `deleted-songs-test.js` (22), `suffix-scroll-test.js` (17) — 32 suites, 848 checks in total. A refactor that changes no user-visible
 behavior does not require a documentation update beyond this file's own
