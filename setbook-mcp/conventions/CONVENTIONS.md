@@ -26,11 +26,16 @@ repo, or used beyond learning these conventions.
 ## Section naming
 
 - `nameType` is one of the picker's types: `intro`, `verse`, `chorus`,
-  `pre-chorus`, `bridge`, `instrumental`, `outro`, or `custom`.
+  `pre-chorus`, `bridge`, `instrumental`, `outro`, `continued`, or `custom`.
 - The app **derives** display numbering: repeated base names become
   "Verse 1", "Verse 2", "Chorus 1", "Chorus 2" on its own. In the JSON, set
   `name` to the derived form you intend (e.g. `"Verse 1"`) and keep sections
   in performance order via `order` (0-based, dense).
+- `continued` is for a section that carries on the previous one: the app
+  names it "[previous section name] (Continued)" itself, so leave `name`
+  unset for it. Consecutive continued sections number up — "Verse 1
+  (Continued)", "Verse 1 (Continued 2)" — following the file's
+  auto-numbering setting.
 - `customName` is for names the picker can't express: combined sections
   ("Verse/Chorus") or split ones the tab calls out specially. A custom
   "Chorus" still numbers together with picked choruses, so don't hand-number
@@ -104,6 +109,9 @@ user's music.
 - 1.0.1 (2026-10-03): corrected the repeats rule — the `(x#)` count goes on
   its own chord line below the final chord line, not in `nameSuffix`. The
   1.0.0 guidance was wrong: no Ready song uses a suffix for repeat counts.
+- 1.0.2 (2026-10-04): new `continued` section type — a section that carries
+  on the previous one; the app derives "[previous] (Continued)" naming, so
+  converting agents leave `name` unset for it.
 
 ## Improving these rules
 
