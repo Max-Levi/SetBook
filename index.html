@@ -2034,7 +2034,7 @@
             <li><strong>Snapshots</strong> (File &rarr; Snapshots&hellip;): automatic backups inside the app. Compare versions, see what changed, restore any of them.</li>
             <li>If the app ever closes unexpectedly, it offers to <strong>pick up where you left off</strong> when you return.</li>
             <li>Back up now and then — Save as&hellip; or a downloaded copy. The Snapshots screen nudges you if it's been a while.</li>
-            <li>The <strong>Songs</strong> menu imports songs from another SetBook file (from your computer, or from Google Drive when connected), exports just the songs you're looking at, lists recently viewed songs, and recovers the last five songs you deleted.</li>
+            <li>The <strong>Songs</strong> menu imports songs from another SetBook file (from your computer, or from Google Drive when connected), exports just the songs you're looking at, lists recently viewed songs, and recovers the last five songs you deleted. Imported songs arrive marked <strong>In Progress</strong>, so they're easy to find and review.</li>
           </ul>
         </section>
         <section id="help-extension">
@@ -8327,7 +8327,10 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   copySelectedGroupIds.forEach(gid => {
     const srcGroup = copySourceState.sectionGroups.find(g => g.id === gid);
     if (!srcGroup) return;
-    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', videoUrlLive: srcGroup.videoUrlLive || '', type: srcGroup.type || 'cover', readyStatus: srcGroup.readyStatus || 'not-ready', tags: [...groupTags(srcGroup)], updatedAt: Date.now() };
+    // Every imported song starts as In Progress, so freshly pulled-in songs
+    // are easy to find (and review) via the status filter — whatever status
+    // the source file claimed is replaced.
+    const newGroup = { id: uid('grp'), name: srcGroup.name || '', artist: srcGroup.artist || '', videoUrl: srcGroup.videoUrl || '', videoUrlLive: srcGroup.videoUrlLive || '', type: srcGroup.type || 'cover', readyStatus: 'in-progress', tags: [...groupTags(srcGroup)], updatedAt: Date.now() };
     state.sectionGroups.push(newGroup);
     importedGroups.push(newGroup);
     const srcSections = copySourceState.sections
