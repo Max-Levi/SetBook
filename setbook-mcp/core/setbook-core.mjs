@@ -22,6 +22,7 @@ const SECTION_TYPES = [
   { id:'bridge', label:'Bridge' },
   { id:'instrumental', label:'Instrumental' },
   { id:'outro', label:'Outro' },
+  { id:'continued', label:'(Continued)' },
   { id:'custom', label:'Custom' },
 ];
 // A custom name that is really a section-type name, optionally with a
@@ -285,6 +286,7 @@ function massHeaderSectionType(headerText){
   if (mapped) return mapped;
   const norm = (headerText || '').trim().toLowerCase();
   if (norm === 'solo' || norm === 'interlude') return 'instrumental';
+  if (norm === 'continued' || norm === '(continued)') return 'continued';
   return null;
 }
 
