@@ -383,6 +383,10 @@ browser with the console visible):
   ("Verse 1 (Continued 2)") following the auto-numbering setting; also
   available in the mass-entry field picker and via a `[(Continued)]`
   header line. No console errors.
+- Transpose key pickers: 17 keys — every entry pairs its relative minor
+  (C / Am); the five black keys have separate flat and sharp entries
+  (Ab / Fm vs G# / Fm). The picked spelling decides sharp-vs-flat chord
+  spellings. No console errors.
 - Disconnected cloud badge: with Drive not connected, the header badge
   reads "Cloud save disabled" in neutral gray (not red); the green
   "Drive" badge is unchanged while connected.
@@ -471,7 +475,7 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 `pdf-redownload-test.js` (11), `recovery-relink-test.js` (13),
 `filter-panel-test.js` (68), `pull-refresh-test.js` (14),
 `welcome-compact-test.js` (13), `section-numbering-test.js` (18),
-`section-continued-test.js` (10),
+`section-continued-test.js` (10), `transpose-keys-test.js` (20),
 `recovery-stale-test.js` (11), `recovery-drive-stale-test.js` (9), `recovery-open-conflict-test.js` (38),
 `save-age-test.js` (15), `security-test.js` (24), `video-links-test.js`
 (25), `url-import-test.js` (124), `setbook-ext-test.js` (38),
