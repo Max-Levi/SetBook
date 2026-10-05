@@ -1995,7 +1995,7 @@
         <section id="help-editor">
           <h3>3. Writing charts</h3>
           <ul>
-            <li>Each section is a free-text field. Type a line of chords, then the lyric line under it — chords show gold, lyrics white, so you can see at a glance what the app heard.</li>
+            <li>Each section is a free-text field. Type a line of chords, then the lyric line under it — chords show gold, lyrics white, so you can see at a glance what the app heard. <strong>↑ ↓</strong> keep the cursor in the same column, padding the line with spaces if it's short — park over a lyric, press ↑, and type the chord exactly above it.</li>
             <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, <strong>(Continued)</strong>, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own. <strong>(Continued)</strong> borrows the previous section's name — a Verse 1 followed by (Continued) shows as "Verse 1 (Continued)", and another (Continued) after that becomes "Verse 1 (Continued 2)".</li>
             <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two — the new section lands directly below the one you split. <strong>↑ ↓</strong> in a section's header moves it one slot up or down within the song.</li>
             <li>If the app misreads a line, hover over or tap into its field to reveal the little chip on the line — it flips the reading: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line. A line you've overridden keeps a small <strong>auto</strong> chip so you can switch it back.</li>
@@ -4415,6 +4415,43 @@ function massBlocksToText(blocks){
   }).join('\n\n');
 }
 
+/* Up/Down keep the cursor's horizontal column, padding the target line
+   with spaces when it's shorter — the chord-chart essential: park the
+   cursor over a lyric character, press Up, and type the chord exactly
+   above it. Padding goes through execCommand so native undo still works
+   keystroke by keystroke. Modified keys (Shift-select etc.) and
+   non-collapsed selections keep native behavior. */
+function wireCaretColumnKeep(textarea){
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+    if (e.shiftKey || e.ctrlKey || e.metaKey || e.altKey) return;
+    if (textarea.selectionStart !== textarea.selectionEnd) return;
+    const value = textarea.value;
+    const caret = textarea.selectionStart;
+    const lineStart = value.lastIndexOf('\n', caret - 1) + 1;
+    const col = caret - lineStart;
+    const dir = e.key === 'ArrowUp' ? -1 : 1;
+    let targetStart, targetEnd;
+    if (dir < 0){
+      if (lineStart === 0) return; // first line — native moves to start
+      targetEnd = lineStart - 1;
+      targetStart = value.lastIndexOf('\n', targetEnd - 1) + 1;
+    } else {
+      const nl = value.indexOf('\n', caret);
+      if (nl === -1) return; // last line — native moves to end
+      targetStart = nl + 1;
+      const nl2 = value.indexOf('\n', targetStart);
+      targetEnd = nl2 === -1 ? value.length : nl2;
+    }
+    e.preventDefault();
+    if (targetEnd - targetStart < col){
+      textarea.setSelectionRange(targetEnd, targetEnd);
+      document.execCommand('insertText', false, ' '.repeat(col - (targetEnd - targetStart)));
+    }
+    textarea.setSelectionRange(targetStart + col, targetStart + col);
+  });
+}
+
 function renderMassEntryEditor(main, group, sec){
   massResetArmed = false;
   // Fields model: the staging section is a list of fields, one per future
@@ -4575,6 +4612,7 @@ function renderMassEntryEditor(main, group, sec){
     textarea.value = field.text || '';
     if (massEntryCaretToStart && fidx === 0){ textarea.setSelectionRange(0, 0); massEntryCaretToStart = false; }
     preventAutoReplace(textarea);
+    wireCaretColumnKeep(textarea);
     const autogrowField = () => {
       textarea.style.height = 'auto';
       textarea.style.height = textarea.scrollHeight + 'px';
@@ -5031,6 +5069,7 @@ function renderSectionMassEditor(main, group, sec){
       textarea.style.height = 'auto';
       textarea.style.height = textarea.scrollHeight + 'px';
     };
+    wireCaretColumnKeep(textarea);
     textarea.addEventListener('input', () => {
       syncFromText();
       autogrow();
