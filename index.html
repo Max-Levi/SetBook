@@ -1999,7 +1999,7 @@
             <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, <strong>(Continued)</strong>, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own. <strong>(Continued)</strong> borrows the previous section's name — a Verse 1 followed by (Continued) shows as "Verse 1 (Continued)", and another (Continued) after that becomes "Verse 1 (Continued 2)".</li>
             <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two — the new section lands directly below the one you split. <strong>↑ ↓</strong> in a section's header moves it one slot up or down within the song.</li>
             <li>If the app misreads a line, hover over or tap into its field to reveal the little chip on the line — it flips the reading: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line. A line you've overridden keeps a small <strong>auto</strong> chip so you can switch it back.</li>
-            <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible.</li>
+            <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible. Each key lists its relative minor (C / Am), and enharmonic keys get separate sharp and flat entries (Ab vs G#) — the spelling you pick is the spelling your transposed chords use.</li>
             <li><strong>Private notes:</strong> wrap a lyric line in <code>/* &hellip; */</code> and it stays out of your PDFs.</li>
             <li><strong>Undo</strong> (File menu or Ctrl/Cmd+Z) covers clears, deletes, moves, and drags.</li>
             <li>Prefer the classic row editor? File &rarr; Configuration&hellip; &rarr; <strong>Use mass-entry editor for section editing</strong> switches back.</li>
@@ -5696,10 +5696,44 @@ function repeatMarkerOffsetW(doc, monoFont, block, fontSize){
    chords at all is flagged "cannot transpose" in those outputs. The
    editors themselves always show/store the original key.
 --------------------------------------------------------- */
-const TRANSPOSE_KEYS = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
-const TRANSPOSE_KEY_LABELS = { 'C#':'C# / Db', 'D#':'D# / Eb', 'F#':'F# / Gb', 'G#':'G# / Ab', 'A#':'A# / Bb' };
+/* Each key appears once per spelling: the five black keys get separate
+   flat and sharp entries (Ab vs G#), and every entry names its relative
+   minor (C / Am) so minor-key songs can find their key. The stored value
+   is the major key name; its spelling decides sharp-vs-flat chord
+   spellings when transposing. */
+const TRANSPOSE_KEYS = [
+  { key:'C',  label:'C / Am' },
+  { key:'Db', label:'Db / Bbm' },
+  { key:'C#', label:'C# / A#m' },
+  { key:'D',  label:'D / Bm' },
+  { key:'Eb', label:'Eb / Cm' },
+  { key:'D#', label:'D# / Cm' },
+  { key:'E',  label:'E / C#m' },
+  { key:'F',  label:'F / Dm' },
+  { key:'Gb', label:'Gb / Ebm' },
+  { key:'F#', label:'F# / D#m' },
+  { key:'G',  label:'G / Em' },
+  { key:'Ab', label:'Ab / Fm' },
+  { key:'G#', label:'G# / Fm' },
+  { key:'A',  label:'A / F#m' },
+  { key:'Bb', label:'Bb / Gm' },
+  { key:'A#', label:'A# / Gm' },
+  { key:'B',  label:'B / G#m' },
+];
 const TRANSPOSE_PC_BASE = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
-const TRANSPOSE_FLAT_PCS = new Set([1,3,5,6,8,10]); // Db, Eb, F, Gb, Ab, Bb — spell these keys with flats
+// For natural keys (no #/b in the name) the spelling follows the key
+// signature: F has a flat, the other naturals use sharps.
+const TRANSPOSE_FLAT_PCS = new Set([5]); // F
+// The selected key's spelling decides: flat keys spell with flats, sharp
+// keys with sharps. (A major key and its relative minor share a key
+// signature, so the major's spelling is always right for the minor too.)
+function transposeKeyFlats(key){
+  if (!key) return false;
+  if (key.includes('b')) return true;
+  if (key.includes('#')) return false;
+  const pc = transposeNoteToPc(key);
+  return pc != null && TRANSPOSE_FLAT_PCS.has(pc);
+}
 const TRANSPOSE_SHARP_SPELL = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
 const TRANSPOSE_FLAT_SPELL = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
 // Same chord shape as the deglue pass: root + optional quality/extension +
@@ -5735,8 +5769,8 @@ function transposeSymbolsValue(value, semis, flats){
     .map(p => (p && !/^[ \t]+$/.test(p)) ? transposeChordToken(p, semis, flats) : p)
     .join('');
 }
-/* Active only when a key AND a different target are set. Flat keys get
-   flat spellings (G → Bb gives Eb, Ab…); everything else uses sharps. */
+/* Active only when a key AND a different target are set. The target key's
+   own spelling decides sharps vs flats (Ab → flats, G# → sharps). */
 function sectionTransposeInfo(sec){
   if (!sec || !sec.key || !sec.transposeTo || sec.transposeTo === sec.key) return null;
   const fromPc = transposeNoteToPc(sec.key);
@@ -5745,7 +5779,7 @@ function sectionTransposeInfo(sec){
   return {
     from: sec.key, to: sec.transposeTo,
     semis: (toPc - fromPc + 12) % 12,
-    flats: TRANSPOSE_FLAT_PCS.has(toPc)
+    flats: transposeKeyFlats(sec.transposeTo)
   };
 }
 /* The display form of a section's lines: originals when no transposition
@@ -5782,15 +5816,16 @@ function blockCannotTranspose(block){
    printed chords into the chosen key. Arrows step through the key list. */
 function transposeKeyOptions(selected, includeNone){
   let html = includeNone ? `<option value=""${!selected ? ' selected' : ''}>—</option>` : '';
-  TRANSPOSE_KEYS.forEach(k => {
-    html += `<option value="${k}"${k === selected ? ' selected' : ''}>${TRANSPOSE_KEY_LABELS[k] || k}</option>`;
+  TRANSPOSE_KEYS.forEach(({key, label}) => {
+    html += `<option value="${key}"${key === selected ? ' selected' : ''}>${label}</option>`;
   });
   return html;
 }
 function stepTransposeKey(current, dir){
-  const idx = TRANSPOSE_KEYS.indexOf(current);
-  const next = idx < 0 ? (dir > 0 ? 0 : TRANSPOSE_KEYS.length - 1) : (idx + dir + 12) % 12;
-  return TRANSPOSE_KEYS[next];
+  const keys = TRANSPOSE_KEYS.map(k => k.key);
+  const idx = keys.indexOf(current);
+  const next = idx < 0 ? (dir > 0 ? 0 : keys.length - 1) : (idx + dir + keys.length) % keys.length;
+  return keys[next];
 }
 function wireTransposeControls(root, sec, onChange){
   const keySel = root.querySelector('.transpose-key-select');
