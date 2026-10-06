@@ -178,11 +178,12 @@ globalThis.__sb = {
   massRowsToText, parseMassFieldRows, classifyMassEntryLines, parseChordLine,
   normalizeScrapedText, breakOutInlineSectionHeaders,
   buildSymbolsLine, displaySectionName, massSplitDefaultType, sectionTypeFromCustomName,
-  defaultState, uid, touchGroup, touchSection,
+  defaultState, uid, touchGroup, touchSection, serializeState, SETBOOK_SCHEMA_VERSION,
+  getDevicePersonaId, mountAdSlot, AD_CONFIG,
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
   deglueChordLyricLines,
   transposeSymbolsValue, transposeChordToken, stepTransposeKey, groupLinesForDisplay,
-  TRANSPOSE_KEYS, TRANSPOSE_KEY_LABELS,
+  TRANSPOSE_KEYS,
   readRecoverySnapshot, writeRecoverySnapshot, clearRecoverySnapshot, scheduleRecoverySave,
   parseRecoverySnapshot, driveRemoteChanged, ensurePdfLib, driveConfigured
 };
@@ -483,9 +484,12 @@ suite('transpose');
   // stepper wraps both directions across the 12-key list
   check('step up from B wraps to C', sb.stepTransposeKey('B', 1) === 'C');
   check('step down from C wraps to B', sb.stepTransposeKey('C', -1) === 'B');
-  check('step up from G is G# (chromatic list)', sb.stepTransposeKey('G', 1) === 'G#');
-  check('12 keys in the list', sb.TRANSPOSE_KEYS.length === 12);
-  check('spelled labels for shared-key spellings', sb.TRANSPOSE_KEY_LABELS['F#'] === 'F# / Gb');
+  check('step up from G is Ab (chromatic list)', sb.stepTransposeKey('G', 1) === 'Ab');
+  check('17 keys in the list', sb.TRANSPOSE_KEYS.length === 17);
+  check('enharmonic black keys have separate entries',
+    sb.TRANSPOSE_KEYS.some(k => k.key === 'Ab' && k.label === 'Ab / Fm') &&
+    sb.TRANSPOSE_KEYS.some(k => k.key === 'G#' && k.label === 'G# / Fm'));
+  check('every key pairs its relative minor', sb.TRANSPOSE_KEYS.every(k => / \/ [A-G][#b]?m$/.test(k.label)));
 }
 
 /* ================= 9. deglue rules (scraped wall-of-text splitting) ================= */
@@ -522,6 +526,7 @@ suite('deglue');
     ['bar grid untouched', '| G | D | A |', ['| G | D | A |']],
     ['pure chord line untouched', 'A7  D7  E7', ['A7  D7  E7']],
     ['lone root-only chord + word stays', 'A Letter To You', ['A Letter To You']],
+    ['lone minor chord + pronoun lyric stays', 'Am I sitting here waiting', ['Am I sitting here waiting']],
   ];
   safe.forEach(([name, input, want]) => {
     const got = sb.deglueChordLyricLines(input).split('\n');
@@ -557,6 +562,7 @@ suite('deglue');
   const susCases = [
     ['sus chord at line start splits from its lyric', 'E7sus4 I just jumped the watchman, right outside the fence,',
       ['E7sus4', 'I just jumped the watchman, right outside the fence,']],
+    ['lone slash chord + lyric splits', 'C/E Walking down the avenue', ['C/E', 'Walking down the avenue']],
     ['sus chord glued to lyric splits whole', 'E7sus4I just jumped the watchman',
       ['E7sus4', 'I just jumped the watchman']],
     ['sharp sus glued to lyric splits whole', 'F#7sus4Hurts my ears to listen, Shannon,',
@@ -694,6 +700,36 @@ const driveConflictChecks = (async () => {
   // constants — assert only its contract, not the credential state.
   check('driveConfigured returns a boolean', typeof sb.driveConfigured() === 'boolean');
 })();
+
+/* ========== 13. phase-0 groundwork: schemaVersion, persona, ad slots, CSP ========== */
+{
+  // schemaVersion: every persistence path stamps it via the single seam.
+  check('serializeState stamps schemaVersion', JSON.parse(sb.serializeState()).schemaVersion === sb.SETBOOK_SCHEMA_VERSION);
+  check('serializeState stamps a copy, not the live object',
+    (() => { const o = { a: 1 }; const s = sb.serializeState(o);
+      return o.schemaVersion === undefined && JSON.parse(s).a === 1 && JSON.parse(s).schemaVersion === sb.SETBOOK_SCHEMA_VERSION; })());
+  check('defaultState carries the current schemaVersion', sb.defaultState().schemaVersion === sb.SETBOOK_SCHEMA_VERSION);
+
+  // Legacy and newer files both load: legacy becomes version 1, newer is tolerated.
+  resetApp();
+  sb.loadParsedState({ sectionGroups: [], sections: [] }); // legacy: no field
+  check('legacy file (no schemaVersion) loads as version 1', sb.state.schemaVersion === 1);
+  sb.loadParsedState({ sectionGroups: [], sections: [], schemaVersion: 99 }); // from the future
+  check('newer schemaVersion loads without throwing', sb.state.schemaVersion === 99);
+  resetApp();
+
+  // Device persona: stable, namespaced, built only from randomness.
+  const p1 = sb.getDevicePersonaId();
+  const p2 = sb.getDevicePersonaId();
+  check('device persona id is stable and namespaced', typeof p1 === 'string' && p1 === p2 && p1.indexOf('dev_') === 0);
+
+  // Ad slots: the mount contract is inert while ads are disabled.
+  check('ad slots are disabled by default', sb.AD_CONFIG.enabled === false);
+  check('mountAdSlot renders nothing while disabled', sb.mountAdSlot('footer') === null);
+
+  // CSP meta ships in the head (asserted against the raw file, not the sandbox DOM).
+  check('Content-Security-Policy meta is present', /http-equiv="Content-Security-Policy"/.test(html));
+}
 
 /* ================= summary ================= */
 Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks]).then(() => {

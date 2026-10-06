@@ -21,6 +21,7 @@ without the app caring which backend is active:
 configFields()                 // backend settings for a config UI
 configure(opts)                // credentials live in memory only, never persisted
 isConfigured() -> bool
+quota() -> null | {used, limit, unit}   // null = backend can't report
 listBooks() -> [{id, name, updatedAt}]
 loadBook(id) -> {data, rev}    // rev is opaque per backend
 saveBook(id, data, rev) -> {rev}   // rev=null means "create"; stale rev throws ConflictError
@@ -53,6 +54,11 @@ deleteBook(id)
    The algorithm is a faithful transcription of the documented steps, but **live
    verification against real AWS with real credentials is a merge-phase
    acceptance test** — do not ship the S3 adapter without it.
+7. **`quota()` is the free/pro seam.** Every adapter can report the user's
+   storage allowance (`{used, limit, unit}`) or `null` when the backend has no
+   byte-quota concept (local files, GitHub, S3; the browser adapter uses
+   `navigator.storage.estimate()`). A future first-party backend reports the
+   signed-in plan here — the app itself never hardcodes limits.
 
 ## What's not in the spike
 

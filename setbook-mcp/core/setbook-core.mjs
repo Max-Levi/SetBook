@@ -110,19 +110,26 @@ function deglueTrailingTail(line){
    chord lines have no remainder and are untouched. */
 function deglueLeadingChordRun(line){
   const parts = line.split(/([ \t]+)/);
-  let idx = 0, chords = 0;
+  let idx = 0, chords = 0, firstTok = null;
   while (idx < parts.length){
     const t = parts[idx];
     if (t === '' || /^[ \t]+$/.test(t)){ idx++; continue; }
     if (/^\|+$/.test(t) || /^x\d+$/i.test(t)){ idx++; continue; }
     if (DEGLUE_CHORD_RE.test(t)){
+      if (firstTok === null) firstTok = t;
       chords++;
       idx++;
       continue;
     }
     break;
   }
-  if (chords < 2) return null;
+  // A run of two or more chord tokens before lyric text always splits. A
+  // LONE leading chord splits only when it is unambiguous — digit, #/b,
+  // quality word, or slash bass (E7sus4, Dm7, C/E) — so a bare root or
+  // root+minor stays attached to the sentence it started ("Am I sitting
+  // here", "A Letter To You").
+  const loneReal = chords === 1 && firstTok !== null && deglueLeadLowerIsRealChord(firstTok);
+  if (chords < 2 && !loneReal) return null;
   const rest = parts.slice(idx).join('');
   // Only split when lyric text actually follows the run (a pure chord
   // line — possibly with trailing pipes — has none).

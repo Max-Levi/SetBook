@@ -22,6 +22,8 @@ No build step, no server — it's one self-contained HTML file.
   IndexedDB, GitHub, S3, generic REST) behind one adapter interface.
   See `storage/STORAGE_SPIKE_README.md`. `storage/spike-demo.html` is a
   live demo page.
+- `docs/` — the maintainer reference (`MAINTAINER.md`) and the privacy
+  policy (`PRIVACY.md`).
 
 ## Updating the hosted app
 

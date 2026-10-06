@@ -51,6 +51,11 @@ re-fetch with a cache-buster before diagnosing a stale deploy.
 
 All persistent data is a JSON serialization of the `state` object:
 
+- `schemaVersion` — the saved-data shape version (`SETBOOK_SCHEMA_VERSION`;
+  currently 1). Files without the field are legacy (pre-versioning) and load
+  as version 1; files with a NEWER version still load (unknown fields are
+  ignored here and preserved on the next save), so a bump never locks anyone
+  out of their own songs. Per-version migrations live in `loadParsedState()`.
 - `sectionGroups[]` — songs. Fields: `id`, `name` (title), `artist`,
   `videoUrl` (album-version link, optional), `videoUrlLive`
   (live-performance link, optional), `type` (`"cover"` | `"original"`,
@@ -121,6 +126,11 @@ All persistent data is a JSON serialization of the `state` object:
 
 ## 4. Code organization and invariants
 
+- All persistence serialization goes through `serializeState()` — the one
+  seam that stamps `schemaVersion` on a shallow copy (live state is never
+  mutated by a save). Never call `JSON.stringify(state)` directly in a save
+  path: the linked-file save, `driveFileBody()`, the Save-as/backup
+  download, and the filtered export all route through the seam.
 - All display-affecting transforms (lyric-continuation grouping,
   comment-line stripping, repeat markers) are centralized in
   `groupLinesForDisplay` and its helpers so the preview and both PDF
@@ -218,6 +228,17 @@ All persistent data is a JSON serialization of the `state` object:
   `CACHE_VERSION` in `sw.js` whenever the pre-cached asset list changes.
   Registration is guarded to https/localhost and never blocks the app —
   including the Node test sandbox, which provides no service worker.
+- A `Content-Security-Policy` meta pins every origin the page may touch:
+  `script-src 'unsafe-inline' https://cdnjs.cloudflare.com` (the whole app
+  is inline script, so 'unsafe-inline' is unavoidable without a build step —
+  it is also what keeps the scraper extension's MAIN-world injections
+  working), `style-src` inline + fonts.googleapis.com, `font-src`
+  fonts.gstatic.com, `connect-src https:` (URL import + Drive),
+  `img-src 'self' data: blob:`, `frame-src blob:` (PDF preview iframe),
+  `worker-src 'self' blob:` (sw.js registration + pdf.js worker),
+  `object-src 'none'`, `base-uri 'none'`. Adding an
+  external origin means updating the CSP meta, the pinned SRI, `sw.js`, and
+  the security test together — one change, four places.
 
 ## 7. Google Drive cloud save
 
@@ -290,6 +311,9 @@ Run this audit on every change; fix what you find, test, and deploy:
 
 - CDN dependencies without pinned SRI (jsPDF, PDF.js main + worker,
   Google Fonts).
+- CSP meta missing an origin a change newly fetches script, style, font, or
+  connect access for (see §6) — and check the browser console for CSP
+  violation reports after any dependency change.
 - `innerHTML` / DOM sinks fed by untrusted data (imported files, scraped
   pages) — scraped text must only ever reach input values or plain
   strings.
@@ -495,8 +519,39 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 behavior does not require a documentation update beyond this file's own
 revision note.
 
+## 13. Phase-0 groundwork for a future service
+
+Inert scaffolding for the day SetBook grows accounts/sync, ads, or a
+subscription. None of it changes behavior today; all of it is tested in the
+regression suite and documented so the future change is a plug-in, not a
+rewrite.
+
+- **Serialization seam** — `serializeState()` (§4) is the single path every
+  save takes; a future sync backend reads/writes the same bytes users' files
+  already use.
+- **Anonymous device persona** — `getDevicePersonaId()` returns a stable
+  random `dev_…` id from localStorage (null when storage is unavailable). It
+  identifies nothing personal and is not transmitted. When accounts arrive,
+  sign-up links this persona's local data (recovery snapshots, linked-file
+  history) to the account so existing users keep their work. Privacy note:
+  docs/PRIVACY.md discloses it.
+- **Ad-slot contract** — `AD_CONFIG` (disabled) + `mountAdSlot(name)`. Ads
+  must never mount inside the editor, sidebar, or preview DOM; the SDK (if
+  there ever is one) must be lazy-loaded behind user consent, exactly like
+  `ensurePdfLib()`, so the core file stays ad-free and CSP changes stay
+  localized. While `AD_CONFIG.enabled` is false the mount returns null and
+  renders nothing.
+- **Adapter quota seam** — `storage/storage-adapters.js` adapters implement
+  `quota() -> null | {used, limit, unit}` (see the storage spike README).
+  A future first-party backend reports the signed-in plan there; the app
+  never hardcodes storage limits.
+- **Privacy policy** — docs/PRIVACY.md states today's reality (no accounts,
+  no analytics, no ads). It must be rewritten BEFORE any account/ad/
+  subscription feature ships.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
-Keep it current: it is the reference any tool or human uses to maintain
-and extend this app.*
+Revised 2026-10-05: schemaVersion + serializeState seam, CSP meta, Phase-0
+groundwork (§13), adapter quota seam. Keep it current: it is the reference
+any tool or human uses to maintain and extend this app.*

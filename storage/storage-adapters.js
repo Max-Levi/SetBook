@@ -11,6 +11,7 @@
  *   configFields()             // [{key,label,type:'text'|'password'|'checkbox',secret?,placeholder?}]
  *   configure(opts)            // backend settings; credentials live in memory only
  *   isConfigured() -> bool
+ *   quota() -> null | { used, limit, unit }   // null = backend can't report
  *   listBooks() -> [{id, name, updatedAt}]
  *   loadBook(id) -> {data, rev}            // rev is opaque; see below
  *   saveBook(id, data, rev) -> {rev}       // rev=null means "create"; throws ConflictError
@@ -51,6 +52,8 @@ const SetBookStorage = (() => {
     configFields() { return []; }
     async configure() { this._dirHandle = null; }
     isConfigured() { return true; }
+
+    async quota() { return null; } // local files: capacity unknowable
 
     async listBooks() {
       if (!this._dirHandle) return [];
@@ -127,6 +130,17 @@ const SetBookStorage = (() => {
     configFields() { return []; }
     async configure() { /* nothing to configure */ }
     isConfigured() { return true; }
+
+    async quota() {
+      // Real byte figures where the browser exposes them; null otherwise.
+      if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.estimate){
+        const est = await navigator.storage.estimate();
+        return { used: (est && est.usage != null) ? est.usage : null,
+                 limit: (est && est.quota != null) ? est.quota : null,
+                 unit: 'bytes' };
+      }
+      return null;
+    }
 
     _open() {
       if (this._db) return Promise.resolve(this._db);
@@ -205,6 +219,8 @@ const SetBookStorage = (() => {
     isConfigured() {
       return !!(this._cfg && this._cfg.owner && this._cfg.repo && this._cfg.token);
     }
+
+    async quota() { return null; } // GitHub reports rate limits, not byte quotas
     _headers() {
       return {
         'Accept': 'application/vnd.github+json',
@@ -348,6 +364,8 @@ const SetBookStorage = (() => {
     isConfigured() {
       return !!(this._cfg && this._cfg.endpoint && this._cfg.bucket && this._cfg.accessKey && this._cfg.secretKey);
     }
+
+    async quota() { return null; } // S3 buckets have no byte-quota API
     _key(id) { return `${this._cfg.prefix}${id}.json`; }
     _url(key, query = '') {
       const { endpoint, bucket, pathStyle } = this._cfg;
@@ -447,6 +465,8 @@ const SetBookStorage = (() => {
       this._cfg = { baseUrl: (opts.baseUrl || '').trim().replace(/\/$/, ''), apiKey: opts.apiKey || '' };
     }
     isConfigured() { return !!(this._cfg && this._cfg.baseUrl); }
+
+    async quota() { return null; } // a first-party backend would report the user's plan here
     _headers(extra = {}) {
       return {
         'Content-Type': 'application/json',

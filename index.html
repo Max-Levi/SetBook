@@ -14,6 +14,14 @@
 <meta charset="UTF-8">
 <meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- Content-Security-Policy: the whole app is inline script/style (single
+     file), so 'unsafe-inline' is required; every other source is pinned to
+     the exact origins the app uses (cdnjs for jsPDF/PDF.js, Google Fonts).
+     Adding a CDN dependency means adding its origin here AND a pinned SRI
+     hash (docs/MAINTAINER.md §6). connect-src https: covers the URL-import
+     fetch and Drive; blob: covers the PDF preview iframe and pdf.js worker;
+     worker-src also allows 'self' so sw.js can register. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https:; img-src 'self' data: blob:; frame-src blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
 <!-- PWA: installable + offline-capable (see sw.js). The SW registration
      is guarded below: it only runs on https/localhost, never on file://,
      and its absence must never block the app. -->
@@ -1963,7 +1971,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook Help</h2>
-    <p class="modal-sub">Last updated 2026-10-01.</p>
+    <p class="modal-sub">Last updated 2026-10-05.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-start">1. Your songbook</a>
@@ -1979,7 +1987,7 @@
         <section id="help-start">
           <h3>1. Your songbook</h3>
           <p>SetBook keeps your songs as chord charts — chords sitting right above the lyrics where they change, organized the way musicians think: by section. Verse, Chorus, Bridge, and your own names. Build your library once, then read it on any screen or print it for the music stand.</p>
-          <p>Everything lives in a file you own, on your device or in your Google Drive. No account, no server, no subscription — your songs are yours.</p>
+          <p>Everything lives in a file you own, on your device or in your Google Drive. No account, no server, no subscription — your songs are yours. SetBook collects nothing: no analytics, no tracking, no ads.</p>
         </section>
         <section id="help-library">
           <h3>2. Finding songs</h3>
@@ -2151,11 +2159,18 @@ if (IS_QA){
      sections: [{ id, groupId, name, order, lines: [{symbols, text}] }]
    }
 --------------------------------------------------------- */
+// Bump when the saved-data shape changes; loadParsedState migrates older
+// files upward. Files without the field are legacy (pre-versioning) and
+// load as version 1. Newer files still load here (unknown fields are
+// ignored), so version bumps never lock anyone out of their own songs.
+const SETBOOK_SCHEMA_VERSION = 1;
+
 // Single source of truth for a fresh state object — used both for the
 // initial load and for "new file" resets, so a new field can never be
 // added in one place and forgotten in the other.
 function defaultState(){
   return {
+    schemaVersion: SETBOOK_SCHEMA_VERSION,
     sectionGroups: [], sections: [], projectName: '', songSubsets: [],
     songSort: { field: 'title', dir: 'asc' },
     lastFolderName: '', sidebarWidth: 270,
@@ -2175,6 +2190,52 @@ let state = defaultState();
 let selectedGroupId = null;
 let selectedSectionId = null;
 let expandedGroups = new Set();
+
+/* ---------------------------------------------------------
+   Phase-0 groundwork: persistence seam, device persona, ad slots.
+   All inert today — these are the shapes a future accounts/sync/ad
+   service plugs into without reworking the app. See docs/MAINTAINER.md
+   §13 and docs/PRIVACY.md.
+--------------------------------------------------------- */
+
+// Single serialization seam: EVERY persistence path (linked-file save,
+// Drive autosave, Save-as / backup download, filtered export) serializes
+// through here, so the schemaVersion stamp can never be forgotten on one
+// path. Stamps a shallow copy — live state is never mutated by a save.
+function serializeState(obj = state){
+  return JSON.stringify({ ...obj, schemaVersion: SETBOOK_SCHEMA_VERSION }, null, 2);
+}
+
+// Anonymous device persona: a stable random id scoped to this browser
+// profile. It identifies nothing personal — no account, no contact info.
+// When accounts arrive, signing up links this persona's local data
+// (recovery snapshots, linked-file history) to the account so existing
+// users keep their work. Storage unavailable -> null (persona unknown).
+function getDevicePersonaId(){
+  try{
+    let id = localStorage.getItem('setbook-device-persona');
+    if (!id){
+      id = uid('dev_');
+      localStorage.setItem('setbook-device-persona', id);
+    }
+    return id;
+  }catch(e){ return null; }
+}
+
+// Advertising groundwork: an explicit, inert mount contract. No ad SDK
+// ships today. If ads ever arrive, each slot mounts ONLY through here —
+// never inside the editor, sidebar, or preview DOM — and the SDK must be
+// lazy-loaded behind user consent (same pattern as ensurePdfLib), so the
+// core file stays ad-free and CSP changes stay localized to this block.
+const AD_CONFIG = { enabled: false, slots: {} };
+function mountAdSlot(name){
+  if (!AD_CONFIG.enabled) return null; // ads are off — callers render nothing
+  const el = document.createElement('div');
+  el.className = 'ad-slot';
+  el.dataset.adSlot = String(name);
+  el.setAttribute('aria-hidden', 'true');
+  return el;
+}
 
 /*__SETBOOK_MCP_CORE_BEGIN__*/
 /* NOTE (MCP core): this region is extracted verbatim into
@@ -3870,19 +3931,26 @@ function deglueTrailingTail(line){
    chord lines have no remainder and are untouched. */
 function deglueLeadingChordRun(line){
   const parts = line.split(/([ \t]+)/);
-  let idx = 0, chords = 0;
+  let idx = 0, chords = 0, firstTok = null;
   while (idx < parts.length){
     const t = parts[idx];
     if (t === '' || /^[ \t]+$/.test(t)){ idx++; continue; }
     if (/^\|+$/.test(t) || /^x\d+$/i.test(t)){ idx++; continue; }
     if (DEGLUE_CHORD_RE.test(t)){
+      if (firstTok === null) firstTok = t;
       chords++;
       idx++;
       continue;
     }
     break;
   }
-  if (chords < 2) return null;
+  // A run of two or more chord tokens before lyric text always splits. A
+  // LONE leading chord splits only when it is unambiguous — digit, #/b,
+  // quality word, or slash bass (E7sus4, Dm7, C/E) — so a bare root or
+  // root+minor stays attached to the sentence it started ("Am I sitting
+  // here", "A Letter To You").
+  const loneReal = chords === 1 && firstTok !== null && deglueLeadLowerIsRealChord(firstTok);
+  if (chords < 2 && !loneReal) return null;
   const rest = parts.slice(idx).join('');
   // Only split when lyric text actually follows the run (a pure chord
   // line — possibly with trailing pipes — has none).
@@ -6729,7 +6797,7 @@ async function doSave(){
     updateSaveStatus('saving');
     const writable = await fileHandle.createWritable();
     stampSectionDisplayNames();
-    await writable.write(JSON.stringify(state, null, 2));
+    await writable.write(serializeState());
     await writable.close();
     fileSaveFailed = false;
     updateSaveStatus('saved');
@@ -6945,7 +7013,7 @@ async function driveApi(method, path, opts = {}){
   return res;
 }
 
-function driveFileBody(){ return JSON.stringify(state, null, 2); }
+function driveFileBody(){ return serializeState(); }
 // The conflict decision, extracted pure for the regression tests: a remote
 // modification time conflicts only when we have a known baseline AND it
 // differs. A null baseline (fresh link) adopts the remote state silently.
@@ -7917,6 +7985,11 @@ function assertParsedState(parsed){
 function loadParsedState(parsed){
   assertParsedState(parsed);
   state = parsed;
+  // Files saved before versioning existed carry no schemaVersion — treat
+  // them as version 1. A NEWER file (schemaVersion > current) still loads:
+  // unknown fields are ignored here and preserved by the spread in
+  // serializeState, so newer saves round-trip through older apps.
+  if (typeof state.schemaVersion !== 'number' || !isFinite(state.schemaVersion)) state.schemaVersion = 1;
   state.sections.forEach(migrateSectionName);
   state.sections.forEach(migrateMultilineLyrics);
   // updatedAt: old files predate the field — migrate to null ("unknown"),
@@ -8229,7 +8302,7 @@ function exportFilteredSongs(){
   const base = currentFileName || `setbook-${new Date().toISOString().slice(0,10)}.json`;
   const dot = base.lastIndexOf('.');
   const name = qaStamp(dot > 0 ? base.slice(0, dot) + ' (filtered)' + base.slice(dot) : base + ' (filtered)');
-  const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+  const blob = new Blob([serializeState(out)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -8245,7 +8318,7 @@ function exportFilteredSongs(){
 function downloadCopy(){
   stampSectionDisplayNames();
   state.lastBackupAt = Date.now(); // an explicit download is a backup copy
-  const blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+  const blob = new Blob([serializeState()], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
