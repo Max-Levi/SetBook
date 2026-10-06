@@ -1971,7 +1971,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook Help</h2>
-    <p class="modal-sub">Last updated 2026-10-05.</p>
+    <p class="modal-sub">Last updated 2026-10-06.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-start">1. Your songbook</a>
@@ -2038,6 +2038,7 @@
             <li>If the app ever closes unexpectedly, it offers to <strong>pick up where you left off</strong> when you return.</li>
             <li>Back up now and then — Save as&hellip; or a downloaded copy. The Snapshots screen nudges you if it's been a while.</li>
             <li>The <strong>Songs</strong> menu imports songs from another SetBook file (from your computer, or from Google Drive when connected), exports just the songs you're looking at, lists recently viewed songs, and recovers the last five songs you deleted. Imported songs arrive marked <strong>In Progress</strong>, so they're easy to find and review.</li>
+            <li>Deleting a song also leaves an invisible <strong>deletion marker</strong> in the file (up to 50, handled entirely in the background — you never manage these). If the same library is ever kept in step across devices, markers are how a song deleted here stays deleted there instead of reappearing from the other device's older copy. Delete a song and change your mind right away — Undo — and the marker goes with it.</li>
           </ul>
         </section>
         <section id="help-extension">
@@ -2183,6 +2184,7 @@ function defaultState(){
     readyFilter: { ready: true, notReady: true, inProgress: true },
     recentlyViewed: [],
     recentlyDeleted: [],
+    tombstones: [],
     tagFilter: '', artistFilter: ''
   };
 }
@@ -3756,6 +3758,7 @@ function renderSidebar(){
         state.sections = state.sections.filter(s => s.groupId !== group.id);
         state.sectionGroups = state.sectionGroups.filter(g => g.id !== group.id);
         recordSongDeleted(removedGroup, removedSections, groupIdx);
+        recordSongTombstone(group.id);
         if (selectedGroupId === group.id){ selectedGroupId = null; selectedSectionId = null; }
         if (state.focusedGroupId === group.id) state.focusedGroupId = null;
         if (detailsGroupId === group.id){ detailsGroupId = null; detailsReturn = null; }
@@ -3765,6 +3768,7 @@ function renderSidebar(){
           state.sectionGroups.splice(Math.min(groupIdx, state.sectionGroups.length), 0, removedGroup);
           state.sections.push(...removedSections);
           dropDeletedSong(removedGroup.id);
+          dropSongTombstone(removedGroup.id);
           if (wasSelected){ selectedGroupId = prevSelGroup; selectedSectionId = prevSelSec; }
           if (wasFocused) state.focusedGroupId = removedGroup.id;
           scheduleSave();
@@ -7232,6 +7236,100 @@ function dropDeletedSong(groupId){
   if (!Array.isArray(state.recentlyDeleted)) return;
   state.recentlyDeleted = state.recentlyDeleted.filter(e => e && e.group && e.group.id !== groupId);
 }
+
+/* Deletion tombstones (sync groundwork): a bounded list of { id, deletedAt }
+   for deleted songs, saved with the file. A tombstone tells a future
+   multi-device merge "this song id was deleted at this time", so a song
+   deleted on one device is not resurrected by an older copy of it on
+   another. Song ids are never reused (uid()), so a live song with a
+   tombstoned id can only mean the delete was undone somewhere — the prune
+   rule then drops the tombstone. Kept separate from recentlyDeleted,
+   which is a small user-facing undo convenience that intentionally
+   forgets; tombstones must outlive that forgetting. */
+const MAX_TOMBSTONES = 50;
+function recordSongTombstone(groupId, deletedAt = Date.now()){
+  if (!groupId) return;
+  const list = Array.isArray(state.tombstones) ? state.tombstones : [];
+  state.tombstones = [{ id: groupId, deletedAt },
+    ...list.filter(t => t && t.id !== groupId)].slice(0, MAX_TOMBSTONES);
+}
+function dropSongTombstone(groupId){
+  if (!Array.isArray(state.tombstones)) return;
+  state.tombstones = state.tombstones.filter(t => t && t.id !== groupId);
+}
+// A tombstone whose song is alive again (restored, undo, or re-imported
+// into a file that still carried the tombstone) is meaningless and would
+// wrongly hide a live song from a merge — drop those.
+function pruneTombstonesForLiveSongs(){
+  if (!Array.isArray(state.tombstones)) return;
+  const live = new Set((state.sectionGroups || []).map(g => g.id));
+  state.tombstones = state.tombstones.filter(t => t && !live.has(t.id));
+}
+const songUpdated = (g) => (g && typeof g.updatedAt === 'number' && isFinite(g.updatedAt)) ? g.updatedAt : 0;
+/* Two-way merge of two songbooks sharing a history, at whole-song
+   granularity (the storage spike's per-song conclusion). Pure: reads its
+   arguments, returns { sectionGroups, sections, tombstones } — the caller
+   owns the live state and the file-level fields.
+   - Songs present on both sides: the newer updatedAt wins wholesale.
+   - A song on one side only: kept unless the other side carries a
+     tombstone for its id with deletedAt >= song.updatedAt (a delete that
+     happened after the song's last edit). An older tombstone loses to the
+     newer edit — the song was changed after the other device deleted it.
+   - Tombstones: union, newest deletedAt per id, then pruned of any id
+     that survives as a live song in the merged result. */
+function mergeSongbooksForSync(mine, theirs){
+  const mGroups = (mine && Array.isArray(mine.sectionGroups)) ? mine.sectionGroups : [];
+  const tGroups = (theirs && Array.isArray(theirs.sectionGroups)) ? theirs.sectionGroups : [];
+  const mSecs = (mine && Array.isArray(mine.sections)) ? mine.sections : [];
+  const tSecs = (theirs && Array.isArray(theirs.sections)) ? theirs.sections : [];
+  const tombOf = (book) => {
+    const map = new Map();
+    ((book && Array.isArray(book.tombstones)) ? book.tombstones : []).forEach(t => {
+      if (t && typeof t.id === 'string'){
+        const prev = map.get(t.id);
+        if (!prev || (t.deletedAt || 0) > (prev.deletedAt || 0)) map.set(t.id, { id: t.id, deletedAt: t.deletedAt || 0 });
+      }
+    });
+    return map;
+  };
+  const mineTomb = tombOf(mine), theirsTomb = tombOf(theirs);
+  const mById = new Map(mGroups.map(g => [g.id, g]));
+  const tById = new Map(tGroups.map(g => [g.id, g]));
+  const allIds = [];
+  new Set([...mById.keys(), ...tById.keys()]).forEach(id => allIds.push(id));
+  const keptGroups = [];
+  const sections = [];
+  allIds.forEach(id => {
+    const m = mById.get(id), t = tById.get(id);
+    let winner = null, winnerSecs = null;
+    if (m && t){
+      // Newer updatedAt wins WHOLESALE — song and sections together;
+      // mixing both sides' sections would interleave two versions.
+      if (songUpdated(m) >= songUpdated(t)){ winner = m; winnerSecs = mSecs; }
+      else { winner = t; winnerSecs = tSecs; }
+    } else if (m){
+      const tomb = theirsTomb.get(id);
+      if (!(tomb && (tomb.deletedAt || 0) >= songUpdated(m))){ winner = m; winnerSecs = mSecs; }
+    } else {
+      const tomb = mineTomb.get(id);
+      if (!(tomb && (tomb.deletedAt || 0) >= songUpdated(t))){ winner = t; winnerSecs = tSecs; }
+    }
+    if (winner){
+      keptGroups.push(winner);
+      winnerSecs.forEach(s => { if (s && s.groupId === id) sections.push(s); });
+    }
+  });
+  const keptIds = new Set(keptGroups.map(g => g.id));
+  const secSeen = new Set();
+  const dedupedSections = sections.filter(s => (secSeen.has(s.id) ? false : (secSeen.add(s.id), true)));
+  const mergedTomb = new Map();
+  [...mineTomb.values(), ...theirsTomb.values()].forEach(t => {
+    const prev = mergedTomb.get(t.id);
+    if (!prev || t.deletedAt > prev.deletedAt) mergedTomb.set(t.id, t);
+  });
+  const tombstones = [...mergedTomb.values()].filter(t => !keptIds.has(t.id)).slice(0, MAX_TOMBSTONES);
+  return { sectionGroups: keptGroups, sections: dedupedSections, tombstones };
+}
 const deletedModal = wireModal({ overlayId:'deletedModalOverlay', openBtnId:'btnDeletedSongs', closeBtnId:'deletedCloseBtn',
   onOpen: renderDeletedSongList });
 function renderDeletedSongList(){
@@ -7264,6 +7362,7 @@ function restoreDeletedSong(entry){
     state.sections.push(...entry.sections.filter(s => !secIds.has(s.id)));
   }
   dropDeletedSong(entry.group.id);
+  dropSongTombstone(entry.group.id);
   selectedGroupId = entry.group.id;
   const secs = groupSections(entry.group.id);
   selectedSectionId = secs.length ? secs[0].id : null;
@@ -8611,6 +8710,13 @@ function loadParsedState(parsed){
   state.recentlyDeleted = state.recentlyDeleted
     .filter(e => e && e.group && typeof e.group.id === 'string' && Array.isArray(e.sections)
       && typeof e.at === 'number' && typeof e.index === 'number').slice(0, 5);
+  // Deletion tombstones: validate, cap, and drop any whose song is live
+  // (a file edited on another device may have restored it since).
+  if (!Array.isArray(state.tombstones)) state.tombstones = [];
+  state.tombstones = state.tombstones
+    .filter(t => t && typeof t.id === 'string' && typeof t.deletedAt === 'number' && isFinite(t.deletedAt))
+    .slice(0, MAX_TOMBSTONES);
+  pruneTombstonesForLiveSongs();
   const sort = state.songSort;
   if (sort && (sort.field === 'title' || sort.field === 'artist') && (sort.dir === 'asc' || sort.dir === 'desc')){
     songSortField = sort.field;

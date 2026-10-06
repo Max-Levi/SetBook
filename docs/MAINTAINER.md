@@ -117,7 +117,26 @@ All persistent data is a JSON serialization of the `state` object:
   recent first), powering Songs → Recently viewed songs….
 - `recentlyDeleted[]` — the last five deleted songs as full snapshots
   (`{ group, sections, index, at }`, most recent first), powering
-  Songs → Recently deleted songs…. Restoring re-inserts the song at its
+  Songs → Recently deleted songs….
+- `tombstones[]` — bounded (50) deletion markers `{ id, deletedAt }` for
+  deleted songs, saved with the file. Sync groundwork: a future multi-device
+  merge uses them to keep a song deleted on one device from being
+  resurrected by an older copy on another. Rules: song ids are never
+  reused, so a live song with a tombstoned id means the delete was undone —
+  `pruneTombstonesForLiveSongs()` drops those (and `loadParsedState`
+  validates/caps/prunes on every load); undo and Recently-deleted restore
+  drop the tombstone via `dropSongTombstone()`. Deletions on devices that
+  never re-sync eventually fall out of the 50-cap — an accepted bound, not
+  a correctness risk for the merge below.
+- `mergeSongbooksForSync(mine, theirs)` — pure two-way, whole-song merge
+  for a future sync backend: newer `updatedAt` wins wholesale (song AND its
+  sections — never interleave two versions of one song); a one-sided song
+  survives unless the other side carries a tombstone with
+  `deletedAt >= song.updatedAt` (edit-after-delete wins); tombstones union
+  newest-per-id, pruned of survivors. Returns
+  `{ sectionGroups, sections, tombstones }`; callers own file-level fields
+  and the live state. Not yet called from UI code — it is the contract a
+  sync adapter will consume (see §13). Restoring re-inserts the song at its
   original position with all its sections; the undo-restore path drops
   the entry so a song restored via Undo can't be restored twice. Named
   deleted songs also count as "real work" for the crash-recovery offer
@@ -562,6 +581,12 @@ rewrite.
 - **Privacy policy** — docs/PRIVACY.md states today's reality (no accounts,
   no analytics, no ads). It must be rewritten BEFORE any account/ad/
   subscription feature ships.
+- **Deletion tombstones + two-way merge** — `state.tombstones` (§3) and
+  `mergeSongbooksForSync()` give sync a way to represent deletions and
+  resolve whole-song conflicts without a server format change: the merged
+  result is an ordinary songbook file. The remaining piece is a sync
+  adapter (the facade from the adapter merge) that fetches both sides,
+  calls the merge, and writes the result.
 
 ---
 
@@ -569,5 +594,6 @@ rewrite.
 Revised 2026-10-05: schemaVersion + serializeState seam, CSP meta, Phase-0
 groundwork (§13), adapter quota seam. Revised 2026-10-06: storage-adapters
 embedded verbatim; LinkedFileBookAdapter/DriveBookAdapter +
-activeBookAdapter() facade as the single write/load path. Keep it current:
+activeBookAdapter() facade as the single write/load path; deletion
+tombstones + mergeSongbooksForSync() sync groundwork. Keep it current:
 it is the reference any tool or human uses to maintain and extend this app.*

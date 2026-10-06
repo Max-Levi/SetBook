@@ -26,7 +26,10 @@ No build step, no server — it's one self-contained HTML file.
   and Drive save/load paths through adapters on the same contract —
   sync with `node tools/embed-storage.js` after editing it.
 - `docs/` — the maintainer reference (`MAINTAINER.md`) and the privacy
-  policy (`PRIVACY.md`).
+  policy (`PRIVACY.md`). The songbook schema already carries deletion
+  tombstones and a two-way whole-song merge helper
+  (`mergeSongbooksForSync`), so a future sync backend can represent
+  deletions without changing the file format.
 
 ## Updating the hosted app
 

@@ -189,6 +189,8 @@ globalThis.__sb = {
   getDevicePersonaId, mountAdSlot, AD_CONFIG,
   SetBookStorage, activeBookAdapter, linkedFileBookAdapter, driveBookAdapter,
   LinkedFileBookAdapter, DriveBookAdapter,
+  recordSongTombstone, dropSongTombstone, pruneTombstonesForLiveSongs,
+  mergeSongbooksForSync, MAX_TOMBSTONES,
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
   deglueChordLyricLines,
   transposeSymbolsValue, transposeChordToken, stepTransposeKey, groupLinesForDisplay,
@@ -818,6 +820,103 @@ const adapterChecks = (async () => {
   sb.fileHandle = null;
   sb.driveLink = null;
 })();
+
+/* ========== 15. sync tombstones + two-way merge ========== */
+{
+  const song = (id, updatedAt, extra) => Object.assign({ id, name: 'Song ' + id, artist: '', updatedAt }, extra || {});
+  const sec = (id, groupId, order) => ({ id, groupId, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order, lines: [] });
+
+  // recordSongTombstone: newest-first, deduped by id, capped.
+  sb.state = sb.defaultState();
+  sb.recordSongTombstone('g1', 1000);
+  sb.recordSongTombstone('g2', 2000);
+  sb.recordSongTombstone('g1', 3000); // re-delete wins, stays single
+  check('tombstone: newest first, deduped by id',
+    sb.state.tombstones.length === 2 && sb.state.tombstones[0].id === 'g1' && sb.state.tombstones[0].deletedAt === 3000);
+  for (let i = 0; i < sb.MAX_TOMBSTONES + 5; i++) sb.recordSongTombstone('x' + i, 4000 + i);
+  check('tombstone: capped at MAX_TOMBSTONES', sb.state.tombstones.length === sb.MAX_TOMBSTONES);
+  check('tombstone: newest kept when over cap', sb.state.tombstones[0].id === 'x' + (sb.MAX_TOMBSTONES + 4));
+
+  // drop + prune
+  sb.state = sb.defaultState();
+  sb.state.sectionGroups = [song('live1', 500)];
+  sb.state.tombstones = [{ id: 'dead1', deletedAt: 900 }, { id: 'live1', deletedAt: 400 }];
+  sb.dropSongTombstone('dead1');
+  check('tombstone: drop removes one id', sb.state.tombstones.length === 1 && sb.state.tombstones[0].id === 'live1');
+  sb.pruneTombstonesForLiveSongs();
+  check('tombstone: prune drops tombstones for live songs', sb.state.tombstones.length === 0);
+
+  // loadParsedState validation: junk tombstones dropped, live-id tombstones pruned
+  sb.state = sb.defaultState();
+  sb.loadParsedState({
+    sectionGroups: [song('liveA', 100)], sections: [sec('sA', 'liveA', 0)],
+    tombstones: [{ id: 'ok', deletedAt: 5 }, { id: 'bad' }, { id: 'nodate' }, 'junk', { id: 'liveA', deletedAt: 3 }],
+  });
+  check('tombstone: load keeps only well-formed non-live entries',
+    sb.state.tombstones.length === 1 && sb.state.tombstones[0].id === 'ok');
+
+  // ---- mergeSongbooksForSync ----
+  // 1. both sides changed: newer updatedAt wins wholesale
+  {
+    const mine = { sectionGroups: [song('a', 200, { name: 'Mine' })], sections: [sec('sa', 'a', 0)], tombstones: [] };
+    const theirs = { sectionGroups: [song('a', 300, { name: 'Theirs' })], sections: [sec('sa2', 'a', 0)], tombstones: [] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: newer updatedAt wins', m.sectionGroups.length === 1 && m.sectionGroups[0].name === 'Theirs');
+    check('merge: sections filtered to the winning song', m.sections.length === 1 && m.sections[0].id === 'sa2');
+  }
+  // 2. add on each side: union
+  {
+    const mine = { sectionGroups: [song('a', 100)], sections: [sec('sa', 'a', 0)], tombstones: [] };
+    const theirs = { sectionGroups: [song('b', 100)], sections: [sec('sb', 'b', 0)], tombstones: [] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: additions from both sides survive', m.sectionGroups.length === 2);
+  }
+  // 3. delete vs unedited copy: tombstone wins, song gone
+  {
+    const mine = { sectionGroups: [], sections: [], tombstones: [{ id: 'a', deletedAt: 500 }] };
+    const theirs = { sectionGroups: [song('a', 100)], sections: [sec('sa', 'a', 0)], tombstones: [] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: delete (tombstone newer than song) wins', m.sectionGroups.length === 0);
+    check('merge: dead song sections dropped', m.sections.length === 0);
+    check('merge: tombstone survives the merge', m.tombstones.some(t => t.id === 'a'));
+  }
+  // 4. edit after delete: edit wins, tombstone pruned
+  {
+    const mine = { sectionGroups: [], sections: [], tombstones: [{ id: 'a', deletedAt: 100 }] };
+    const theirs = { sectionGroups: [song('a', 200)], sections: [sec('sa', 'a', 0)], tombstones: [] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: edit newer than tombstone survives', m.sectionGroups.length === 1 && m.sectionGroups[0].id === 'a');
+    check('merge: losing tombstone pruned', m.tombstones.length === 0);
+  }
+  // 5. tombstone union: newest deletedAt per id, both kept when for different ids
+  {
+    const mine = { sectionGroups: [], sections: [], tombstones: [{ id: 'a', deletedAt: 100 }] };
+    const theirs = { sectionGroups: [], sections: [], tombstones: [{ id: 'a', deletedAt: 300 }, { id: 'b', deletedAt: 50 }] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: tombstone union keeps newest per id',
+      m.tombstones.length === 2 && m.tombstones.find(t => t.id === 'a').deletedAt === 300);
+  }
+  // 6. legacy files (no tombstones field) merge cleanly
+  {
+    const mine = { sectionGroups: [song('a', 100)], sections: [sec('sa', 'a', 0)] };
+    const theirs = { sectionGroups: [song('b', 100)], sections: [sec('sb', 'b', 0)] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: legacy inputs without tombstones work', m.sectionGroups.length === 2 && Array.isArray(m.tombstones));
+  }
+  // 7. delete undo end-to-end through the app functions
+  {
+    sb.state = sb.defaultState();
+    const g = song('undoMe', 100);
+    sb.state.sectionGroups = [g];
+    sb.state.sections = [sec('su', 'undoMe', 0)];
+    sb.recordSongTombstone('undoMe', 200);
+    check('tombstone: record marks deleted id', sb.state.tombstones.length === 1);
+    sb.dropSongTombstone('undoMe'); // what the undo callback does
+    check('tombstone: undo (drop) clears it', sb.state.tombstones.length === 0);
+  }
+}
+
+/* ================= summary ================= */
 
 /* ================= summary ================= */
 
