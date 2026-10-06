@@ -390,6 +390,11 @@ browser with the console visible):
 - Caret column-keep: ↑ ↓ in a section edit field hold the cursor's column,
   padding the target line with spaces when shorter (undoable); modified
   keys and first/last lines keep native behavior. No console errors.
+- Transposed chord spacing: `transposedSectionLines()` keeps every chord
+  after the first at least one space clear of its predecessor, so tight
+  originals and chords that grow in transposition never jam together in
+  the preview or PDF. Stored data untouched. PDF key-note uses ASCII
+  "->" (a raw → renders as "!'" with the embedded mono font).
 - Disconnected cloud badge: with Drive not connected, the header badge
   reads "Cloud save disabled" in neutral gray (not red); the green
   "Drive" badge is unchanged while connected.
@@ -479,14 +484,14 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 `filter-panel-test.js` (68), `pull-refresh-test.js` (14),
 `welcome-compact-test.js` (13), `section-numbering-test.js` (18),
 `section-continued-test.js` (10), `transpose-keys-test.js` (20),
-`caret-column-test.js` (16),
+`transpose-spacing-test.js` (13), `caret-column-test.js` (16),
 `recovery-stale-test.js` (11), `recovery-drive-stale-test.js` (9), `recovery-open-conflict-test.js` (38),
 `save-age-test.js` (15), `security-test.js` (24), `video-links-test.js`
 (25), `url-import-test.js` (124), `setbook-ext-test.js` (38),
 `section-autoconvert-test.js` (33), `auto-period-test.js` (12),
 `picker-filter-test.js` (9), `import-feedback-test.js` (8),
 `pdf-preview-test.js` (32), `section-pdf-preview-test.js` (19),
-`deleted-songs-test.js` (22), `suffix-scroll-test.js` (17) — 33 suites, 857 checks in total. A refactor that changes no user-visible
+`deleted-songs-test.js` (22), `suffix-scroll-test.js` (17) — 34 suites, 870 checks in total. A refactor that changes no user-visible
 behavior does not require a documentation update beyond this file's own
 revision note.
 
