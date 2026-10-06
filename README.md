@@ -21,7 +21,10 @@ No build step, no server — it's one self-contained HTML file.
 - `storage/` — prototype of pluggable storage backends (local file,
   IndexedDB, GitHub, S3, generic REST) behind one adapter interface.
   See `storage/STORAGE_SPIKE_README.md`. `storage/spike-demo.html` is a
-  live demo page.
+  live demo page. The app embeds this file verbatim (between
+  `__SETBOOK_STORAGE__` markers in `index.html`) and routes the linked-file
+  and Drive save/load paths through adapters on the same contract —
+  sync with `node tools/embed-storage.js` after editing it.
 - `docs/` — the maintainer reference (`MAINTAINER.md`) and the privacy
   policy (`PRIVACY.md`).
 

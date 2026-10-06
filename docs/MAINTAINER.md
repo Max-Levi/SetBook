@@ -131,6 +131,20 @@ All persistent data is a JSON serialization of the `state` object:
   mutated by a save). Never call `JSON.stringify(state)` directly in a save
   path: the linked-file save, `driveFileBody()`, the Save-as/backup
   download, and the filtered export all route through the seam.
+- All book **writes and loads against the active link** go through the
+  adapter facade: `storage/storage-adapters.js` is embedded verbatim in the
+  app between `__SETBOOK_STORAGE__` markers (byte-parity asserted by the
+  regression suite; sync with `node tools/embed-storage.js` after editing
+  the canonical file), and the app adds two adapters on the same contract —
+  `LinkedFileBookAdapter` (FS-handle file) and `DriveBookAdapter` (Drive
+  file, conflict semantics identical to the original `driveSaveLibrary`).
+  `activeBookAdapter()` is the single dispatch point (Drive wins while a
+  Drive link exists, file handle otherwise, null unlinked). Save/open code
+  asks the facade instead of branching on `fileHandle`/`driveLink`; a
+  future backend implements the same six methods and registers here. The
+  spike's adapters are still exercised via `globalThis.SetBookStorage`;
+  user gesture flows (open/save pickers, Drive connection) stay outside
+  the adapter contract on purpose.
 - All display-affecting transforms (lyric-continuation grouping,
   comment-line stripping, repeat markers) are centralized in
   `groupLinesForDisplay` and its helpers so the preview and both PDF
@@ -553,5 +567,7 @@ rewrite.
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
 Revised 2026-10-05: schemaVersion + serializeState seam, CSP meta, Phase-0
-groundwork (§13), adapter quota seam. Keep it current: it is the reference
-any tool or human uses to maintain and extend this app.*
+groundwork (§13), adapter quota seam. Revised 2026-10-06: storage-adapters
+embedded verbatim; LinkedFileBookAdapter/DriveBookAdapter +
+activeBookAdapter() facade as the single write/load path. Keep it current:
+it is the reference any tool or human uses to maintain and extend this app.*

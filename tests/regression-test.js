@@ -140,6 +140,10 @@ const sandbox = {
   ResizeObserver: class { observe() {} disconnect() {} },
   IntersectionObserver: class { observe() {} disconnect() {} },
   Blob: class {}, URL: { createObjectURL: () => '', revokeObjectURL() {} },
+  // Web globals the embedded storage-adapter library needs (the vm context
+  // does not inherit Node's globals): UTF-8 encoding for SigV4 and base64
+  // helpers for the adapters' token handling.
+  TextEncoder, TextDecoder, btoa, atob,
   innerWidth: 1400, innerHeight: 900, devicePixelRatio: 2
 };
 sandbox.window = sandbox;
@@ -173,6 +177,9 @@ globalThis.__sb = {
   get selectedGroupId() { return selectedGroupId; }, set selectedGroupId(v) { selectedGroupId = v; },
   get selectedSectionId() { return selectedSectionId; }, set selectedSectionId(v) { selectedSectionId = v; },
   get expandedGroups() { return expandedGroups; },
+  get fileHandle() { return fileHandle; }, set fileHandle(v) { fileHandle = v; },
+  get driveLink() { return driveLink; }, set driveLink(v) { driveLink = v; },
+  get driveApi() { return driveApi; }, set driveApi(v) { driveApi = v; },
   loadParsedState, groupSections, songStatus, isSongReady, matchesReadyFilter, ensureFiltersAdmitSongs,
   recordSongViewed, viewedAgoText, createSongFromUrlText, autoSplitMassFields,
   massRowsToText, parseMassFieldRows, classifyMassEntryLines, parseChordLine,
@@ -180,6 +187,8 @@ globalThis.__sb = {
   buildSymbolsLine, displaySectionName, massSplitDefaultType, sectionTypeFromCustomName,
   defaultState, uid, touchGroup, touchSection, serializeState, SETBOOK_SCHEMA_VERSION,
   getDevicePersonaId, mountAdSlot, AD_CONFIG,
+  SetBookStorage, activeBookAdapter, linkedFileBookAdapter, driveBookAdapter,
+  LinkedFileBookAdapter, DriveBookAdapter,
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
   deglueChordLyricLines,
   transposeSymbolsValue, transposeChordToken, stepTransposeKey, groupLinesForDisplay,
@@ -731,8 +740,89 @@ const driveConflictChecks = (async () => {
   check('Content-Security-Policy meta is present', /http-equiv="Content-Security-Policy"/.test(html));
 }
 
+/* ========== 14. book adapters: embedded spike copy + app adapters ========== */
+const adapterChecks = (async () => {
+  // The embedded region must be byte-identical to the canonical storage/ copy.
+  const begin = html.indexOf('/*__SETBOOK_STORAGE_BEGIN__*/');
+  const end = html.indexOf('/*__SETBOOK_STORAGE_END__*/');
+  check('embedded storage region present', begin !== -1 && end !== -1 && end > begin);
+  if (begin !== -1 && end !== -1){
+    const embedded = html.slice(begin + '/*__SETBOOK_STORAGE_BEGIN__*/'.length, end).replace(/^\n/, '').replace(/\n\s*$/, '');
+    const canonical = fs.readFileSync(path.join(ROOT, 'storage', 'storage-adapters.js'), 'utf8').replace(/\s+$/, '');
+    check('embedded adapters match storage/ copy verbatim', embedded === canonical);
+  }
+  check('spike adapter library exported', sb.SetBookStorage && Array.isArray(sb.SetBookStorage.ADAPTERS) && sb.SetBookStorage.ADAPTERS.length === 5);
+  check('ConflictError exposed', typeof sb.SetBookStorage.ConflictError === 'function');
+
+  // These checks run concurrently with the other async suites, so they
+  // never resetApp() — they set exactly the bindings they exercise and
+  // restore the boot state at the end.
+  const bootState = sb.state;
+  check('dispatch: none by default', sb.activeBookAdapter() === null);
+  check('linked-file adapter unconfigured without handle', (await sb.linkedFileBookAdapter.isConfigured()) === false);
+  let threw = null;
+  try { await sb.linkedFileBookAdapter.loadBook(); } catch (e){ threw = e; }
+  check('linked-file loadBook without handle throws', !!threw);
+
+  // Round-trip through a minimal writable-stream handle stub: saveBook
+  // must create a writable, write exactly the bytes given, and close it.
+  {
+    const writes = [];
+    let closed = false;
+    sb.state = sb.defaultState();
+    sb.fileHandle = {
+      createWritable: async () => ({
+        write: async (d) => { writes.push(d); },
+        close: async () => { closed = true; },
+        abort: async () => {},
+      }),
+      getFile: async () => ({ text: async () => writes.join('') }),
+    };
+    const payload = JSON.stringify({ schemaVersion: 1, sectionGroups: [], sections: [] });
+    const saved = await sb.linkedFileBookAdapter.saveBook(null, payload);
+    check('linked-file saveBook writes bytes and closes', closed && writes.join('') === payload && saved && saved.rev === null);
+    const loaded = await sb.linkedFileBookAdapter.loadBook();
+    check('linked-file loadBook returns the written bytes', loaded.data === payload && loaded.rev === null);
+    check('dispatch: linked file when only a handle exists', sb.activeBookAdapter() === sb.linkedFileBookAdapter);
+    sb.fileHandle = null;
+  }
+
+  // DriveBookAdapter semantics with a stubbed driveApi: conflict on stale
+  // modifiedTime, success path returns a rev and advances driveLink.
+  {
+    const realDriveApi = sb.driveApi;
+    sb.state = sb.defaultState();
+    sb.driveLink = { folderId: 'F', folderName: 'f', fileId: 'XYZ', fileName: 'book.json', remoteModifiedTime: '2026-10-06T00:00:00.000Z' };
+    sb.driveApi = async () => ({ ok: true, json: async () => ({ modifiedTime: '2026-10-06T09:00:00.000Z' }), text: async () => '{"a":1}' });
+    let conflictThrown = null;
+    try { await sb.driveBookAdapter.saveBook('XYZ', '{}'); } catch (e){ conflictThrown = e; }
+    check('drive adapter: stale remote time -> drive-conflict', !!conflictThrown && conflictThrown.message === 'drive-conflict' && conflictThrown.remoteModifiedTime === '2026-10-06T09:00:00.000Z');
+    let patchBody = null;
+    sb.driveApi = async (method, reqPath, opts) => {
+      if (method === 'GET' && reqPath.indexOf('upload/') === -1){
+        return { ok: true, json: async () => ({ modifiedTime: '2026-10-06T00:00:00.000Z' }), text: async () => '{"a":1}' };
+      }
+      patchBody = opts && opts.body;
+      return { ok: true, json: async () => ({ modifiedTime: '2026-10-06T01:00:00.000Z' }), text: async () => '{"a":1}' };
+    };
+    const saved = await sb.driveBookAdapter.saveBook('XYZ', '{"a":1}');
+    check('drive adapter: save returns new rev', !!saved && saved.rev === '2026-10-06T01:00:00.000Z');
+    check('drive adapter: body written as given', patchBody === '{"a":1}');
+    check('drive adapter: remoteModifiedTime advanced', sb.driveLink.remoteModifiedTime === '2026-10-06T01:00:00.000Z');
+    const loaded = await sb.driveBookAdapter.loadBook('XYZ');
+    check('drive adapter: loadBook returns data + rev', typeof loaded.data === 'string' && loaded.rev === '2026-10-06T01:00:00.000Z');
+    sb.driveLink = null;
+    sb.driveApi = realDriveApi;
+  }
+  sb.state = bootState;
+  sb.fileHandle = null;
+  sb.driveLink = null;
+})();
+
 /* ================= summary ================= */
-Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks]).then(() => {
+
+/* ================= summary ================= */
+Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks]).then(() => {
 const failed = results.filter(r => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed.`);
 if (failed.length) {
