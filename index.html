@@ -1999,7 +1999,7 @@
             <li><strong>Sections:</strong> pick Intro, Verse, Chorus, Pre-Chorus, Bridge, Instrumental, Outro, <strong>(Continued)</strong>, or your own Custom name. Add a label like <em>(guitar solo)</em> after the name if you like. Numbering is automatic — two choruses become Chorus 1 and Chorus 2 on their own. <strong>(Continued)</strong> borrows the previous section's name — a Verse 1 followed by (Continued) shows as "Verse 1 (Continued)", and another (Continued) after that becomes "Verse 1 (Continued 2)".</li>
             <li><strong>+ Add section</strong> appends whatever naturally follows (a Verse earns a Chorus next, and so on). Blank lines carry <strong>Split</strong> chips to divide a section in two — the new section lands directly below the one you split. <strong>↑ ↓</strong> in a section's header moves it one slot up or down within the song.</li>
             <li>If the app misreads a line, hover over or tap into its field to reveal the little chip on the line — it flips the reading: <strong>as lyrics</strong> on a chord line, <strong>as chords</strong> on a lyric line. A line you've overridden keeps a small <strong>auto</strong> chip so you can switch it back.</li>
-            <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible. Each key lists its relative minor (C / Am), and enharmonic keys get separate sharp and flat entries (Ab vs G#) — the spelling you pick is the spelling your transposed chords use.</li>
+            <li><strong>Transpose:</strong> tell the section what key it's written in, then step it up or down — the chord symbols move, everything else stays put. Your original chords are never changed, so it's always reversible. Each key lists its relative minor (C / Am), and enharmonic keys get separate sharp and flat entries (Ab vs G#) — the spelling you pick is the spelling your transposed chords use. Transposed chords always keep at least one space between each other, so tightly written originals stay readable in the preview and on the PDF.</li>
             <li><strong>Private notes:</strong> wrap a lyric line in <code>/* &hellip; */</code> and it stays out of your PDFs.</li>
             <li><strong>Undo</strong> (File menu or Ctrl/Cmd+Z) covers clears, deletes, moves, and drags.</li>
             <li>Prefer the classic row editor? File &rarr; Configuration&hellip; &rarr; <strong>Use mass-entry editor for section editing</strong> switches back.</li>
@@ -5828,17 +5828,24 @@ function sectionTransposeInfo(sec){
 function transposedSectionLines(sec){
   const info = sectionTransposeInfo(sec);
   if (!info) return sec.lines || [];
-  let delta = 0;
-  return (sec.lines || []).map(l => ({
-    ...l,
-    symbols: (l.symbols || []).map(s => {
+  return (sec.lines || []).map(l => {
+    let delta = 0;
+    let prevEnd = 0;
+    const symbols = (l.symbols || []).map((s, i) => {
       const before = String(s.value || '');
       const after = transposeSymbolsValue(before, info.semis, info.flats);
-      const out = { ...s, pos: Math.max(0, (s.pos || 0) + delta), value: after };
+      const drifted = Math.max(0, (s.pos || 0) + delta);
+      // Transposition changes chord lengths, so drift-corrected positions
+      // can jam chords together (or pile them up). Keep every chord at
+      // least one space clear of its predecessor so the output stays
+      // readable no matter how tight the original spacing was.
+      const pos = i === 0 ? drifted : Math.max(drifted, prevEnd + 1);
       delta += after.length - before.length;
-      return out;
-    })
-  }));
+      prevEnd = pos + after.length;
+      return { ...s, pos, value: after };
+    });
+    return { ...l, symbols };
+  });
 }
 /* A chord line (a display block with any symbols content) that holds no
    recognizable chords at all can't be transposed — flagged in preview and
@@ -9761,7 +9768,7 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
     if (pTinfo){
       doc.setFont('helvetica','normal'); doc.setFontSize(sc(11));
       doc.setTextColor(...palette.muted);
-      doc.text(`Key: ${pTinfo.from} \u2192 ${pTinfo.to}`, MARGIN, sc(93));
+      doc.text(`Key: ${pTinfo.from} -> ${pTinfo.to}`, MARGIN, sc(93));
     }
 
     // center short sections in the leftover vertical space rather than
@@ -10007,7 +10014,7 @@ async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupId
       if (pfTinfo){
         doc.setFont('helvetica','normal'); doc.setFontSize(sc(10));
         doc.setTextColor(...palette.muted);
-        doc.text(`Key: ${pfTinfo.from} \u2192 ${pfTinfo.to}`, MARGIN + doc.getTextWidth('[' + displaySectionName(section) + ']') + sc(10), y);
+        doc.text(`Key: ${pfTinfo.from} -> ${pfTinfo.to}`, MARGIN + doc.getTextWidth('[' + displaySectionName(section) + ']') + sc(10), y);
       }
       y += pdfLineHeight(sectionTitleSize) + sc(4);
 
