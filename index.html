@@ -16,12 +16,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <!-- Content-Security-Policy: the whole app is inline script/style (single
      file), so 'unsafe-inline' is required; every other source is pinned to
-     the exact origins the app uses (cdnjs for jsPDF/PDF.js, Google Fonts).
+     the exact origins the app uses (cdnjs for jsPDF/PDF.js, Google Fonts,
+     accounts.google.com + apis.google.com for the Drive auth/Picker SDKs).
+     The Picker renders inside an iframe hosted on docs.google.com, and
+     Google's auth flows may use hidden frames on accounts.google.com, so
+     frame-src allows both alongside the PDF preview's blob:.
      Adding a CDN dependency means adding its origin here AND a pinned SRI
      hash (docs/MAINTAINER.md §6). connect-src https: covers the URL-import
-     fetch and Drive; blob: covers the PDF preview iframe and pdf.js worker;
-     worker-src also allows 'self' so sw.js can register. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https:; img-src 'self' data: blob:; frame-src blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
+     fetch, Drive REST, and OAuth token traffic; worker-src also allows
+     'self' so sw.js can register, and blob: so pdf.js can run. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://accounts.google.com https://apis.google.com; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; connect-src https:; img-src 'self' data: blob:; frame-src blob: https://docs.google.com https://accounts.google.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'">
 <!-- PWA: installable + offline-capable (see sw.js). The SW registration
      is guarded below: it only runs on https/localhost, never on file://,
      and its absence must never block the app. -->

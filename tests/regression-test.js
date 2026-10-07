@@ -741,6 +741,18 @@ const driveConflictChecks = (async () => {
 
   // CSP meta ships in the head (asserted against the raw file, not the sandbox DOM).
   check('Content-Security-Policy meta is present', /http-equiv="Content-Security-Policy"/.test(html));
+  // The CSP must allow every origin an on-demand SDK fetches: the Drive
+  // auth SDK (accounts.google.com/gsi/client), the Picker SDK
+  // (apis.google.com/js/api.js), and the Picker/auth frame hosts.
+  // Regression guard for the 2026-10-07 outage where the first CSP
+  // rollout omitted these and silently broke every Drive path.
+  const cspMatch = html.match(/http-equiv="Content-Security-Policy" content="([^"]*)"/);
+  const cspScriptSrc = cspMatch ? ((cspMatch[1].match(/script-src ([^;]*);/) || [])[1] || '') : '';
+  const cspFrameSrc = cspMatch ? ((cspMatch[1].match(/frame-src ([^;]*);/) || [])[1] || '') : '';
+  check('CSP allows the Drive auth + Picker script origins',
+    cspScriptSrc.includes('https://accounts.google.com') && cspScriptSrc.includes('https://apis.google.com'));
+  check('CSP allows the Picker iframe + auth frame origins',
+    cspFrameSrc.includes('https://docs.google.com') && cspFrameSrc.includes('https://accounts.google.com'));
 }
 
 /* ========== 14. book adapters: embedded spike copy + app adapters ========== */

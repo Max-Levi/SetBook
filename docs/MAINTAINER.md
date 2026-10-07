@@ -264,16 +264,25 @@ All persistent data is a JSON serialization of the `state` object:
   Registration is guarded to https/localhost and never blocks the app —
   including the Node test sandbox, which provides no service worker.
 - A `Content-Security-Policy` meta pins every origin the page may touch:
-  `script-src 'unsafe-inline' https://cdnjs.cloudflare.com` (the whole app
-  is inline script, so 'unsafe-inline' is unavoidable without a build step —
-  it is also what keeps the scraper extension's MAIN-world injections
-  working), `style-src` inline + fonts.googleapis.com, `font-src`
-  fonts.gstatic.com, `connect-src https:` (URL import + Drive),
-  `img-src 'self' data: blob:`, `frame-src blob:` (PDF preview iframe),
+  `script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://accounts.google.com https://apis.google.com`
+  (the whole app is inline script, so 'unsafe-inline' is unavoidable without
+  a build step — it is also what keeps the scraper extension's MAIN-world
+  injections working; the two Google origins load the Drive auth SDK
+  (`/gsi/client`) and Picker SDK (`js/api.js`) on demand), `style-src`
+  inline + fonts.googleapis.com, `font-src` fonts.gstatic.com,
+  `connect-src https:` (URL import + Drive REST + OAuth tokens),
+  `img-src 'self' data: blob:`, `frame-src blob:` (PDF preview iframe)
+  plus `https://docs.google.com` (the Picker's iframe) and
+  `https://accounts.google.com` (Google auth's hidden frames),
   `worker-src 'self' blob:` (sw.js registration + pdf.js worker),
   `object-src 'none'`, `base-uri 'none'`. Adding an
   external origin means updating the CSP meta, the pinned SRI, `sw.js`, and
-  the security test together — one change, four places.
+  the security test together — one change, four places. **Known failure
+  mode (2026-10-07):** the first CSP rollout omitted the two Google
+  origins, which silently severed every Drive path — boot re-link,
+  Connect, and the Picker — because `loadScriptOnce` rejected on the
+  blocked script; any new SDK origin must be load-tested by actually
+  invoking the feature that fetches it, not just by a clean page load.
 
 ## 7. Google Drive cloud save
 
@@ -608,5 +617,9 @@ groundwork (§13), adapter quota seam. Revised 2026-10-06: storage-adapters
 embedded verbatim; LinkedFileBookAdapter/DriveBookAdapter +
 activeBookAdapter() facade as the single write/load path; deletion
 tombstones + mergeSongbooksForSync() sync groundwork; SetBook Cloud sync
-adapter prototype (disabled) + §11 security audit re-run. Keep it current:
-it is the reference any tool or human uses to maintain and extend this app.*
+adapter prototype (disabled) + §11 security audit re-run. Revised
+2026-10-07: CSP fix — add the Drive auth/Picker script origins and the
+Picker/auth frame origins that the first CSP rollout blocked, which had
+broken every Google Drive path (boot re-link, Connect, Picker). Keep it
+current: it is the reference any tool or human uses to maintain and
+extend this app.*
