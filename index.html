@@ -494,8 +494,8 @@
     #openConflictModalOverlay .modal-actions .ghost.small, #openConflictModalOverlay .modal-actions .primary.small{
       min-height:44px;
     }
-    /* In the PDF exporter the Generate button can scroll far out of sight
-       on phones: pin the action footer to the bottom of the visible modal.
+    /* In the PDF exporter the action footer can scroll far out of sight
+       on phones: pin it to the bottom of the visible modal.
        Solid panel background (plus a divider) so content slides under it. */
     #pdfModalOverlay .modal-actions{
       position:sticky; bottom:0; z-index:4;
@@ -512,10 +512,10 @@
   }
   .pdf-download-link:hover{ background: var(--gold-tint-strong); }
   button.pdf-download-link{ display:block; width:100%; cursor:pointer; font-family:inherit; }
-  /* ---- per-song PDF preview modal ---- */
+  /* ---- unified Export PDF modal ---- */
   .pdf-preview-controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:2px 0 12px; }
   .pdf-preview-controls .modal-select{ width:auto; max-width:100%; }
-  .pdf-preview-viewer{ position:relative; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--card); }
+  .pdf-preview-viewer{ position:relative; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--card); margin-top:4px; }
   #pvFrame{ display:block; width:100%; height:54vh; min-height:300px; border:0; background:#fff; }
   #pvFrame[hidden], #pvStripWrap[hidden]{ display:none; }
   /* Performance preview: a horizontal page-turning strip (Print Friendly
@@ -532,16 +532,16 @@
   #pvNextPage{ right:10px; }
   #pvPageIndicator{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.62); color:#fff; font-size:12px; padding:4px 12px; border-radius:999px; z-index:2; white-space:nowrap; }
   .pdf-preview-loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }
-  #pdfPreviewOverlay .mode-btn{ white-space:nowrap; }
-  #pdfPreviewOverlay a.pdf-download-link{ margin-bottom:0; }
-  #pdfPreviewOverlay .modal-actions{ align-items:center; }
-  #pdfPreviewOverlay .modal-actions .pdf-download-link{ flex:1; }
-  /* Song PDF preview: wider than other modals so the embedded viewer has
+  #pdfModalOverlay .mode-btn{ white-space:nowrap; }
+  #pdfModalOverlay a.pdf-download-link{ margin-bottom:0; }
+  #pdfModalOverlay .modal-actions{ align-items:center; }
+  #pdfModalOverlay .modal-actions .pdf-download-link{ flex:1; }
+  /* Export PDF modal: wider than other modals so the embedded viewer has
      room, a slightly shorter viewer so the dialog usually fits without
      scrolling, and a sticky footer so Close/Download stay reachable on
      short viewports when it doesn't. */
-  #pdfPreviewOverlay .modal-wide{ width:880px; }
-  #pdfPreviewOverlay .modal-actions{
+  #pdfModalOverlay .modal-wide{ width:880px; }
+  #pdfModalOverlay .modal-actions{
     position:sticky; bottom:0; z-index:2;
     margin:12px -26px -24px; padding:12px 26px 24px;
     background:var(--panel); border-top:1px solid var(--border);
@@ -1495,69 +1495,52 @@
 <div class="modal-overlay" id="pdfModalOverlay">
   <div class="modal modal-wide">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
-    <h2 id="pdfModalTitle">Performance PDF</h2>
+    <h2>Export PDF</h2>
     <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
+    <div class="pdf-preview-controls">
+      <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
+        <button type="button" class="mode-btn active" data-pvtype="performance">Performance PDF</button>
+        <button type="button" class="mode-btn" data-pvtype="print-friendly">Print Friendly PDF</button>
+      </div>
+      <select id="pvDeviceSelect" class="modal-select" aria-label="Device">
+        <optgroup label="iPad">
+          <option value="ipad-102">iPad 10.2" (8th/9th gen)</option>
+          <option value="ipad" selected>iPad 10.9"/11" (10th gen+, Air)</option>
+          <option value="ipad-pro-11">iPad Pro 11"</option>
+          <option value="ipad-pro-13">iPad Pro 12.9"/13"</option>
+          <option value="ipad-mini-79">iPad mini 7.9"</option>
+          <option value="ipad-mini">iPad mini 8.3"</option>
+        </optgroup>
+        <optgroup label="iPhone">
+          <option value="iphone-se">iPhone SE</option>
+          <option value="iphone">iPhone 14/15/16 (6.1")</option>
+          <option value="iphone-max">iPhone Pro Max (6.7"&ndash;6.9")</option>
+        </optgroup>
+        <optgroup label="Android tablets">
+          <option value="android-tab-11">Galaxy Tab / Pixel Tablet 11"</option>
+          <option value="android-tab-124">Galaxy Tab 12.4"</option>
+          <option value="android-tab-10">Android tablet 10" (16:10)</option>
+        </optgroup>
+        <optgroup label="Android phones">
+          <option value="android-phone">Android phone 6.2" (Galaxy S, Pixel)</option>
+          <option value="android-phone-xl">Android phone 6.8" (Ultra, XL)</option>
+        </optgroup>
+        <optgroup label="Paper">
+          <option value="letter">US Letter (print)</option>
+          <option value="a4">A4 (print)</option>
+        </optgroup>
+      </select>
+      <div class="mode-toggle" id="pvOrientationToggle" role="group" aria-label="Orientation">
+        <button type="button" class="mode-btn" data-pvorientation="portrait">Portrait</button>
+        <button type="button" class="mode-btn active" data-pvorientation="landscape">Landscape</button>
+      </div>
+      <div class="mode-toggle" id="pvAppearanceToggle" role="group" aria-label="Appearance">
+        <button type="button" class="mode-btn active" data-pvmode="light">Light mode</button>
+        <button type="button" class="mode-btn" data-pvmode="dark">Dark mode</button>
+      </div>
+    </div>
 
     <div class="modal-columns">
-      <div class="modal-group">
-        <div class="modal-group-label">Output</div>
-        <label class="modal-label">PDF type</label>
-        <div class="mode-toggle" id="pdfTypeToggle">
-          <button type="button" class="mode-btn active" data-pdftype="performance">Performance PDF</button>
-          <button type="button" class="mode-btn" data-pdftype="print-friendly">Print Friendly PDF</button>
-        </div>
-
-        <label class="modal-label" for="pdfProjectName">Project name</label>
-        <input id="pdfProjectName" class="modal-input" placeholder="e.g. Great North Band">
-      </div>
-
-      <div class="modal-group">
-        <div class="modal-group-label">Format</div>
-        <label class="modal-label" for="pdfDeviceSelect">Device</label>
-        <select id="pdfDeviceSelect" class="modal-select">
-          <optgroup label="iPad">
-            <option value="ipad-102">iPad 10.2&quot; (8th/9th gen)</option>
-            <option value="ipad" selected>iPad 10.9&quot;/11&quot; (10th gen+, Air)</option>
-            <option value="ipad-pro-11">iPad Pro 11&quot;</option>
-            <option value="ipad-pro-13">iPad Pro 12.9&quot;/13&quot;</option>
-            <option value="ipad-mini-79">iPad mini 7.9&quot;</option>
-            <option value="ipad-mini">iPad mini 8.3&quot;</option>
-          </optgroup>
-          <optgroup label="iPhone">
-            <option value="iphone-se">iPhone SE</option>
-            <option value="iphone">iPhone 14/15/16 (6.1&quot;)</option>
-            <option value="iphone-max">iPhone Pro Max (6.7&quot;&ndash;6.9&quot;)</option>
-          </optgroup>
-          <optgroup label="Android tablets">
-            <option value="android-tab-11">Galaxy Tab / Pixel Tablet 11&quot;</option>
-            <option value="android-tab-124">Galaxy Tab 12.4&quot;</option>
-            <option value="android-tab-10">Android tablet 10&quot; (16:10)</option>
-          </optgroup>
-          <optgroup label="Android phones">
-            <option value="android-phone">Android phone 6.2&quot; (Galaxy S, Pixel)</option>
-            <option value="android-phone-xl">Android phone 6.8&quot; (Ultra, XL)</option>
-          </optgroup>
-          <optgroup label="Paper">
-            <option value="letter">US Letter (print)</option>
-            <option value="a4">A4 (print)</option>
-          </optgroup>
-        </select>
-
-        <label class="modal-label">Orientation</label>
-        <div class="mode-toggle" id="orientationToggle">
-          <button type="button" class="mode-btn" data-orientation="portrait">Portrait</button>
-          <button type="button" class="mode-btn active" data-orientation="landscape">Landscape</button>
-        </div>
-
-        <div id="appearanceSection">
-          <label class="modal-label">Appearance</label>
-          <div class="mode-toggle">
-            <button type="button" class="mode-btn active" data-mode="light">Light mode</button>
-            <button type="button" class="mode-btn" data-mode="dark">Dark mode</button>
-          </div>
-        </div>
-      </div>
-
       <div class="modal-group">
         <div class="modal-group-label">Songs</div>
         <div class="subset-controls">
@@ -1574,45 +1557,14 @@
         </div>
         <div class="song-checklist" id="pdfSongChecklist"></div>
       </div>
-    </div>
 
-    <a id="pdfDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
-    <button type="button" class="pdf-download-link" id="pdfShareBtn" style="display:none;" hidden>↗ Share PDF…</button>
-    <!-- iPadOS quirk: the sheet navigator.share() shows can be a reduced
-         one whose Edit Actions list omits Books entirely (no user-side way
-         to add it). This hint routes around it: the Download-then-Files
-         path goes through a real file, whose share sheet DOES offer Books. -->
-    <p class="modal-sub" id="pdfShareBooksHint" style="display:none; margin:-8px 0 14px; text-align:center;">
-      Don't see Apple Books in the share sheet? <strong>↓ Download</strong>, open it from <strong>Files</strong>, and share from there — that sheet always offers Books.
-    </p>
-
-    <div class="modal-actions">
-      <button type="button" class="ghost small" id="pdfCancelBtn">Close</button>
-      <button type="button" class="primary small" id="pdfGenerateBtn">Generate PDF</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="pdfPreviewOverlay">
-  <div class="modal modal-wide">
-    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
-    <h2>PDF preview</h2>
-    <p class="modal-sub" id="pdfPreviewSub"></p>
-    <div class="pdf-preview-controls">
-      <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
-        <button type="button" class="mode-btn active" data-pvtype="performance">Performance PDF</button>
-        <button type="button" class="mode-btn" data-pvtype="print-friendly">Print Friendly PDF</button>
-      </div>
-      <select id="pvDeviceSelect" class="modal-select" aria-label="Device"></select>
-      <div class="mode-toggle" id="pvOrientationToggle" role="group" aria-label="Orientation">
-        <button type="button" class="mode-btn" data-pvorientation="portrait">Portrait</button>
-        <button type="button" class="mode-btn active" data-pvorientation="landscape">Landscape</button>
-      </div>
-      <div class="mode-toggle" id="pvAppearanceToggle" role="group" aria-label="Appearance">
-        <button type="button" class="mode-btn active" data-pvmode="light">Light mode</button>
-        <button type="button" class="mode-btn" data-pvmode="dark">Dark mode</button>
+      <div class="modal-group">
+        <div class="modal-group-label">Output</div>
+        <label class="modal-label" for="pdfProjectName">Project name</label>
+        <input id="pdfProjectName" class="modal-input" placeholder="e.g. Great North Band">
       </div>
     </div>
+
     <div class="pdf-preview-viewer">
       <div class="pdf-preview-loading" id="pvLoading">Rendering preview…</div>
       <iframe id="pvFrame" title="PDF preview"></iframe>
@@ -1623,8 +1575,17 @@
         <div id="pvPageIndicator" aria-live="polite"></div>
       </div>
     </div>
+    <!-- iPadOS quirk: the sheet navigator.share() shows can be a reduced
+         one whose Edit Actions list omits Books entirely (no user-side way
+         to add it). This hint routes around it: the Download-then-Files
+         path goes through a real file, whose share sheet DOES offer Books. -->
+    <p class="modal-sub" id="pdfShareBooksHint" style="display:none; margin:12px 0 0; text-align:center;">
+      Don't see Apple Books in the share sheet? <strong>↓ Download</strong>, open it from <strong>Files</strong>, and share from there — that sheet always offers Books.
+    </p>
+
     <div class="modal-actions">
-      <button type="button" class="ghost small" id="pvCloseBtn">Close</button>
+      <button type="button" class="ghost small" id="pdfCancelBtn">Close</button>
+      <button type="button" class="pdf-download-link" id="pdfShareBtn" style="display:none;" hidden>↗ Share PDF…</button>
       <a id="pvDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
     </div>
   </div>
@@ -1772,6 +1733,7 @@
   </div>
 </div>
 
+<!-- Recently viewed songs -->
 <!-- Recently viewed songs -->
 <div class="modal-overlay" id="recentModalOverlay">
   <div class="modal">
@@ -1973,8 +1935,8 @@
     <p class="modal-sub" id="driveConflictSub"></p>
     <ul id="driveConflictDiffList" class="diff-list" aria-live="polite"></ul>
     <div class="modal-actions">
-      <button type="button" class="primary small" id="driveConflictOverwriteBtn">Overwrite Drive</button>
-      <button type="button" class="ghost small" id="driveConflictReloadBtn">Reload from Drive</button>
+      <button type="button" class="ghost small" id="driveConflictOverwriteBtn">Overwrite Drive</button>
+      <button type="button" class="primary small" id="driveConflictReloadBtn">Reload from Drive</button>
     </div>
   </div>
 </div>
@@ -2039,7 +2001,7 @@
             <li><strong>Performance PDF</strong> — one page per section, sized for your device (iPad, iPhone, Android, or paper), portrait or landscape, dark or light, with a tappable table of contents and section navigation. Made for a tablet on a music stand and Bluetooth page-turner pedals.</li>
             <li><strong>Print-Friendly PDF</strong> — a clean continuous document with page numbers, for paper.</li>
             <li><strong>Choose your songs:</strong> the whole library, a saved set, or tick them off yourself — <strong>Ready only</strong> grabs your gig-ready songs in one tap.</li>
-            <li>After generating, <strong>Share PDF&hellip;</strong> sends the file straight to Books, Mail, Messages, or wherever you keep your charts.</li>
+            <li>The dialog shows a <strong>live preview</strong> of the PDF as you change options or songs — what you see is the file you'll get. <strong>&darr; Download PDF</strong> saves it; <strong>Share PDF&hellip;</strong> sends it straight to Books, Mail, Messages, or wherever you keep your charts.</li>
           </ul>
         </section>
         <section id="help-files">
@@ -9544,54 +9506,85 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
   copySelectedGroupIds = new Set();
 });
 
-
 /* ---------------------------------------------------------
-   Performance PDF modal
+   Export PDF modal (unified)
+   One dialog for every PDF export: the option controls
+   (type/device/orientation/appearance), the song checklist,
+   project name, and a live preview of exactly what Download
+   and Share will produce. The header "Export PDF…" opens it
+   with all songs selected; the PDF icon on a song card opens
+   it with just that song selected. Changing any option or the
+   song selection re-renders the preview (debounced) — there
+   is no separate Generate step; the preview IS the document.
 --------------------------------------------------------- */
 let pdfMode = 'light';
 let pdfDevice = 'ipad';
 let pdfOrientation = 'landscape';
 let pdfType = 'performance';
-const pdfModal = wireModal({
+let pdfSelectedSongIds = new Set();
+
+// Which songs the dialog opens with; the per-song entry point sets this
+// before opening, otherwise the dialog opens with all songs selected.
+let pdfPendingSelection = null;
+const pdfModalCtl = wireModal({
   overlayId:'pdfModalOverlay', openBtnId:'btnPdf', closeBtnId:'pdfCancelBtn',
   onOpen(){
-    // Pre-warm the lazy jsPDF library while the user configures the export;
-    // Generate then starts with it already in memory. Errors here surface
-    // normally at Generate time (ensurePdfLib's friendly message).
-    ensurePdfLib().catch(() => {});
-    pdfProjectNameInput.value = state.projectName || '';
-    document.getElementById('pdfDownloadLink').style.display = 'none';
-    shareBtn.hidden = true;
-    shareBtn.style.display = 'none';
-    pdfSelectedSongIds = new Set(allSongIdsWithSections());
-    populateSubsetSelect();
-    document.getElementById('pdfSubsetSelect').value = '';
-    document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
-    renderPdfSongChecklist();
+    const sel = pdfPendingSelection || allSongIdsWithSections();
+    pdfPendingSelection = null;
+    preparePdfModal(sel);
+    schedulePdfRender();
   }
-}).overlay;
+});
+const pdfModal = pdfModalCtl.overlay;
 const pdfProjectNameInput = document.getElementById('pdfProjectName');
+const pdfShareBtn = document.getElementById('pdfShareBtn');
 
 const PDF_TYPE_COPY = {
   performance: {
-    title: 'Performance PDF',
     sub: 'One page per section, a tappable table of contents, and text sized to read easily on an iPad.'
   },
   'print-friendly': {
-    title: 'Print Friendly PDF',
     sub: 'Sections stack continuously instead of one-per-page, all in one consistent, comfortable size — built for printing on paper.'
   }
 };
 
 function updatePdfModalCopy(){
-  const copy = PDF_TYPE_COPY[pdfType];
-  document.getElementById('pdfModalTitle').textContent = copy.title;
-  document.getElementById('pdfModalSub').textContent = copy.sub;
-  document.getElementById('appearanceSection').style.display = pdfType === 'print-friendly' ? 'none' : '';
+  document.getElementById('pdfModalSub').textContent = PDF_TYPE_COPY[pdfType].sub;
+  document.getElementById('pvAppearanceToggle').style.display = pdfType === 'print-friendly' ? 'none' : '';
+}
+
+function syncPdfControls(){
+  document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvtype === pdfType));
+  document.querySelectorAll('#pvOrientationToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvorientation === pdfOrientation));
+  document.querySelectorAll('#pvAppearanceToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvmode === pdfMode));
+  document.getElementById('pvDeviceSelect').value = pdfDevice;
+}
+
+// Shared open path: reset the dialog to a given song selection,
+// then open it and kick off the first preview render.
+function preparePdfModal(songIds){
+  // Pre-warm the lazy jsPDF library while the user looks at the
+  // dialog; the first preview render then starts with it in memory.
+  ensurePdfLib().catch(() => {});
+  pdfProjectNameInput.value = state.projectName || '';
+  pdfSelectedSongIds = new Set(songIds);
+  populateSubsetSelect();
+  document.getElementById('pdfSubsetSelect').value = '';
+  document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+  renderPdfSongChecklist();
+  syncPdfControls();
+  updatePdfModalCopy();
+}
+
+// PDF icon on a song card: opens the dialog with just that song selected.
+function openPdfPreview(songId){
+  const group = state.sectionGroups.find(g => g.id === songId);
+  if (!group || !printableSections(songId).length) return;
+  pdfPendingSelection = [songId];
+  pdfModalCtl.open();
 }
 
 /* ---- song subset (which songs go in the PDF) ---- */
-let pdfSelectedSongIds = new Set();
 
 function allSongIdsWithSections(){
   return state.sectionGroups.filter(g => printableSections(g.id).length).map(g => g.id);
@@ -9614,6 +9607,7 @@ function renderPdfSongChecklist(){
       else pdfSelectedSongIds.delete(group.id);
       document.getElementById('pdfSubsetSelect').value = '';
       document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+      schedulePdfRender();
     });
     list.appendChild(row);
   });
@@ -9637,6 +9631,7 @@ document.getElementById('pdfSubsetSelect').addEventListener('change', (e) => {
   }
   renderPdfSongChecklist();
   document.getElementById('pdfDeleteSubsetBtn').style.display = id ? '' : 'none';
+  schedulePdfRender();
 });
 
 // Bulk song selection for the PDF checklist. Like a manual checkbox change,
@@ -9646,6 +9641,7 @@ function applyPdfChecklistSelection(ids){
   renderPdfSongChecklist();
   document.getElementById('pdfSubsetSelect').value = '';
   document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+  schedulePdfRender();
 }
 document.getElementById('pdfSelectAllBtn').addEventListener('click', () => {
   applyPdfChecklistSelection(allSongIdsWithSections());
@@ -9677,6 +9673,7 @@ document.getElementById('pdfSaveSubsetBtn').addEventListener('click', (e) => {
     populateSubsetSelect();
     document.getElementById('pdfSubsetSelect').value = targetId;
     document.getElementById('pdfDeleteSubsetBtn').style.display = '';
+    schedulePdfRender();
   });
 });
 
@@ -9691,44 +9688,47 @@ document.getElementById('pdfDeleteSubsetBtn').addEventListener('click', (e) => {
     populateSubsetSelect();
     sel.value = '';
     document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+    schedulePdfRender();
   });
 });
 
 pdfProjectNameInput.addEventListener('input', (e) => {
   state.projectName = e.target.value;
   scheduleSave();
+  schedulePdfRender(); // the download filename comes from the rendered PDF
 });
 preventAutoReplace(pdfProjectNameInput);
 
-document.querySelectorAll('.mode-btn[data-pdftype]').forEach(btn => {
+document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    pdfType = btn.dataset.pdftype;
-    document.querySelectorAll('.mode-btn[data-pdftype]').forEach(b => b.classList.toggle('active', b === btn));
+    pdfType = btn.dataset.pvtype;
+    syncPdfControls();
     updatePdfModalCopy();
+    schedulePdfRender();
   });
 });
 
-document.querySelectorAll('.mode-btn[data-mode]').forEach(btn => {
+document.querySelectorAll('#pvOrientationToggle .mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    pdfMode = btn.dataset.mode;
-    document.querySelectorAll('.mode-btn[data-mode]').forEach(b => b.classList.toggle('active', b === btn));
+    pdfOrientation = btn.dataset.pvorientation;
+    syncPdfControls();
+    schedulePdfRender();
   });
 });
 
-document.querySelectorAll('.mode-btn[data-orientation]').forEach(btn => {
+document.querySelectorAll('#pvAppearanceToggle .mode-btn').forEach(btn => {
   btn.addEventListener('click', () => {
-    pdfOrientation = btn.dataset.orientation;
-    document.querySelectorAll('.mode-btn[data-orientation]').forEach(b => b.classList.toggle('active', b === btn));
+    pdfMode = btn.dataset.pvmode;
+    syncPdfControls();
+    schedulePdfRender();
   });
 });
 
-document.getElementById('pdfDeviceSelect').addEventListener('change', (e) => {
+document.getElementById('pvDeviceSelect').addEventListener('change', (e) => {
   pdfDevice = e.target.value;
+  schedulePdfRender();
 });
 
-let pdfBlobUrl = null; // object URL of the last started download — revoked when the next one starts
-let generatedPdfBlob = null;   // blob from the most recent Generate
-let generatedPdfFilename = ''; // base filename from the most recent Generate
 // Downloads with an identical filename can fail instead of being
 // auto-renumbered by the browser, so every download claims a unique name
 // for the session: the first keeps its plain name, later ones get
@@ -9744,96 +9744,6 @@ function previewUniquePdfName(filename){
   const seen = pdfFilenameCounts[filename] || 0;
   return seen > 0 ? filename.replace(/\.pdf$/i, ` (${seen}).pdf`) : filename;
 }
-
-document.getElementById('pdfGenerateBtn').addEventListener('click', async () => {
-  const btn = document.getElementById('pdfGenerateBtn');
-  const link = document.getElementById('pdfDownloadLink');
-  const original = btn.textContent;
-  btn.textContent = 'Generating…';
-  btn.disabled = true;
-  link.style.display = 'none';
-  try{
-    const { blob, filename } = pdfType === 'print-friendly'
-      ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, pdfSelectedSongIds)
-      : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, pdfSelectedSongIds);
-    generatedPdfBlob = blob;
-    generatedPdfFilename = filename;
-    link.textContent = `↓ Download ${previewUniquePdfName(filename)}`;
-    link.style.display = 'block';
-    showPdfShareBtn();
-  } catch(err){
-    console.error(err);
-    showErrorToast('Could not generate the PDF: ' + err.message);
-  } finally {
-    btn.textContent = original;
-    btn.disabled = false;
-  }
-});
-
-// Every tap on the download link mints a fresh blob URL and claims the next
-// unique filename, so downloading the same generated PDF twice (or ten
-// times) always works — browsers that refuse a repeat download with an
-// identical name get a numbered one instead. Changing the song selection
-// and tapping Generate replaces the generated file; the numbering keeps
-// counting so the new file can't collide with earlier downloads either.
-document.getElementById('pdfDownloadLink').addEventListener('click', () => {
-  if (!generatedPdfBlob) return;
-  const link = document.getElementById('pdfDownloadLink');
-  if (pdfBlobUrl) URL.revokeObjectURL(pdfBlobUrl);
-  pdfBlobUrl = URL.createObjectURL(generatedPdfBlob);
-  const uniqueName = claimUniquePdfName(generatedPdfFilename);
-  link.href = pdfBlobUrl;
-  link.download = uniqueName;
-  link.textContent = `↓ Download ${uniqueName}`;
-});
-
-// Share the generated PDF via the device's share sheet (Apple Books,
-// Messages, Mail, AirDrop, …) where the Web Share API supports files.
-// Browsers without it (or that refuse PDFs) fall back to the normal
-// download — the button says so instead of failing silently.
-const shareBtn = document.getElementById('pdfShareBtn');
-shareBtn.addEventListener('click', async () => {
-  if (!generatedPdfBlob) return;
-  const fileName = generatedPdfFilename || 'setbook.pdf';
-  const file = new File([generatedPdfBlob], fileName, { type: 'application/pdf' });
-  const nav = window.navigator;
-  if (nav.canShare && nav.share && nav.canShare({ files: [file] })){
-    try{
-      await nav.share({ files: [file], title: fileName.replace(/\.pdf$/i, '') });
-      return;
-    } catch(err){
-      if (err && err.name === 'AbortError') return; // user closed the share sheet
-      console.error('Share failed, falling back to download:', err);
-    }
-  }
-  showErrorToast("This browser can't share files directly — use ↓ Download instead.");
-});
-function showPdfShareBtn(){
-  const file = new File([generatedPdfBlob], generatedPdfFilename || 'setbook.pdf', { type: 'application/pdf' });
-  const can = window.navigator.canShare && window.navigator.share && window.navigator.canShare({ files: [file] });
-  shareBtn.hidden = !can;
-  shareBtn.style.display = can ? 'block' : 'none';
-  // Where the share sheet exists but is the reduced navigator.share variant
-  // (iPadOS: no Books in its app row or its Edit Actions list), show the
-  // Download → Files → Share hint instead of leaving people stuck.
-  const hint = document.getElementById('pdfShareBooksHint');
-  if (hint) hint.style.display = (can && /iPad|iPhone|iPod/.test(navigator.userAgent)) ? 'block' : 'none';
-}
-
-/* ---- per-song PDF preview ----
-   The PDF icon button on each song header (visible in focus mode too) opens
-   a small modal that renders just this song through the real PDF pipelines
-   (same generatePerformancePdf / generatePrintFriendlyPdf the export dialog
-   uses). Performance renders as a horizontal page-turning strip (PDF.js
-   rasterizes each page to a canvas; swipe, the ‹ › buttons, or the arrow
-   keys turn pages) to simulate page turning; Print Friendly keeps the
-   vertical-scrolling embedded viewer. Settings start from the export
-   dialog's current choices so the preview matches what Generate would
-   produce; changing them re-renders. */
-let pvSongId = null;
-let pvType = 'performance', pvDevice = 'ipad', pvOrientation = 'landscape', pvMode = 'light';
-let pvBlob = null, pvFileName = '', pvBlobUrl = null, pvDownloadUrl = null;
-let pvRenderTimer = null, pvRenderSeq = 0;
 
 // PDF.js renders the Performance preview's page-turning strip. Both the main
 // bundle and the worker bundle lazy-load from cdnjs with pinned SRI hashes,
@@ -9880,55 +9790,58 @@ function ensurePdfJs(){
   return pdfJsPromise;
 }
 
-const pdfPreviewModal = wireModal({ overlayId:'pdfPreviewOverlay', closeBtnId:'pvCloseBtn' });
+/* ---- live preview render ----
+   Runs the real PDF pipelines (generatePerformancePdf /
+   generatePrintFriendlyPdf) over the current song selection and shows
+   the result: a horizontal page-turning strip for Performance
+   (PDF.js rasterizes each page to a canvas; swipe, the ‹ › buttons,
+   or the arrow keys turn pages), the vertical-scrolling embedded
+   viewer for Print Friendly. The rendered blob is what ↓ Download
+   and ↗ Share hand out, so the preview is always exactly the file. */
+let pvBlob = null, pvFileName = '', pvBlobUrl = null, pvDownloadUrl = null;
+let pvRenderTimer = null, pvRenderSeq = 0;
 
-function syncPvControls(){
-  document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvtype === pvType));
-  document.querySelectorAll('#pvOrientationToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvorientation === pvOrientation));
-  document.querySelectorAll('#pvAppearanceToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvmode === pvMode));
-  document.getElementById('pvAppearanceToggle').style.display = pvType === 'print-friendly' ? 'none' : '';
-  const sel = document.getElementById('pvDeviceSelect');
-  if (!sel.options.length) sel.innerHTML = document.getElementById('pdfDeviceSelect').innerHTML;
-  sel.value = pvDevice;
-}
-
-function openPdfPreview(songId){
-  const group = state.sectionGroups.find(g => g.id === songId);
-  if (!group) return;
-  pvSongId = songId;
-  pvType = pdfType; pvDevice = pdfDevice; pvOrientation = pdfOrientation; pvMode = pdfMode;
-  document.getElementById('pdfPreviewSub').textContent = group.name || 'Untitled song';
-  document.getElementById('pvDownloadLink').style.display = 'none';
-  syncPvControls();
-  pdfPreviewModal.open();
-  schedulePvRender();
-}
-
-function schedulePvRender(){
+function schedulePdfRender(){
   clearTimeout(pvRenderTimer);
-  document.getElementById('pvLoading').style.display = 'flex';
-  pvRenderTimer = setTimeout(renderPvPdf, 350);
+  const loading = document.getElementById('pvLoading');
+  loading.textContent = 'Rendering preview…';
+  loading.style.display = 'flex';
+  document.getElementById('pvDownloadLink').style.display = 'none';
+  pdfShareBtn.hidden = true;
+  pdfShareBtn.style.display = 'none';
+  pvRenderTimer = setTimeout(renderPdfPreview, 350);
 }
 
-async function renderPvPdf(){
+async function renderPdfPreview(){
   const seq = ++pvRenderSeq;
   const loading = document.getElementById('pvLoading');
   const frame = document.getElementById('pvFrame');
   const stripWrap = document.getElementById('pvStripWrap');
   const link = document.getElementById('pvDownloadLink');
   try{
-    const { blob, filename } = pvType === 'print-friendly'
-      ? await generatePrintFriendlyPdf(pvDevice, pvOrientation, new Set([pvSongId]))
-      : await generatePerformancePdf(pvMode, pvDevice, pvOrientation, new Set([pvSongId]));
+    const songIds = new Set(pdfSelectedSongIds);
+    if (!songIds.size){
+      if (seq !== pvRenderSeq) return;
+      loading.textContent = 'Select at least one song to preview.';
+      frame.removeAttribute('src');
+      frame.hidden = true;
+      stripWrap.hidden = true;
+      pvDestroyStripDoc();
+      return;
+    }
+    const { blob, filename } = pdfType === 'print-friendly'
+      ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, songIds)
+      : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, songIds);
     if (seq !== pvRenderSeq) return; // superseded by a newer render
-    if (!pdfPreviewModal.overlay.classList.contains('open')) return;
+    if (!pdfModal.classList.contains('open')) return;
     pvBlob = blob;
     pvFileName = filename;
     if (pvBlobUrl) URL.revokeObjectURL(pvBlobUrl);
     pvBlobUrl = URL.createObjectURL(blob);
     link.textContent = `↓ Download ${previewUniquePdfName(filename)}`;
     link.style.display = '';
-    if (pvType === 'performance'){
+    showPdfShareBtn();
+    if (pdfType === 'performance'){
       try{
         await ensurePdfJs();
         await renderPvStrip(blob, seq);
@@ -9945,9 +9858,11 @@ async function renderPvPdf(){
     }
   }catch(err){
     console.error(err);
-    showErrorToast('Could not render the preview: ' + err.message);
+    showErrorToast('Could not render the PDF: ' + err.message);
   }finally{
-    if (seq === pvRenderSeq) loading.style.display = 'none';
+    // The empty-selection message stays up until the next render is
+    // scheduled (which resets the text to "Rendering preview…").
+    if (seq === pvRenderSeq && loading.textContent === 'Rendering preview…') loading.style.display = 'none';
   }
 }
 
@@ -9986,9 +9901,9 @@ async function renderPvStrip(blob, seq){
   strip.innerHTML = ''; // clearing the children also resets scrollLeft to 0
   showPvStrip();
   const data = await blob.arrayBuffer();
-  if (seq !== pvRenderSeq || !pdfPreviewModal.overlay.classList.contains('open')) return;
+  if (seq !== pvRenderSeq || !pdfModal.classList.contains('open')) return;
   const pdf = await window.pdfjsLib.getDocument({ data }).promise;
-  if (seq !== pvRenderSeq || !pdfPreviewModal.overlay.classList.contains('open')){
+  if (seq !== pvRenderSeq || !pdfModal.classList.contains('open')){
     try{ await pdf.destroy(); }catch(e){}
     return;
   }
@@ -9998,7 +9913,7 @@ async function renderPvStrip(blob, seq){
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const targetCssH = Math.max(200, strip.clientHeight - 28);
   for (let n = 1; n <= pdf.numPages; n++){
-    if (seq !== pvRenderSeq || !pdfPreviewModal.overlay.classList.contains('open')){
+    if (seq !== pvRenderSeq || !pdfModal.classList.contains('open')){
       pvDestroyStripDoc();
       strip.innerHTML = '';
       return;
@@ -10088,8 +10003,8 @@ document.getElementById('pvStrip').addEventListener('scroll', () => {
 document.getElementById('pvPrevPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() - 1));
 document.getElementById('pvNextPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() + 1));
 document.addEventListener('keydown', (e) => {
-  if (!pdfPreviewModal.overlay.classList.contains('open')) return;
-  if (pvType !== 'performance') return;
+  if (!pdfModal.classList.contains('open')) return;
+  if (pdfType !== 'performance') return;
   if (document.getElementById('pvStripWrap').hidden) return;
   const tag = (document.activeElement && document.activeElement.tagName) || '';
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
@@ -10100,7 +10015,7 @@ document.addEventListener('keydown', (e) => {
 // Releasing viewer resources when the modal closes (every close path funnels
 // through the overlay's class); the next render mints fresh ones.
 new MutationObserver(() => {
-  if (!pdfPreviewModal.overlay.classList.contains('open')){
+  if (!pdfModal.classList.contains('open')){
     if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
     if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
     pvBlob = null;
@@ -10108,33 +10023,57 @@ new MutationObserver(() => {
     document.getElementById('pvStrip').innerHTML = '';
     document.getElementById('pvFrame').removeAttribute('src');
   }
-}).observe(pdfPreviewModal.overlay, { attributes: true, attributeFilter: ['class'] });
+}).observe(pdfModal, { attributes: true, attributeFilter: ['class'] });
 
-document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(btn => {
-  btn.addEventListener('click', () => { pvType = btn.dataset.pvtype; syncPvControls(); schedulePvRender(); });
-});
-document.querySelectorAll('#pvOrientationToggle .mode-btn').forEach(btn => {
-  btn.addEventListener('click', () => { pvOrientation = btn.dataset.pvorientation; syncPvControls(); schedulePvRender(); });
-});
-document.querySelectorAll('#pvAppearanceToggle .mode-btn').forEach(btn => {
-  btn.addEventListener('click', () => { pvMode = btn.dataset.pvmode; syncPvControls(); schedulePvRender(); });
-});
-document.getElementById('pvDeviceSelect').addEventListener('change', (e) => {
-  pvDevice = e.target.value;
-  schedulePvRender();
-});
-// Every tap mints a fresh blob URL and claims the next unique filename, same
-// as the export dialog's download link.
+// Every tap on the download link mints a fresh blob URL and claims the next
+// unique filename, so downloading the same rendered PDF twice (or ten
+// times) always works — browsers that refuse a repeat download with an
+// identical name get a numbered one instead. Changing the song selection
+// and letting the preview re-render replaces the file; the numbering keeps
+// counting so the new file can't collide with earlier downloads either.
 document.getElementById('pvDownloadLink').addEventListener('click', () => {
   if (!pvBlob) return;
   const link = document.getElementById('pvDownloadLink');
   if (pvDownloadUrl) URL.revokeObjectURL(pvDownloadUrl);
   pvDownloadUrl = URL.createObjectURL(pvBlob);
   const uniqueName = claimUniquePdfName(pvFileName);
-  link.href = pvDownloadUrl;
+  link.href = pvBlobUrl;
   link.download = uniqueName;
   link.textContent = `↓ Download ${uniqueName}`;
 });
+
+// Share the rendered PDF via the device's share sheet (Apple Books,
+// Messages, Mail, AirDrop, …) where the Web Share API supports files.
+// Browsers without it (or that refuse PDFs) fall back to the normal
+// download — the button says so instead of failing silently.
+pdfShareBtn.addEventListener('click', async () => {
+  if (!pvBlob) return;
+  const fileName = pvFileName || 'setbook.pdf';
+  const file = new File([pvBlob], fileName, { type: 'application/pdf' });
+  const nav = window.navigator;
+  if (nav.canShare && nav.share && nav.canShare({ files: [file] })){
+    try{
+      await nav.share({ files: [file], title: fileName.replace(/\.pdf$/i, '') });
+      return;
+    } catch(err){
+      if (err && err.name === 'AbortError') return; // user closed the share sheet
+      console.error('Share failed, falling back to download:', err);
+    }
+  }
+  showErrorToast("This browser can't share files directly — use ↓ Download instead.");
+});
+function showPdfShareBtn(){
+  const file = new File([pvBlob], pvFileName || 'setbook.pdf', { type: 'application/pdf' });
+  const can = window.navigator.canShare && window.navigator.share && window.navigator.canShare({ files: [file] });
+  pdfShareBtn.hidden = !can;
+  pdfShareBtn.style.display = can ? 'block' : 'none';
+  // Where the share sheet exists but is the reduced navigator.share variant
+  // (iPadOS: no Books in its app row or its Edit Actions list), show the
+  // Download → Files → Share hint instead of leaving people stuck.
+  const hint = document.getElementById('pdfShareBooksHint');
+  if (hint) hint.style.display = (can && /iPad|iPhone|iPod/.test(navigator.userAgent)) ? 'block' : 'none';
+}
+
 
 /* ---------------------------------------------------------
    Performance PDF generation
@@ -11810,7 +11749,7 @@ function showPromptPopover(anchorEl, message, defaultValue, submitLabel, onSubmi
     'apple-books': {
       title: 'Save a PDF to Apple Books (iPhone or iPad)',
       steps: [
-        'Download the PDF (\u2193 Download), or tap Share right after generating it.',
+        'Download the PDF (\u2193 Download), or tap \u2197 Share PDF\u2026 in the export dialog.',
         'Tap the Share button (the box with an arrow pointing up).',
         'In the share sheet, scroll the row of app icons sideways \u2014 Books is often hidden off-screen to the right. The app row is the second row, below AirDrop.',
         'No Books there? Tap More (\u22ef) \u2192 Edit Actions and switch Books on; it then stays in the sheet.',
