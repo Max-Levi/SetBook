@@ -51,11 +51,6 @@ re-fetch with a cache-buster before diagnosing a stale deploy.
 
 All persistent data is a JSON serialization of the `state` object:
 
-- `schemaVersion` — the saved-data shape version (`SETBOOK_SCHEMA_VERSION`;
-  currently 1). Files without the field are legacy (pre-versioning) and load
-  as version 1; files with a NEWER version still load (unknown fields are
-  ignored here and preserved on the next save), so a bump never locks anyone
-  out of their own songs. Per-version migrations live in `loadParsedState()`.
 - `sectionGroups[]` — songs. Fields: `id`, `name` (title), `artist`,
   `videoUrl` (album-version link, optional), `videoUrlLive`
   (live-performance link, optional), `type` (`"cover"` | `"original"`,
@@ -64,13 +59,7 @@ All persistent data is a JSON serialization of the `state` object:
   existed only hold the two old values and keep working), `tags` (array
   of custom tag strings, defaults to `[]`), `updatedAt` (ms-epoch
   timestamp of the song's last edit; `null` on files saved before stamps
-  existed, shown as "unknown" in comparisons), and `notes` (optional
-  free-form reminder text edited on the song's details page).
-  Notes are deliberately app-side only: PDF generation reads only the
-  header fields and sections, never `notes` (guarded by a regression
-  test), so exports stay unchanged. They persist through the normal
-  serialize/load path (an unknown-field to `loadParsedState`, which must
-  keep preserving them) and ride along in whole-song sync merges.
+  existed, shown as "unknown" in comparisons).
 - `sections[]` — song sections. Fields: `id`, `groupId` (owning song),
   `nameType` (one of `"intro"`, `"verse"`, `"chorus"`, `"pre-chorus"`,
   `"bridge"`, `"instrumental"`, `"outro"`, or `"custom"`), `customName`
@@ -123,26 +112,7 @@ All persistent data is a JSON serialization of the `state` object:
   recent first), powering Songs → Recently viewed songs….
 - `recentlyDeleted[]` — the last five deleted songs as full snapshots
   (`{ group, sections, index, at }`, most recent first), powering
-  Songs → Recently deleted songs….
-- `tombstones[]` — bounded (50) deletion markers `{ id, deletedAt }` for
-  deleted songs, saved with the file. Sync groundwork: a future multi-device
-  merge uses them to keep a song deleted on one device from being
-  resurrected by an older copy on another. Rules: song ids are never
-  reused, so a live song with a tombstoned id means the delete was undone —
-  `pruneTombstonesForLiveSongs()` drops those (and `loadParsedState`
-  validates/caps/prunes on every load); undo and Recently-deleted restore
-  drop the tombstone via `dropSongTombstone()`. Deletions on devices that
-  never re-sync eventually fall out of the 50-cap — an accepted bound, not
-  a correctness risk for the merge below.
-- `mergeSongbooksForSync(mine, theirs)` — pure two-way, whole-song merge
-  for a future sync backend: newer `updatedAt` wins wholesale (song AND its
-  sections — never interleave two versions of one song); a one-sided song
-  survives unless the other side carries a tombstone with
-  `deletedAt >= song.updatedAt` (edit-after-delete wins); tombstones union
-  newest-per-id, pruned of survivors. Returns
-  `{ sectionGroups, sections, tombstones }`; callers own file-level fields
-  and the live state. Not yet called from UI code — it is the contract a
-  sync adapter will consume (see §13). Restoring re-inserts the song at its
+  Songs → Recently deleted songs…. Restoring re-inserts the song at its
   original position with all its sections; the undo-restore path drops
   the entry so a song restored via Undo can't be restored twice. Named
   deleted songs also count as "real work" for the crash-recovery offer
@@ -151,27 +121,6 @@ All persistent data is a JSON serialization of the `state` object:
 
 ## 4. Code organization and invariants
 
-- All persistence serialization goes through `serializeState()` — the one
-  seam that stamps `schemaVersion` on a shallow copy (live state is never
-  mutated by a save). Never call `JSON.stringify(state)` directly in a save
-  path: the linked-file save, `driveFileBody()`, the Save-as/backup
-  download, and the filtered export all route through the seam.
-- All book **writes and loads against the active link** go through the
-  adapter facade: `storage/storage-adapters.js` is embedded verbatim in the
-  app between `__SETBOOK_STORAGE__` markers (byte-parity asserted by the
-  regression suite; sync with `node tools/embed-storage.js` after editing
-  the canonical file), and the app adds two adapters on the same contract —
-  `LinkedFileBookAdapter` (FS-handle file) and `DriveBookAdapter` (Drive
-  file, conflict semantics identical to the original `driveSaveLibrary`).
-  `activeBookAdapter()` is the single dispatch point (Drive wins while a
-  Drive link exists, file handle otherwise, then the `SetBookCloudBookAdapter`
-  prototype once `SETBOOK_CLOUD.enabled` is true and it is configured,
-  null unlinked). Save/open code asks the facade instead of branching on
-  `fileHandle`/`driveLink`; a future backend implements the same six
-  methods and registers here. The
-  spike's adapters are still exercised via `globalThis.SetBookStorage`;
-  user gesture flows (open/save pickers, Drive connection) stay outside
-  the adapter contract on purpose.
 - All display-affecting transforms (lyric-continuation grouping,
   comment-line stripping, repeat markers) are centralized in
   `groupLinesForDisplay` and its helpers so the preview and both PDF
@@ -269,26 +218,6 @@ All persistent data is a JSON serialization of the `state` object:
   `CACHE_VERSION` in `sw.js` whenever the pre-cached asset list changes.
   Registration is guarded to https/localhost and never blocks the app —
   including the Node test sandbox, which provides no service worker.
-- A `Content-Security-Policy` meta pins every origin the page may touch:
-  `script-src 'unsafe-inline' https://cdnjs.cloudflare.com https://accounts.google.com https://apis.google.com`
-  (the whole app is inline script, so 'unsafe-inline' is unavoidable without
-  a build step — it is also what keeps the scraper extension's MAIN-world
-  injections working; the two Google origins load the Drive auth SDK
-  (`/gsi/client`) and Picker SDK (`js/api.js`) on demand), `style-src`
-  inline + fonts.googleapis.com, `font-src` fonts.gstatic.com,
-  `connect-src https:` (URL import + Drive REST + OAuth tokens),
-  `img-src 'self' data: blob:`, `frame-src blob:` (PDF preview iframe)
-  plus `https://docs.google.com` (the Picker's iframe) and
-  `https://accounts.google.com` (Google auth's hidden frames),
-  `worker-src 'self' blob:` (sw.js registration + pdf.js worker),
-  `object-src 'none'`, `base-uri 'none'`. Adding an
-  external origin means updating the CSP meta, the pinned SRI, `sw.js`, and
-  the security test together — one change, four places. **Known failure
-  mode (2026-10-07):** the first CSP rollout omitted the two Google
-  origins, which silently severed every Drive path — boot re-link,
-  Connect, and the Picker — because `loadScriptOnce` rejected on the
-  blocked script; any new SDK origin must be load-tested by actually
-  invoking the feature that fetches it, not just by a clean page load.
 
 ## 7. Google Drive cloud save
 
@@ -361,9 +290,6 @@ Run this audit on every change; fix what you find, test, and deploy:
 
 - CDN dependencies without pinned SRI (jsPDF, PDF.js main + worker,
   Google Fonts).
-- CSP meta missing an origin a change newly fetches script, style, font, or
-  connect access for (see §6) — and check the browser console for CSP
-  violation reports after any dependency change.
 - `innerHTML` / DOM sinks fed by untrusted data (imported files, scraped
   pages) — scraped text must only ever reach input values or plain
   strings.
@@ -483,17 +409,19 @@ browser with the console visible):
   position and opens it; deleting six songs keeps only the last five;
   reloading the file keeps the list (it is saved with the file); using
   Undo on the delete toast removes the entry from the list.
-- PDF modal: the song checklist lists the song; Select all checks
+- PDF modal ("Export PDF"): the song checklist lists the song; Select all checks
   everything, Select none clears, Ready only selects just Ready songs
-  (mark one song Ready first to verify). Generate a Performance PDF in
-  light mode and in dark mode, and a Print-Friendly PDF — each must
-  complete and produce a download with no errors.
+  (mark one song Ready first to verify). The dialog renders a live preview
+  of the PDF as options or the song selection change — there is no Generate
+  step; the preview IS the document. Switch between Performance (page-turning
+  strip) and Print-Friendly (vertical scroll), light/dark, and devices; the
+  ↓ Download link appears when each render finishes, and ↗ Share PDF…
+  appears where the Web Share API supports files. Download each variant with
+  no errors.
 - Per-song PDF preview: click the PDF icon on a song header (also present
-  in focus mode) — the modal opens with the song's name, the Performance
-  PDF renders as a left-to-right page strip, and the Download button
-  appears. Turn pages with the ‹ › buttons and the arrow keys; switch to
-  Print Friendly PDF (vertical scrolling) and to dark mode; each change
-  re-renders without errors.
+  in focus mode) — the same Export PDF dialog opens with only that song
+  checked in the checklist. Turn pages with the ‹ › buttons and the arrow
+  keys; each change re-renders without errors.
 - Section Preview: each section editor field has a folded Section
   Preview accordion beneath it — unfolding it renders the Performance PDF
   page for just that section (light mode, iPad landscape) on a canvas;
@@ -569,67 +497,8 @@ live in the maintainer's `setbook-qa/` workspace: `regression-test.js`
 behavior does not require a documentation update beyond this file's own
 revision note.
 
-## 13. Phase-0 groundwork for a future service
-
-Inert scaffolding for the day SetBook grows accounts/sync, ads, or a
-subscription. None of it changes behavior today; all of it is tested in the
-regression suite and documented so the future change is a plug-in, not a
-rewrite.
-
-- **Serialization seam** — `serializeState()` (§4) is the single path every
-  save takes; a future sync backend reads/writes the same bytes users' files
-  already use.
-- **Anonymous device persona** — `getDevicePersonaId()` returns a stable
-  random `dev_…` id from localStorage (null when storage is unavailable). It
-  identifies nothing personal and is not transmitted. When accounts arrive,
-  sign-up links this persona's local data (recovery snapshots, linked-file
-  history) to the account so existing users keep their work. Privacy note:
-  docs/PRIVACY.md discloses it.
-- **Ad-slot contract** — `AD_CONFIG` (disabled) + `mountAdSlot(name)`. Ads
-  must never mount inside the editor, sidebar, or preview DOM; the SDK (if
-  there ever is one) must be lazy-loaded behind user consent, exactly like
-  `ensurePdfLib()`, so the core file stays ad-free and CSP changes stay
-  localized. While `AD_CONFIG.enabled` is false the mount returns null and
-  renders nothing.
-- **Adapter quota seam** — `storage/storage-adapters.js` adapters implement
-  `quota() -> null | {used, limit, unit}` (see the storage spike README).
-  A future first-party backend reports the signed-in plan there; the app
-  never hardcodes storage limits.
-- **Privacy policy** — docs/PRIVACY.md states today's reality (no accounts,
-  no analytics, no ads). It must be rewritten BEFORE any account/ad/
-  subscription feature ships.
-- **Deletion tombstones + two-way merge** — `state.tombstones` (§3) and
-  `mergeSongbooksForSync()` give sync a way to represent deletions and
-  resolve whole-song conflicts without a server format change: the merged
-  result is an ordinary songbook file.
-- **SetBook Cloud prototype (disabled)** — `SETBOOK_CLOUD = { enabled: false }`
-  and `SetBookCloudBookAdapter` implement the sync adapter the tombstone
-  groundwork was waiting for: same six-method contract, `https://`-only
-  endpoint, rev = ETag with `If-Match`/`If-None-Match` conditional writes,
-  and — when the server copy moved since our rev — a
-  `mergeSongbooksForSync()` over both sides whose survivor set is written
-  back (returning `merged: true` so a caller knows to reload, like the
-  Drive conflict modal). While the flag is false the adapter is
-  unreachable from the dispatch and nothing fetches; no server exists yet.
-  Flipping the flag is the rollout gate — before that, wire the reload
-  path and a real endpoint, and re-run the §11 security audit (the
-  endpoint is user-configurable, so treat it as untrusted input).
-
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
-Revised 2026-10-05: schemaVersion + serializeState seam, CSP meta, Phase-0
-groundwork (§13), adapter quota seam. Revised 2026-10-06: storage-adapters
-embedded verbatim; LinkedFileBookAdapter/DriveBookAdapter +
-activeBookAdapter() facade as the single write/load path; deletion
-tombstones + mergeSongbooksForSync() sync groundwork; SetBook Cloud sync
-adapter prototype (disabled) + §11 security audit re-run. Revised
-2026-10-07: CSP fix — add the Drive auth/Picker script origins and the
-Picker/auth frame origins that the first CSP rollout blocked, which had
-broken every Google Drive path (boot re-link, Connect, Picker). Also
-2026-10-07: per-song notes field on the details page
-(`sectionGroups[].notes`), app-side only by design — never rendered into
-PDFs (regression-guarded), optional on load, carried by whole-song sync
-merge. Keep it
-current: it is the reference any tool or human uses to maintain and
-extend this app.*
+Keep it current: it is the reference any tool or human uses to maintain
+and extend this app.*
