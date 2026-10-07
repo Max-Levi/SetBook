@@ -158,9 +158,11 @@ All persistent data is a JSON serialization of the `state` object:
   `LinkedFileBookAdapter` (FS-handle file) and `DriveBookAdapter` (Drive
   file, conflict semantics identical to the original `driveSaveLibrary`).
   `activeBookAdapter()` is the single dispatch point (Drive wins while a
-  Drive link exists, file handle otherwise, null unlinked). Save/open code
-  asks the facade instead of branching on `fileHandle`/`driveLink`; a
-  future backend implements the same six methods and registers here. The
+  Drive link exists, file handle otherwise, then the `SetBookCloudBookAdapter`
+  prototype once `SETBOOK_CLOUD.enabled` is true and it is configured,
+  null unlinked). Save/open code asks the facade instead of branching on
+  `fileHandle`/`driveLink`; a future backend implements the same six
+  methods and registers here. The
   spike's adapters are still exercised via `globalThis.SetBookStorage`;
   user gesture flows (open/save pickers, Drive connection) stay outside
   the adapter contract on purpose.
@@ -584,9 +586,19 @@ rewrite.
 - **Deletion tombstones + two-way merge** — `state.tombstones` (§3) and
   `mergeSongbooksForSync()` give sync a way to represent deletions and
   resolve whole-song conflicts without a server format change: the merged
-  result is an ordinary songbook file. The remaining piece is a sync
-  adapter (the facade from the adapter merge) that fetches both sides,
-  calls the merge, and writes the result.
+  result is an ordinary songbook file.
+- **SetBook Cloud prototype (disabled)** — `SETBOOK_CLOUD = { enabled: false }`
+  and `SetBookCloudBookAdapter` implement the sync adapter the tombstone
+  groundwork was waiting for: same six-method contract, `https://`-only
+  endpoint, rev = ETag with `If-Match`/`If-None-Match` conditional writes,
+  and — when the server copy moved since our rev — a
+  `mergeSongbooksForSync()` over both sides whose survivor set is written
+  back (returning `merged: true` so a caller knows to reload, like the
+  Drive conflict modal). While the flag is false the adapter is
+  unreachable from the dispatch and nothing fetches; no server exists yet.
+  Flipping the flag is the rollout gate — before that, wire the reload
+  path and a real endpoint, and re-run the §11 security audit (the
+  endpoint is user-configurable, so treat it as untrusted input).
 
 ---
 
@@ -595,5 +607,6 @@ Revised 2026-10-05: schemaVersion + serializeState seam, CSP meta, Phase-0
 groundwork (§13), adapter quota seam. Revised 2026-10-06: storage-adapters
 embedded verbatim; LinkedFileBookAdapter/DriveBookAdapter +
 activeBookAdapter() facade as the single write/load path; deletion
-tombstones + mergeSongbooksForSync() sync groundwork. Keep it current:
+tombstones + mergeSongbooksForSync() sync groundwork; SetBook Cloud sync
+adapter prototype (disabled) + §11 security audit re-run. Keep it current:
 it is the reference any tool or human uses to maintain and extend this app.*

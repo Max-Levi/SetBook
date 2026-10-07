@@ -29,7 +29,10 @@ No build step, no server — it's one self-contained HTML file.
   policy (`PRIVACY.md`). The songbook schema already carries deletion
   tombstones and a two-way whole-song merge helper
   (`mergeSongbooksForSync`), so a future sync backend can represent
-  deletions without changing the file format.
+  deletions without changing the file format. A disabled `SetBook Cloud`
+  sync adapter prototype (behind `SETBOOK_CLOUD.enabled`) already wires
+  that merge into the adapter facade; it ships inert and undocumented in
+  the in-app Help until a real backend exists.
 
 ## Updating the hosted app
 

@@ -2828,9 +2828,141 @@ const linkedFileBookAdapter = new LinkedFileBookAdapter();
 const driveBookAdapter = new DriveBookAdapter();
 // The one dispatch point: which backend owns the current link. Save and
 // load code asks this instead of branching on fileHandle/driveLink.
+// SetBook Cloud (prototype below) is the fallback once its flag is on and
+// it is configured; until then the line is dead and this behaves as before.
 function activeBookAdapter(){
-  return driveLink ? driveBookAdapter : (fileHandle ? linkedFileBookAdapter : null);
+  if (driveLink) return driveBookAdapter;
+  if (fileHandle) return linkedFileBookAdapter;
+  if (SETBOOK_CLOUD.enabled && setBookCloudBookAdapter.isConfigured()) return setBookCloudBookAdapter;
+  return null;
 }
+
+/* ---------------------------------------------------------
+   SetBook Cloud (prototype): the first-party sync backend,
+   written to the same six-method contract as the adapters
+   above. Deliberately disabled — SETBOOK_CLOUD.enabled is
+   false, so nothing here fetches, registers, or is reachable
+   from the UI. Flipping the flag (plus configure()) is the
+   whole rollout; the dispatch above then hands saves here.
+   Sync semantics (the tombstone groundwork's first consumer):
+   saveBook() reads the server copy and, when it changed since
+   our rev, resolves the difference with mergeSongbooksForSync
+   (newer updatedAt wins wholesale; a delete after the last
+   edit wins) and writes the survivor set back. `merged: true`
+   in the result tells a future caller to reload, like the
+   Drive conflict modal. See docs/MAINTAINER.md §13.
+--------------------------------------------------------- */
+const SETBOOK_CLOUD = { enabled: false };
+const SETBOOK_CLOUD_DEFAULT_ENDPOINT = 'https://api.setbook.app/v1';
+class SetBookCloudBookAdapter {
+  constructor(){ this.kind = 'cloud'; this.id = 'setbook-cloud'; this._cfg = null; }
+  configFields(){
+    return [
+      { key: 'baseUrl', label: 'Endpoint', type: 'text', placeholder: SETBOOK_CLOUD_DEFAULT_ENDPOINT },
+      { key: 'token', label: 'Account token', type: 'password', secret: true },
+    ];
+  }
+  // HTTPS only: sync credentials must never cross plaintext (and the CSP's
+  // connect-src https: agrees — defense in depth, not the only guard).
+  async configure(opts = {}){
+    const base = String(opts.baseUrl || '').trim().replace(/\/+$/, '');
+    const cfg = { baseUrl: base || SETBOOK_CLOUD_DEFAULT_ENDPOINT, token: opts.token || '' };
+    if (!cfg.baseUrl.startsWith('https://')){
+      throw new Error('SetBook Cloud requires an https:// endpoint.');
+    }
+    this._cfg = cfg;
+  }
+  isConfigured(){ return !!(SETBOOK_CLOUD.enabled && this._cfg); }
+  // A real backend reports the account plan here ({used, limit, unit});
+  // the prototype has no plan API, so it reports nothing.
+  async quota(){ return null; }
+  _headers(extra = {}){
+    return {
+      'Content-Type': 'application/json',
+      ...(this._cfg.token ? { 'Authorization': `Bearer ${this._cfg.token}` } : {}),
+      ...extra,
+    };
+  }
+  _url(id){ return `${this._cfg.baseUrl}/${encodeURIComponent(id)}.json`; }
+  _revFrom(res){ return (res.headers.get('ETag') || '').replace(/^"|"$/g, '') || null; }
+  async _guarded(fn){
+    if (!this.isConfigured()) throw new Error('SetBook Cloud is not enabled.');
+    return fn();
+  }
+  async loadBook(id){
+    return this._guarded(async () => {
+      const res = await fetch(this._url(id), { headers: this._headers() });
+      if (res.status === 404) throw new Error('Book not found in SetBook Cloud.');
+      if (!res.ok) throw new Error(`SetBook Cloud load failed: ${res.status}`);
+      return { data: await res.text(), rev: this._revFrom(res) };
+    });
+  }
+  async saveBook(id, data, rev = null){
+    return this._guarded(async () => {
+      const url = this._url(id);
+      if (rev === null){
+        // Create-only write: the server must not already hold a book here.
+        const res = await fetch(url, { method: 'PUT', headers: this._headers({ 'If-None-Match': '*' }), body: data });
+        if (res.status === 412){
+          const current = await this.loadBook(id).catch(() => null);
+          throw new SetBookStorage.ConflictError('This book already exists in SetBook Cloud.', current ? current.rev : null);
+        }
+        if (!res.ok) throw new Error(`SetBook Cloud save failed: ${res.status}`);
+        return { rev: this._revFrom(res) };
+      }
+      // Conditional read: 304 says the server copy is exactly the one we
+      // last wrote, so the local data goes up as-is.
+      const head = await fetch(url, { headers: this._headers({ 'If-None-Match': rev }) });
+      if (head.status === 304){
+        const res = await fetch(url, { method: 'PUT', headers: this._headers({ 'If-Match': rev }), body: data });
+        if (res.status === 412){
+          const current = await this.loadBook(id).catch(() => null);
+          throw new SetBookStorage.ConflictError('This book changed in SetBook Cloud since you loaded it.', current ? current.rev : null);
+        }
+        if (!res.ok) throw new Error(`SetBook Cloud save failed: ${res.status}`);
+        return { rev: this._revFrom(res) };
+      }
+      if (head.status === 404){
+        // The remote book vanished (another device deleted it). Recreate.
+        const res = await fetch(url, { method: 'PUT', headers: this._headers({ 'If-None-Match': '*' }), body: data });
+        if (!res.ok) throw new Error(`SetBook Cloud save failed: ${res.status}`);
+        return { rev: this._revFrom(res) };
+      }
+      if (!head.ok) throw new Error(`SetBook Cloud save failed: ${head.status}`);
+      // Remote moved on: merge both sides (tombstones included) and write
+      // the survivor set. The remote book becomes the base for every
+      // file-level field the merge does not own — a whole-song merge
+      // cannot reconcile two versions of those (see mergeSongbooksForSync).
+      // One race window remains between this read and the write; If-Match
+      // closes it with a ConflictError.
+      let remoteBook, localBook, m;
+      try {
+        remoteBook = JSON.parse(await head.text());
+        localBook = JSON.parse(data);
+        m = mergeSongbooksForSync(remoteBook, localBook);
+      } catch (e){
+        throw new Error('SetBook Cloud returned data that is not a valid songbook.');
+      }
+      const body = JSON.stringify({ ...remoteBook,
+        sectionGroups: m.sectionGroups, sections: m.sections, tombstones: m.tombstones });
+      const res = await fetch(url, { method: 'PUT',
+        headers: this._headers({ 'If-Match': this._revFrom(head) }), body });
+      if (res.status === 412){
+        const current = await this.loadBook(id).catch(() => null);
+        throw new SetBookStorage.ConflictError('This book changed in SetBook Cloud while merging.', current ? current.rev : null);
+      }
+      if (!res.ok) throw new Error(`SetBook Cloud save failed: ${res.status}`);
+      return { rev: this._revFrom(res), merged: true };
+    });
+  }
+  async deleteBook(id){
+    return this._guarded(async () => {
+      const res = await fetch(this._url(id), { method: 'DELETE', headers: this._headers() });
+      if (!res.ok && res.status !== 404) throw new Error(`SetBook Cloud delete failed: ${res.status}`);
+    });
+  }
+}
+const setBookCloudBookAdapter = new SetBookCloudBookAdapter();
 
 /*__SETBOOK_MCP_CORE_BEGIN__*/
 /* NOTE (MCP core): this region is extracted verbatim into
@@ -7485,7 +7617,9 @@ async function doSave(){
     }
     return;
   }
-  if (!bookAdapter || bookAdapter !== linkedFileBookAdapter) return;
+  // Any non-Drive backend the dispatch hands over — the linked file today,
+  // SetBook Cloud once its prototype flag is on — saves through this path.
+  if (!bookAdapter || bookAdapter === driveBookAdapter) return;
   try{
     updateSaveStatus('saving');
     stampSectionDisplayNames();

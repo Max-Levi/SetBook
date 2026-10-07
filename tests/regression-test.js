@@ -189,6 +189,7 @@ globalThis.__sb = {
   getDevicePersonaId, mountAdSlot, AD_CONFIG,
   SetBookStorage, activeBookAdapter, linkedFileBookAdapter, driveBookAdapter,
   LinkedFileBookAdapter, DriveBookAdapter,
+  SETBOOK_CLOUD, SetBookCloudBookAdapter, setBookCloudBookAdapter,
   recordSongTombstone, dropSongTombstone, pruneTombstonesForLiveSongs,
   mergeSongbooksForSync, MAX_TOMBSTONES,
   sectionTransposeInfo, transposedSectionLines, blockCannotTranspose,
@@ -916,12 +917,131 @@ const adapterChecks = (async () => {
   }
 }
 
-/* ================= summary ================= */
+/* ========== 16. SetBook Cloud prototype (disabled sync adapter) ========== */
+const cloudAdapterChecks = (async () => {
+  // The dispatch checks below read the fileHandle/driveLink bindings the
+  // adapter suite sets and restores — drain that suite first so they are
+  // deterministic (the IIFE below starts as soon as it is defined).
+  await adapterChecks;
+  suite('setbook-cloud');
+  const adapter = sb.setBookCloudBookAdapter;
+  check('cloud adapter registered', !!adapter && adapter.id === 'setbook-cloud' && adapter.kind === 'cloud');
+  check('prototype flag ships disabled', sb.SETBOOK_CLOUD.enabled === false);
+  check('cloud configFields: endpoint + secret token', (() => {
+    const f = adapter.configFields();
+    return f.length === 2 && f[0].key === 'baseUrl' && f[1].key === 'token' && f[1].secret === true;
+  })());
+  check('cloud quota reports nothing (no plan API yet)', (await adapter.quota()) === null);
+
+  // HTTPS-only guard: plaintext endpoints are rejected and leave the
+  // adapter unconfigured.
+  let httpThrew = null;
+  try { await adapter.configure({ baseUrl: 'http://api.example.com' }); } catch (e){ httpThrew = e; }
+  check('cloud configure rejects http://', !!httpThrew && /https/.test(httpThrew.message));
+  check('rejected endpoint leaves adapter unconfigured', adapter.isConfigured() === false);
+
+  // Flag off: configured or not, the adapter is invisible to dispatch.
+  await adapter.configure({ baseUrl: 'https://api.setbook.app/v1', token: 't' });
+  check('flag off: configured adapter still not active', adapter.isConfigured() === false);
+  check('flag off: dispatch unchanged', sb.activeBookAdapter() === null);
+
+  // From here on the suite drives the adapter with a stubbed fetch. The
+  // sandbox has no fetch global, so save/restore it exactly.
+  const realFetch = sandbox.fetch;
+  const realCloud = sb.SETBOOK_CLOUD;
+  const calls = [];
+  sandbox.fetch = async (url, opts = {}) => {
+    calls.push({ url: String(url), method: opts.method || 'GET', headers: opts.headers || {}, body: opts.body });
+    const last = calls[calls.length - 1];
+    return sandbox.__cloudRespond(last);
+  };
+  try {
+    sb.SETBOOK_CLOUD.enabled = true;
+    check('flag on + configured: adapter activates', adapter.isConfigured() === true);
+    check('flag on: dispatch hands saves to the cloud adapter', sb.activeBookAdapter() === adapter);
+
+    // Unconfigured instance refuses to fetch.
+    const bare = new sb.SetBookCloudBookAdapter();
+    let bareThrew = null;
+    try { await bare.saveBook('b1', '{}', 'r1'); } catch (e){ bareThrew = e; }
+    check('saveBook without configuration throws before any fetch', !!bareThrew && calls.length === 0);
+
+    // Create (rev=null): PUT gated by If-None-Match *, body passed verbatim.
+    calls.length = 0;
+    sandbox.__cloudRespond = () => ({ ok: true, status: 201, headers: { get: (k) => k.toLowerCase() === 'etag' ? '"rev-a"' : null } });
+    const created = await adapter.saveBook('book1', '{"a":1}', null);
+    check('create: single PUT with If-None-Match *', calls.length === 1 && calls[0].method === 'PUT' && calls[0].headers['If-None-Match'] === '*');
+    check('create: body passed through verbatim', calls[0].body === '{"a":1}');
+    check('create: returns server rev', created && created.rev === 'rev-a');
+    check('create: id is URL-encoded in the path', calls[0].url === 'https://api.setbook.app/v1/book1.json');
+
+    // Unchanged remote (304): plain PUT, no merge.
+    calls.length = 0;
+    sandbox.__cloudRespond = (c) => c.method === 'GET'
+      ? { ok: false, status: 304, headers: { get: () => null } }
+      : { ok: true, status: 200, headers: { get: (k) => k.toLowerCase() === 'etag' ? 'rev-b' : null } };
+    const plain = await adapter.saveBook('book1', '{"a":1}', 'rev-a');
+    check('unchanged remote: GET then PUT', calls.length === 2 && calls[0].method === 'GET' && calls[1].method === 'PUT');
+    check('unchanged remote: PUT carries If-Match rev', calls[1].headers['If-Match'] === 'rev-a');
+    check('unchanged remote: no merge, body as given', calls[1].body === '{"a":1}' && plain && plain.rev === 'rev-b' && !plain.merged);
+
+    // Changed remote: both sides parsed, mergeSongbooksForSync decides,
+    // survivor set written back with the remote's rev.
+    const song = (id, updatedAt, name) => ({ id, name: name || ('Song ' + id), updatedAt });
+    const localBook = { name: 'Local', schemaVersion: 1, sectionGroups: [song('a', 200, 'Edited here')], sections: [], tombstones: [] };
+    const remoteBook = { name: 'Remote', schemaVersion: 1, sectionGroups: [song('b', 100, 'Added there')], sections: [], tombstones: [{ id: 'a', deletedAt: 500 }] };
+    calls.length = 0;
+    sandbox.__cloudRespond = (c) => c.method === 'GET'
+      ? { ok: true, status: 200, headers: { get: (k) => k.toLowerCase() === 'etag' ? 'rev-c' : null }, text: async () => JSON.stringify(remoteBook) }
+      : { ok: true, status: 200, headers: { get: (k) => k.toLowerCase() === 'etag' ? 'rev-d' : null } };
+    const merged = await adapter.saveBook('book1', JSON.stringify(localBook), 'rev-b');
+    const putBody = JSON.parse(calls[1].body);
+    check('changed remote: merge runs and result is uploaded', calls.length === 2 && calls[1].method === 'PUT' && calls[1].headers['If-Match'] === 'rev-c');
+    check('merge upload: tombstoned-over local song dropped, remote song kept',
+      putBody.sectionGroups.length === 1 && putBody.sectionGroups[0].id === 'b');
+    check('merge upload: tombstone survives in the written book', putBody.tombstones.some((t) => t.id === 'a'));
+    check('merge upload: server copy is the base for file-level fields', putBody.name === 'Remote' && putBody.schemaVersion === 1);
+    check('merged save is flagged so a caller can reload', merged && merged.rev === 'rev-d' && merged.merged === true);
+
+    // Racing writer between the merge read and write: 412 -> ConflictError.
+    calls.length = 0;
+    sandbox.__cloudRespond = (c) => c.method === 'PUT'
+      ? { ok: false, status: 412, headers: { get: () => null } }
+      : { ok: true, status: 200, headers: { get: (k) => k.toLowerCase() === 'etag' ? 'rev-c' : null }, text: async () => JSON.stringify(remoteBook) };
+    let conflictThrew = null;
+    try { await adapter.saveBook('book1', JSON.stringify(localBook), 'rev-b'); } catch (e){ conflictThrew = e; }
+    check('racing writer surfaces as ConflictError', !!conflictThrew && conflictThrew.name === 'ConflictError');
+
+    // loadBook: data text + ETag rev; 404 throws.
+    calls.length = 0;
+    sandbox.__cloudRespond = () => ({ ok: true, status: 200, headers: { get: (k) => k.toLowerCase() === 'etag' ? '"rev-x"' : null }, text: async () => '{"ok":true}' });
+    const loaded = await adapter.loadBook('book1');
+    check('loadBook returns data text + rev', loaded && loaded.data === '{"ok":true}' && loaded.rev === 'rev-x');
+    sandbox.__cloudRespond = () => ({ ok: false, status: 404, headers: { get: () => null } });
+    let loadThrew = null;
+    try { await adapter.loadBook('book1'); } catch (e){ loadThrew = e; }
+    check('loadBook 404 throws', !!loadThrew);
+
+    // deleteBook: tolerant of an already-gone book.
+    calls.length = 0;
+    sandbox.__cloudRespond = () => ({ ok: true, status: 204, headers: { get: () => null } });
+    await adapter.deleteBook('book1');
+    check('deleteBook issues DELETE', calls.length === 1 && calls[0].method === 'DELETE');
+  } finally {
+    if (realFetch === undefined) delete sandbox.fetch; else sandbox.fetch = realFetch;
+    delete sandbox.__cloudRespond;
+    realCloud.enabled = false; // same object the app's const binding points at
+  }
+  check('flag restored: adapter inactive again', sb.SETBOOK_CLOUD.enabled === false && adapter.isConfigured() === false);
+  check('dispatch restored', sb.activeBookAdapter() === null);
+})();
 
 /* ================= summary ================= */
 
 /* ================= summary ================= */
-Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks]).then(() => {
+
+/* ================= summary ================= */
+Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks, cloudAdapterChecks]).then(() => {
 const failed = results.filter(r => !r.ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed.`);
 if (failed.length) {
