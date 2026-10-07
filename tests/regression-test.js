@@ -1048,9 +1048,51 @@ const cloudAdapterChecks = (async () => {
   check('dispatch restored', sb.activeBookAdapter() === null);
 })();
 
-/* ================= summary ================= */
+/* ========== 17. song notes: details field, persistence, sync, PDF exclusion ========== */
+{
+  suite('song-notes');
+  // The details page wires a notes textarea to group.notes through the
+  // same touchGroup + scheduleSave flow every other song field uses.
+  check('details page binds a notes textarea',
+    /notesInput\.value = group\.notes \|\| ''/.test(html) && /group\.notes = notesInput\.value;/.test(html));
+  check('notes edits touch and save the song',
+    /group\.notes = notesInput\.value;[\s\S]{0,60}touchGroup\(group\)/.test(html));
+  check('notes field has its own stylesheet class',
+    /\.details-notes-field\{/.test(html) && /\.details-notes-field:focus\{/.test(html));
+  check('Help mentions the notes field', /notes field/.test(html));
 
-/* ================= summary ================= */
+  // Persistence: notes is an optional song field that round-trips through
+  // serialize → parse → load. loadParsedState normalizes known fields and
+  // must not strip or invent this one (unknown-field preservation contract).
+  resetApp();
+  sb.state.sectionGroups = [{ id: 'g-notes', name: 'Notes Song', artist: '', updatedAt: 100, notes: 'Capo 2, key of D' }];
+  sb.state.sections = [];
+  sb.loadParsedState(JSON.parse(sb.serializeState()));
+  check('notes survive serialize → parse → load', sb.state.sectionGroups[0].notes === 'Capo 2, key of D');
+  sb.loadParsedState({ sectionGroups: [{ id: 'g2', name: '', updatedAt: 1 }], sections: [] });
+  check('notes are optional: missing field stays missing (no invented value)',
+    sb.state.sectionGroups[0].notes === undefined);
+  resetApp();
+
+  // Sync: whole-song merge carries notes on the winning side.
+  {
+    const mine = { sectionGroups: [{ id: 'a', name: 'Mine', updatedAt: 300, notes: 'newer note' }], sections: [], tombstones: [] };
+    const theirs = { sectionGroups: [{ id: 'a', name: 'Theirs', updatedAt: 100, notes: 'older note' }], sections: [], tombstones: [] };
+    const m = sb.mergeSongbooksForSync(mine, theirs);
+    check('merge: newer song keeps its notes', m.sectionGroups[0].notes === 'newer note');
+  }
+
+  // PDF exclusion: notes are deliberately app-side only. Guard the whole
+  // PDF build region against ever referencing them.
+  {
+    const pdfStart = html.indexOf('function pdfSectionLines(');
+    const pdfEnd = html.indexOf('function buildPdfFilename(');
+    check('PDF build region found for the exclusion guard', pdfStart !== -1 && pdfEnd > pdfStart);
+    if (pdfStart !== -1 && pdfEnd > pdfStart){
+      check('PDF build never references notes', !/\bnotes\b/i.test(html.slice(pdfStart, pdfEnd)));
+    }
+  }
+}
 
 /* ================= summary ================= */
 Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks, cloudAdapterChecks]).then(() => {

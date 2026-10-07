@@ -948,6 +948,14 @@
   }
   .details-artist-field:focus{ outline:none; border-color: var(--gold); }
   .details-artist-field::placeholder{ color: var(--placeholder); }
+  .details-notes-field{
+    display:block; width:100%; box-sizing:border-box;
+    background: var(--panel); border:1px solid var(--border); border-radius:6px;
+    color: var(--text); font-family:inherit; font-size:12.5px; line-height:1.4;
+    padding:7px 9px; margin:0; resize:none; overflow:hidden; min-height:66px;
+  }
+  .details-notes-field:focus{ outline:none; border-color: var(--gold); }
+  .details-notes-field::placeholder{ color: var(--placeholder); }
   .artist-suggest-popover{
     position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
     border-radius:6px; padding:4px; max-height:180px; overflow-y:auto;
@@ -1373,6 +1381,7 @@
     .tag-pill{ font-size:13px; }
     .tag-pill button{ min-width:44px; min-height:44px; }
     .details-artist-field{ font-size:16px; }
+    .details-notes-field{ font-size:16px; }
     .tag-add-input{ min-height:44px; font-size:14px; flex-basis:140px; }
   }
 
@@ -2000,7 +2009,7 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button.</li>
+            <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button — plus a notes field for reminders that never appear in PDFs.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
           </ul>
         </section>
@@ -3715,6 +3724,30 @@ function renderSongDetailsPage(main, group){
   buildVideoRow('videoUrlLive', 'Live video', 'Paste live-performance link');
   refreshVideoWatch();
 
+  // --- Notes: free-form reminders that live on the song itself ---
+  // App-side only by design: PDFs are generated from the sections plus the
+  // song header fields, so notes never leak into exported files. Persisted
+  // as an optional `notes` field on the group; whole-song sync merges carry
+  // it with the winning side like every other song field.
+  const notesLabel = document.createElement('div');
+  notesLabel.className = 'details-label';
+  notesLabel.innerHTML = 'Notes <span class="hint">\u2014 not included in PDFs</span>';
+  const notesInput = document.createElement('textarea');
+  notesInput.className = 'details-notes-field';
+  notesInput.rows = 3;
+  notesInput.value = group.notes || '';
+  notesInput.placeholder = 'Key changes, capo, who solos\u2026';
+  notesInput.setAttribute('aria-label', 'Song notes');
+  preventAutoReplace(notesInput);
+  notesInput.addEventListener('input', () => {
+    group.notes = notesInput.value;
+    touchGroup(group);
+    scheduleSave();
+    autoGrowTextarea(notesInput);
+  });
+  page.append(notesLabel, notesInput);
+  deferAutoGrow(notesInput);
+
   main.appendChild(page);
 }
 
@@ -4431,7 +4464,7 @@ function buildCoachCard(){
     <button type="button" class="coach-dismiss" aria-label="Dismiss">✕</button>
     <h3>Start your first song</h3>
     <ol>
-      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> (the ⓘ icon on the song) for artists (one per line), tags, and video links.</li>
+      <li><strong>Name it</strong> — click the song title in the library list to name it, then open <strong>Details</strong> (the ⓘ icon on the song) for artists (one per line), tags, video links, and notes.</li>
       <li><strong>Add sections</strong> — a song is its sections in playing order; add them with <strong>+ Add section</strong> under the song in the library.</li>
       <li><strong>Write rows</strong> — pick a section, then type chords on each row's top line and lyrics underneath. The preview below keeps them lined up.</li>
     </ol>`;

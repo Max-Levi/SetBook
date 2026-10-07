@@ -64,7 +64,13 @@ All persistent data is a JSON serialization of the `state` object:
   existed only hold the two old values and keep working), `tags` (array
   of custom tag strings, defaults to `[]`), `updatedAt` (ms-epoch
   timestamp of the song's last edit; `null` on files saved before stamps
-  existed, shown as "unknown" in comparisons).
+  existed, shown as "unknown" in comparisons), and `notes` (optional
+  free-form reminder text edited on the song's details page).
+  Notes are deliberately app-side only: PDF generation reads only the
+  header fields and sections, never `notes` (guarded by a regression
+  test), so exports stay unchanged. They persist through the normal
+  serialize/load path (an unknown-field to `loadParsedState`, which must
+  keep preserving them) and ride along in whole-song sync merges.
 - `sections[]` — song sections. Fields: `id`, `groupId` (owning song),
   `nameType` (one of `"intro"`, `"verse"`, `"chorus"`, `"pre-chorus"`,
   `"bridge"`, `"instrumental"`, `"outro"`, or `"custom"`), `customName`
@@ -620,6 +626,10 @@ tombstones + mergeSongbooksForSync() sync groundwork; SetBook Cloud sync
 adapter prototype (disabled) + §11 security audit re-run. Revised
 2026-10-07: CSP fix — add the Drive auth/Picker script origins and the
 Picker/auth frame origins that the first CSP rollout blocked, which had
-broken every Google Drive path (boot re-link, Connect, Picker). Keep it
+broken every Google Drive path (boot re-link, Connect, Picker). Also
+2026-10-07: per-song notes field on the details page
+(`sectionGroups[].notes`), app-side only by design — never rendered into
+PDFs (regression-guarded), optional on load, carried by whole-song sync
+merge. Keep it
 current: it is the reference any tool or human uses to maintain and
 extend this app.*
