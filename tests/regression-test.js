@@ -1094,6 +1094,63 @@ const cloudAdapterChecks = (async () => {
   }
 }
 
+/* ================= PDF preview modal (fit, fullscreen, contexts, copy) ================= */
+suite('pdf-preview-modal');
+// The dialog is a fixed-height flex column so the whole thing fits the
+// viewport without scrolling; the viewer absorbs the leftover space and
+// #pvFrame / #pvStripWrap absolutely fill it (regression for the old
+// fixed-54vh viewer that made the modal overflow and scroll).
+check('modal is a viewport-height flex column',
+  /#pdfModalOverlay \.modal-wide\{\s*display:flex; flex-direction:column;\s*height:calc\(100vh - 48px\);/.test(html));
+check('viewer flexes and floors instead of a fixed vh height',
+  /#pdfModalOverlay \.pdf-preview-viewer\{ flex:1 1 auto; min-height:/.test(html));
+check('frame and strip absolutely fill the viewer',
+  /#pdfModalOverlay #pvFrame\{ position:absolute; inset:0;/.test(html) &&
+  /#pdfModalOverlay #pvStripWrap\{ position:absolute; inset:0;/.test(html));
+check('[hidden] still wins over the absolute fill rules',
+  /#pdfModalOverlay #pvFrame\[hidden\], #pdfModalOverlay #pvStripWrap\[hidden\]\{ display:none; \}/.test(html));
+check('short-viewport compaction exists (list cap + tighter chrome)',
+  /@media \(max-height:780px\)\{\s*#pdfModalOverlay #pdfSongChecklist\{ max-height:100px; \}/.test(html));
+
+// The strip re-fits its pages when the available height changes (window
+// resize, entering/leaving fullscreen) without a full PDF re-render.
+check('strip re-renders pages on resize with current page preserved',
+  /renderPvStripPages\(pvStripDoc, pvRenderSeq, pvCurrentPage\(\)\)/.test(html) &&
+  /window\.addEventListener\('resize', \(\) => \{\s*if \(!pdfModal\.classList\.contains\('open'\)\) return;/.test(html));
+check('renderPvStripPages jumps instantly and syncs indicator',
+  /pvGoToPage\(Math\.min\(keepPage \|\| 1, pvStripPages\), true\);/.test(html));
+
+// Fullscreen preview: the dialog itself goes fullscreen via the Fullscreen
+// API; the button toggles and the state syncs on fullscreenchange.
+check('fullscreen toggle button exists in the controls row',
+  /id="pvFullscreenBtn" aria-pressed="false"/.test(html));
+check('fullscreen state syncs button label + aria-pressed',
+  /fullscreenchange[\s\S]{0,300}aria-pressed', String\(active\)\)/.test(html));
+check('print-friendly fullscreen hands focus to the embedded viewer',
+  /document\.getElementById\('pvFrame'\)\.contentWindow\.focus\(\)/.test(html));
+check('fullscreen modal fills the screen edge-to-edge',
+  /#pdfModalOverlay \.modal-wide:fullscreen\{\s*width:100vw; height:100vh; max-height:none;/.test(html));
+check('fullscreen button opts out of the global .mode-btn flex:1',
+  /#pdfModalOverlay #pvFullscreenBtn\{ flex:0 0 auto; \}/.test(html));
+
+// Two contexts sharing one dialog: Export (header button) vs focused PDF
+// preview (song-card icon).
+check('modal title is context-aware (pdfModalTitle)',
+  /id="pdfModalTitle"/.test(html) && /title\.textContent = 'PDF preview'/.test(html) && /title\.textContent = 'Export PDF'/.test(html));
+check('preview context hides the songs/output columns',
+  /columns\.style\.display = 'none'/.test(html));
+check('song-card entry point requests preview context',
+  /pdfPendingPreviewMode = true;/.test(html) && /preparePdfModal\(sel, asPreview\)/.test(html));
+check('preview context names the song in the subtitle',
+  /sub\.textContent = g \? \(g\.name \|\| 'Untitled Song'\) \+ \(displayArtists\(g\)/.test(html));
+
+// URL-import error box: always offer both the scraper and manual paste.
+check('scraper-and-paste copy is present',
+  /Two ways around it: use the <strong>SetBook scraper<\/strong> extension/.test(html) &&
+  /paste it into a section field on a new song/.test(html));
+check('scraper-only copy is gone',
+  !/extension instead: open the lyrics page/.test(html));
+
 /* ================= summary ================= */
 Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks, cloudAdapterChecks]).then(() => {
 const failed = results.filter(r => !r.ok);

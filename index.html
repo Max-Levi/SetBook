@@ -522,6 +522,40 @@
      keeps the vertical-scrolling iframe above). Pages snap to center; the
      ‹ › buttons and arrow keys turn pages like a book. */
   #pvStripWrap{ position:relative; display:block; width:100%; height:54vh; min-height:300px; background:#262626; overflow:hidden; }
+  /* The dialog must fit the viewport without scrolling: the modal is a
+     fixed-height flex column (header, controls and song list keep their
+     natural size; the viewer absorbs whatever is left), and #pvFrame /
+     #pvStripWrap absolutely fill that flexible viewer box instead of using
+     a fixed vh height. overflow-y stays as a last-resort safety net on
+     very short windows. The strip re-fits its pages when the available
+     height changes (window resize, fullscreen) — see the resize listener. */
+  #pdfModalOverlay .modal-wide{
+    display:flex; flex-direction:column;
+    height:calc(100vh - 48px);
+    height:calc(100dvh - 48px);
+  }
+  #pdfModalOverlay .pdf-preview-viewer{ flex:1 1 auto; min-height:220px; }
+  #pdfModalOverlay #pvFrame{ position:absolute; inset:0; width:100%; height:100%; min-height:0; }
+  #pdfModalOverlay #pvStripWrap{ position:absolute; inset:0; }
+  /* higher-specificity override so [hidden] still wins over the inset rules */
+  #pdfModalOverlay #pvFrame[hidden], #pdfModalOverlay #pvStripWrap[hidden]{ display:none; }
+  /* Fullscreen preview: the dialog itself goes fullscreen, so the viewer
+     gets the whole screen; Esc leaves fullscreen first, a second Esc
+     closes the dialog. */
+  #pdfModalOverlay .modal-wide:fullscreen{
+    width:100vw; height:100vh; max-height:none;
+    border:0; border-radius:0;
+  }
+  /* Short viewports: tighten the song list, the viewer floor and the
+     chrome so the dialog still (mostly) fits without scrolling. */
+  @media (max-height:780px){
+    #pdfModalOverlay #pdfSongChecklist{ max-height:100px; }
+    #pdfModalOverlay .pdf-preview-viewer{ min-height:180px; }
+    #pdfModalOverlay .modal-wide{ padding:16px 20px; }
+    #pdfModalOverlay .modal-columns .modal-group{ padding:10px 12px; }
+    #pdfModalOverlay .pdf-preview-controls{ margin-bottom:6px; }
+    #pdfModalOverlay .modal-actions{ margin:12px -20px -16px; padding:10px 20px 16px; }
+  }
   #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
   .pv-page{ scroll-snap-align:center; flex:0 0 auto; line-height:0; box-shadow:0 6px 22px rgba(0,0,0,.5); border-radius:3px; }
   .pv-page canvas{ display:block; border-radius:3px; }
@@ -533,13 +567,16 @@
   #pvPageIndicator{ position:absolute; bottom:10px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.62); color:#fff; font-size:12px; padding:4px 12px; border-radius:999px; z-index:2; white-space:nowrap; }
   .pdf-preview-loading{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:13px; }
   #pdfModalOverlay .mode-btn{ white-space:nowrap; }
+  /* standalone control (not inside a .mode-toggle), so opt out of the
+     global .mode-btn flex:1 that would stretch it across the modal */
+  #pdfModalOverlay #pvFullscreenBtn{ flex:0 0 auto; }
   #pdfModalOverlay a.pdf-download-link{ margin-bottom:0; }
   #pdfModalOverlay .modal-actions{ align-items:center; }
   #pdfModalOverlay .modal-actions .pdf-download-link{ flex:1; }
   /* Export PDF modal: wider than other modals so the embedded viewer has
-     room, a slightly shorter viewer so the dialog usually fits without
-     scrolling, and a sticky footer so Close/Download stay reachable on
-     short viewports when it doesn't. */
+     room, sized to the viewport (see the flex-column rules above) so the
+     whole dialog fits without scrolling, and a sticky footer so
+     Close/Download stay reachable on very short viewports when it can't. */
   #pdfModalOverlay .modal-wide{ width:880px; }
   #pdfModalOverlay .modal-actions{
     position:sticky; bottom:0; z-index:2;
@@ -554,6 +591,7 @@
     #pvStripWrap{ height:52vh; min-height:280px; }
     #pvStrip{ padding:10px 48px; gap:14px; }
     .pv-turn{ width:40px; height:40px; }
+    #pdfModalOverlay .pdf-preview-viewer{ min-height:200px; }
   }
   button.pdf-download-link[hidden]{ display:none; }
   /* Drive connected badge: a compact always-visible status chip in the
@@ -1495,7 +1533,7 @@
 <div class="modal-overlay" id="pdfModalOverlay">
   <div class="modal modal-wide">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
-    <h2>Export PDF</h2>
+    <h2 id="pdfModalTitle">Export PDF</h2>
     <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
     <div class="pdf-preview-controls">
       <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
@@ -1538,6 +1576,7 @@
         <button type="button" class="mode-btn active" data-pvmode="light">Light mode</button>
         <button type="button" class="mode-btn" data-pvmode="dark">Dark mode</button>
       </div>
+      <button type="button" class="mode-btn" id="pvFullscreenBtn" aria-pressed="false" title="Show the preview fullscreen (Esc leaves fullscreen)">⛶ Fullscreen</button>
     </div>
 
     <div class="modal-columns">
@@ -1610,7 +1649,7 @@
     </div>
     <div class="url-import-status" id="urlImportStatus" role="status"></div>
     <div class="url-import-ext-hint" id="urlImportExtHint" hidden>
-      <p>SetBook couldn't read the text from that site. Use the <strong>SetBook scraper</strong> extension instead: open the lyrics page, click the extension's toolbar button, and it sends the text straight into SetBook.</p>
+      <p>SetBook couldn't read the text from that site. Two ways around it: use the <strong>SetBook scraper</strong> extension (open the lyrics page, click the extension's toolbar button, and it sends the text straight into SetBook) — or copy the text yourself and paste it into a section field on a new song.</p>
       <button type="button" class="ghost small" id="urlImportExtHelpBtn">Extension setup</button>
     </div>
     <div class="modal-actions">
@@ -1946,7 +1985,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook Help</h2>
-    <p class="modal-sub">Last updated 2026-10-06.</p>
+    <p class="modal-sub">Last updated 2026-10-08.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-start">1. Your songbook</a>
@@ -2001,7 +2040,9 @@
             <li><strong>Performance PDF</strong> — one page per section, sized for your device (iPad, iPhone, Android, or paper), portrait or landscape, dark or light, with a tappable table of contents and section navigation. Made for a tablet on a music stand and Bluetooth page-turner pedals.</li>
             <li><strong>Print-Friendly PDF</strong> — a clean continuous document with page numbers, for paper.</li>
             <li><strong>Choose your songs:</strong> the whole library, a saved set, or tick them off yourself — <strong>Ready only</strong> grabs your gig-ready songs in one tap.</li>
-            <li>The dialog shows a <strong>live preview</strong> of the PDF as you change options or songs — what you see is the file you'll get. <strong>&darr; Download PDF</strong> saves it; <strong>Share PDF&hellip;</strong> sends it straight to Books, Mail, Messages, or wherever you keep your charts.</li>
+            <li>The dialog shows a <strong>live preview</strong> of the PDF as you change options or songs — what you see is the file you'll get. It always fits the window without scrolling. <strong>&darr; Download PDF</strong> saves it; <strong>Share PDF&hellip;</strong> sends it straight to Books, Mail, Messages, or wherever you keep your charts.</li>
+            <li><strong>&oen; Fullscreen</strong> blows the preview up to the whole screen — handy on stage. In the Performance preview the <strong>&larr;/&rarr; arrow keys turn pages</strong> in fullscreen too; Esc leaves fullscreen first, a second Esc closes the dialog.</li>
+            <li>The <strong>PDF icon on a song card</strong> opens the same dialog focused on just that song (titled “PDF preview”); the <strong>Export PDF…</strong> header button opens it with the full song list, saved sets, and project naming.</li>
           </ul>
         </section>
         <section id="help-files">
@@ -2020,7 +2061,7 @@
           <h3>7. Songs from the web</h3>
           <ul>
             <li><strong>+ Add song from URL:</strong> paste a link to a lyrics/chords page and SetBook pulls the text in as a new song, split into sections at [Verse]/[Chorus]-style headers automatically.</li>
-            <li>Some sites block that — the dialog will tell you. The <strong>SetBook Scraper</strong> extension (Chrome/Edge) covers those sites: open the page, click the extension's toolbar button, and the text lands in SetBook ready to import.</li>
+            <li>Some sites block that — the dialog will tell you and offers two ways around it: <strong>copy the text yourself</strong> and paste it into a section field on a new song, or use the <strong>SetBook Scraper</strong> extension (Chrome/Edge): open the page, click the extension's toolbar button, and the text lands in SetBook ready to import.</li>
             <li><strong>Install:</strong> download the zip from the dialog, unzip it into a folder you'll keep, open <code>chrome://extensions</code>, enable Developer mode, choose Load unpacked, and pick that folder.</li>
             <li>Tidy the imported text in the staging area, then <strong>Create sections</strong> — or <strong>Reset</strong> to start over from the original text.</li>
           </ul>
@@ -9507,31 +9548,43 @@ document.getElementById('copyImportBtn').addEventListener('click', () => {
 });
 
 /* ---------------------------------------------------------
-   Export PDF modal (unified)
-   One dialog for every PDF export: the option controls
-   (type/device/orientation/appearance), the song checklist,
-   project name, and a live preview of exactly what Download
-   and Share will produce. The header "Export PDF…" opens it
-   with all songs selected; the PDF icon on a song card opens
-   it with just that song selected. Changing any option or the
-   song selection re-renders the preview (debounced) — there
-   is no separate Generate step; the preview IS the document.
+   Export PDF modal (unified, two contexts)
+   One dialog and one live-preview pipeline for every PDF export,
+   opened in one of two contexts that share the controls, viewer and
+   render code:
+   • Export (header "Export PDF…"): song checklist, subsets, project
+     name, and a live preview of exactly what Download and Share will
+     produce. There is no separate Generate step; the preview IS the
+     document.
+   • PDF preview (the PDF icon on a song card): same controls and
+     viewer, but focused on one song — the song list and project-name
+     chrome are hidden and the dialog is titled "PDF preview" with the
+     song as the subtitle.
+   Changing any option or the song selection re-renders the preview
+   (debounced) in both contexts.
 --------------------------------------------------------- */
 let pdfMode = 'light';
 let pdfDevice = 'ipad';
 let pdfOrientation = 'landscape';
 let pdfType = 'performance';
 let pdfSelectedSongIds = new Set();
+// True when the dialog was opened from a song card: focused "PDF preview"
+// context (song checklist and project name hidden, song named in the sub).
+let pdfPreviewMode = false;
 
 // Which songs the dialog opens with; the per-song entry point sets this
 // before opening, otherwise the dialog opens with all songs selected.
-let pdfPendingSelection = null;
+// pdfPendingPreviewMode marks the per-song entry point so the dialog
+// opens in focused "PDF preview" context instead of full Export.
+let pdfPendingSelection = null, pdfPendingPreviewMode = false;
 const pdfModalCtl = wireModal({
   overlayId:'pdfModalOverlay', openBtnId:'btnPdf', closeBtnId:'pdfCancelBtn',
   onOpen(){
     const sel = pdfPendingSelection || allSongIdsWithSections();
+    const asPreview = pdfPendingPreviewMode && sel.length === 1;
     pdfPendingSelection = null;
-    preparePdfModal(sel);
+    pdfPendingPreviewMode = false;
+    preparePdfModal(sel, asPreview);
     schedulePdfRender();
   }
 });
@@ -9549,7 +9602,21 @@ const PDF_TYPE_COPY = {
 };
 
 function updatePdfModalCopy(){
-  document.getElementById('pdfModalSub').textContent = PDF_TYPE_COPY[pdfType].sub;
+  const title = document.getElementById('pdfModalTitle');
+  const sub = document.getElementById('pdfModalSub');
+  const columns = document.querySelector('#pdfModalOverlay .modal-columns');
+  if (pdfPreviewMode){
+    // Song-card entry point: a focused preview of one song. The dialog
+    // names the song; the song-list/output chrome stays out of the way.
+    const g = state.sectionGroups.find(x => pdfSelectedSongIds.has(x.id));
+    title.textContent = 'PDF preview';
+    sub.textContent = g ? (g.name || 'Untitled Song') + (displayArtists(g) ? ` — ${displayArtists(g)}` : '') : '';
+    columns.style.display = 'none';
+  } else {
+    title.textContent = 'Export PDF';
+    sub.textContent = PDF_TYPE_COPY[pdfType].sub;
+    columns.style.display = '';
+  }
   document.getElementById('pvAppearanceToggle').style.display = pdfType === 'print-friendly' ? 'none' : '';
 }
 
@@ -9562,10 +9629,11 @@ function syncPdfControls(){
 
 // Shared open path: reset the dialog to a given song selection,
 // then open it and kick off the first preview render.
-function preparePdfModal(songIds){
+function preparePdfModal(songIds, asPreview){
   // Pre-warm the lazy jsPDF library while the user looks at the
   // dialog; the first preview render then starts with it in memory.
   ensurePdfLib().catch(() => {});
+  pdfPreviewMode = !!asPreview;
   pdfProjectNameInput.value = state.projectName || '';
   pdfSelectedSongIds = new Set(songIds);
   populateSubsetSelect();
@@ -9576,11 +9644,13 @@ function preparePdfModal(songIds){
   updatePdfModalCopy();
 }
 
-// PDF icon on a song card: opens the dialog with just that song selected.
+// PDF icon on a song card: opens the dialog in focused "PDF preview"
+// context with just that song selected.
 function openPdfPreview(songId){
   const group = state.sectionGroups.find(g => g.id === songId);
   if (!group || !printableSections(songId).length) return;
   pdfPendingSelection = [songId];
+  pdfPendingPreviewMode = true;
   pdfModalCtl.open();
 }
 
@@ -9908,6 +9978,20 @@ async function renderPvStrip(blob, seq){
     return;
   }
   pvStripDoc = pdf;
+  await renderPvStripPages(pdf, seq, 1);
+}
+
+// (Re)rasterize every page of `pdf` into the strip at the strip's current
+// height. Runs on the initial render and again whenever the available
+// height changes (window resize, entering/leaving fullscreen), so pages
+// always fit the visible box and the dialog never needs scrolling to see
+// a whole page. keepPage: page number to return to after the relayout.
+async function renderPvStripPages(pdf, seq, keepPage){
+  const strip = document.getElementById('pvStrip');
+  pvStripRenderTasks.forEach(t => { try{ t.cancel(); }catch(e){} });
+  pvStripRenderTasks = [];
+  pvStripReady = false;
+  strip.innerHTML = '';
   pvStripPages = pdf.numPages;
   // Fit page height to the strip; render at up to 2x for crisp text.
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -9937,9 +10021,10 @@ async function renderPvStrip(blob, seq){
     try{ await task.promise; }catch(e){ /* cancelled by a newer render */ }
   }
   pvStripRenderTasks = [];
-  updatePvIndicator(1);
-  updatePvTurnButtons();
   pvStripReady = true;
+  // Jump (instantly — this can be a mid-session relayout) to the page that
+  // was showing before; pvGoToPage also syncs the indicator and buttons.
+  pvGoToPage(Math.min(keepPage || 1, pvStripPages), true);
 }
 
 // Which page is nearest the strip's center (for the indicator + buttons).
@@ -9972,7 +10057,7 @@ function updatePvTurnButtons(){
   prev.disabled = n <= 1;
   next.disabled = n >= pvStripPages;
 }
-function pvGoToPage(n){
+function pvGoToPage(n, instant){
   n = Math.max(1, Math.min(pvStripPages, n));
   const strip = document.getElementById('pvStrip');
   const el = strip.children[n - 1];
@@ -9988,7 +10073,7 @@ function pvGoToPage(n){
   next.style.display = show ? '' : 'none';
   prev.disabled = n <= 1;
   next.disabled = n >= pvStripPages;
-  strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: 'smooth' });
+  strip.scrollTo({ left: el.offsetLeft - (strip.clientWidth - el.offsetWidth) / 2, behavior: instant ? 'auto' : 'smooth' });
 }
 
 // Strip controls: turn buttons, scroll-synced indicator, arrow keys.
@@ -10010,6 +10095,45 @@ document.addEventListener('keydown', (e) => {
   if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return;
   if (e.key === 'ArrowRight'){ e.preventDefault(); pvGoToPage(pvCurrentPage() + 1); }
   else if (e.key === 'ArrowLeft'){ e.preventDefault(); pvGoToPage(pvCurrentPage() - 1); }
+});
+
+/* Fullscreen preview: the dialog itself (controls included) goes fullscreen
+   via the standard Fullscreen API, so the viewer gets the whole screen.
+   In Performance mode the arrow keys keep turning pages; in Print Friendly
+   mode focus is handed to the embedded viewer, whose own arrow-key
+   scrolling then applies. Esc leaves fullscreen first; a second Esc
+   closes the dialog (the browser consumes the first Esc keypress). */
+document.getElementById('pvFullscreenBtn').addEventListener('click', () => {
+  if (document.fullscreenElement){
+    document.exitFullscreen().catch(() => {});
+  } else if (pdfModal.requestFullscreen){
+    pdfModal.requestFullscreen().catch(() => {});
+  }
+});
+document.addEventListener('fullscreenchange', () => {
+  const active = document.fullscreenElement === pdfModal;
+  const btn = document.getElementById('pvFullscreenBtn');
+  btn.textContent = active ? '✕ Exit fullscreen' : '⛶ Fullscreen';
+  btn.setAttribute('aria-pressed', String(active));
+  if (active && pdfType !== 'performance'){
+    // The embedded PDF viewer (blob iframe) handles arrow-key scrolling
+    // itself once it has focus.
+    try{ document.getElementById('pvFrame').contentWindow.focus(); }catch(e){}
+  }
+});
+
+// Keep the strip's pages fitted to the viewer whenever the available height
+// changes (window resize, entering/leaving fullscreen). Debounced; no full
+// re-render is needed because the PDF document itself hasn't changed.
+let pvResizeTimer = null;
+window.addEventListener('resize', () => {
+  if (!pdfModal.classList.contains('open')) return;
+  if (document.getElementById('pvStripWrap').hidden) return;
+  clearTimeout(pvResizeTimer);
+  pvResizeTimer = setTimeout(() => {
+    if (!pvStripDoc || !pvStripReady || document.getElementById('pvStripWrap').hidden) return;
+    renderPvStripPages(pvStripDoc, pvRenderSeq, pvCurrentPage());
+  }, 180);
 });
 
 // Releasing viewer resources when the modal closes (every close path funnels

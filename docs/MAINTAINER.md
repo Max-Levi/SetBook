@@ -499,6 +499,24 @@ revision note.
 
 ---
 
+**Revision note (2026-10-08, PDF preview/export dialog):** the unified
+PDF dialog is now a viewport-height flex column — the viewer absorbs the
+leftover space and `#pvFrame`/`#pvStripWrap` absolutely fill it, so the
+dialog never scrolls to show a whole page (a ≤780px-height media query
+compacts the song list and chrome; the sticky footer remains the last
+resort). New features, all regression-guarded in
+`tests/regression-test.js` (suite `pdf-preview-modal`, 18 checks; 230
+total): a ⛶ Fullscreen toggle (Fullscreen API on the dialog; the page
+canvas strip re-fits on resize/fullscreen via `renderPvStripPages`, and
+in Print Friendly mode focus is handed to the embedded viewer whose own
+arrow-key scrolling applies); context-aware open paths — the song-card
+PDF icon opens a focused "PDF preview" (song checklist and project name
+hidden, song named in the subtitle) while the header button opens full
+Export; and the URL-import error box now always offers both the scraper
+extension and manual paste. MCP core regions untouched (parity 13/13).
+
+---
+
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
 Keep it current: it is the reference any tool or human uses to maintain
 and extend this app.*
