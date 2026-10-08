@@ -531,8 +531,8 @@
      height changes (window resize, fullscreen) — see the resize listener. */
   #pdfModalOverlay .modal-wide{
     display:flex; flex-direction:column;
-    height:calc(100vh - 48px);
-    height:calc(100dvh - 48px);
+    height:calc(100vh - 36px);
+    height:calc(100dvh - 36px);
   }
   #pdfModalOverlay .pdf-preview-viewer{ flex:1 1 auto; min-height:220px; }
   #pdfModalOverlay #pvFrame{ position:absolute; inset:0; width:100%; height:100%; min-height:0; }
@@ -550,11 +550,30 @@
      chrome so the dialog still (mostly) fits without scrolling. */
   @media (max-height:780px){
     #pdfModalOverlay #pdfSongChecklist{ max-height:100px; }
-    #pdfModalOverlay .pdf-preview-viewer{ min-height:180px; }
+    #pdfModalOverlay .pdf-preview-viewer{ min-height:140px; }
     #pdfModalOverlay .modal-wide{ padding:16px 20px; }
     #pdfModalOverlay .modal-columns .modal-group{ padding:10px 12px; }
     #pdfModalOverlay .pdf-preview-controls{ margin-bottom:6px; }
-    #pdfModalOverlay .modal-actions{ margin:12px -20px -16px; padding:10px 20px 16px; }
+    /* extra-specific selectors so these win over the base footer rule
+       later in the stylesheet (media queries don't add specificity) */
+    #pdfModalOverlay .modal-wide .modal-actions{ margin:8px -20px -16px; padding:10px 20px 16px; }
+    #pdfModalOverlay .modal-wide .modal-sub{ margin-bottom:10px; }
+    /* Controls keep to one horizontally-scrollable line instead of
+       wrapping into three tall rows. */
+    #pdfModalOverlay .pdf-preview-controls{
+      flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; margin-bottom:8px;
+    }
+    #pdfModalOverlay .pdf-preview-controls .mode-toggle{ flex:0 0 auto; }
+    /* The songs/output columns must be able to shrink with the dialog:
+       the checklist scrolls internally instead of holding its ground. */
+    #pdfModalOverlay .modal-columns{ align-items:stretch; min-height:0; }
+    #pdfModalOverlay .modal-columns .modal-group{
+      display:flex; flex-direction:column; min-height:0; margin-bottom:8px;
+    }
+    #pdfModalOverlay .modal-columns .modal-group:last-child{ margin-bottom:8px; }
+    #pdfModalOverlay #pdfSongChecklist{
+      flex:1 1 auto; min-height:44px; max-height:none; margin-bottom:8px;
+    }
   }
   #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
   .pv-page{ scroll-snap-align:center; flex:0 0 auto; line-height:0; box-shadow:0 6px 22px rgba(0,0,0,.5); border-radius:3px; }

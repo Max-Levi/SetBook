@@ -515,6 +515,20 @@ hidden, song named in the subtitle) while the header button opens full
 Export; and the URL-import error box now always offers both the scraper
 extension and manual paste. MCP core regions untouched (parity 13/13).
 
+**Revision note (2026-10-08 follow-up, PDF dialog short-viewport bug):**
+on viewports under ~780px the dialog still overflowed by up to 150px.
+Root causes found and fixed: (1) the controls row wrapped into three
+tall rows — it now stays on one horizontally-scrollable line; (2) the
+songs/output columns could not shrink — the song checklist now flexes
+and scrolls internally; and (3) a cascade bug — the base sticky-footer
+rule (`margin ... -26px ...`) sits later in the stylesheet than the
+media-query override, so its negative side margins overhung the compact
+20px padding and produced a horizontal scrollbar that forced a constant
+~8px vertical scroll. The compact overrides now use an extra-specific
+`#pdfModalOverlay .modal-wide .modal-actions` selector and the dialog
+gutter is 100vh − 36px. Verified zero vertical and horizontal overflow
+at 640px, 700px and 1280px heights in both dialog contexts.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.

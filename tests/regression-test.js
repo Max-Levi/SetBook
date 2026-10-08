@@ -1101,7 +1101,7 @@ suite('pdf-preview-modal');
 // #pvFrame / #pvStripWrap absolutely fill it (regression for the old
 // fixed-54vh viewer that made the modal overflow and scroll).
 check('modal is a viewport-height flex column',
-  /#pdfModalOverlay \.modal-wide\{\s*display:flex; flex-direction:column;\s*height:calc\(100vh - 48px\);/.test(html));
+  /#pdfModalOverlay \.modal-wide\{\s*display:flex; flex-direction:column;\s*height:calc\(100vh - 36px\);/.test(html));
 check('viewer flexes and floors instead of a fixed vh height',
   /#pdfModalOverlay \.pdf-preview-viewer\{ flex:1 1 auto; min-height:/.test(html));
 check('frame and strip absolutely fill the viewer',
