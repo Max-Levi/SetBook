@@ -529,6 +529,29 @@ media-query override, so its negative side margins overhung the compact
 gutter is 100vh − 36px. Verified zero vertical and horizontal overflow
 at 640px, 700px and 1280px heights in both dialog contexts.
 
+**Revision note (2026-10-09, Setlists + card grid view):** the saved
+song-subset feature is renamed and promoted to **Setlists**: ordered,
+labelled gig lists `{ id, name, songIds[], parts: [{ id, label,
+startIndex }] }` in the save file's `setlists[]` array (legacy
+`songSubsets[]` entries migrate on load — same ids, so subset references
+survive — and a legacy mirror is written back on every edit so older app
+versions still read the data). A dedicated Songs → Setlists… page
+(card grid of setlists; open one to get the builder): drag rows to
+reorder (labels are anchored by *song id*, so they travel with their
+song via `applyReorderWithParts`), add set labels before any song
+("Set 1", "Encore"…; the label row renders inline in the builder and in
+the PDF TOC), plus add/remove songs and Export PDF… for that setlist.
+The PDF dialog's Songs dropdown is now "Use a setlist": a setlist pick
+exports in the setlist's performance order (`collectPdfSongs(…,
+pdfOrder)`), renders TOC set-label headers, and names the file after the
+setlist; manual ticks and Ready only work exactly as before. New
+sidebar “cards” toggle (Sort by header, device preference in
+localStorage) switches the song list to a card grid. MCP server gains
+`list_setlists` / `edit_setlist` / `generate_setlist` /
+`delete_setlist` (save-file tools, not core — MCP parity untouched at
+13 checks; app regression suite now 257 checks incl. 27 new setlist/card
+guards; MCP package tests 14 after a setlist round-trip test).
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.

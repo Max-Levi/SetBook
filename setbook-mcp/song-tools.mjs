@@ -131,3 +131,130 @@ export function listSongs(file) {
     sectionCount: counts.get(g.id) || 0,
   }));
 }
+
+/* ---------------------------------------------------------
+   Setlists: ordered, labelled song lists ({ id, name, songIds,
+   parts: [{ id, label, startIndex }] }). Stored in the save file's
+   `setlists` array; legacy `songSubsets` are mirrored for backward
+   compatibility with older app versions.
+--------------------------------------------------------- */
+
+function normalizeSetlist(raw) {
+  const sl = raw && typeof raw === 'object' ? raw : {};
+  const out = {
+    id: typeof sl.id === 'string' && sl.id ? sl.id : 'subset_' + Math.random().toString(36).slice(2, 9),
+    name: typeof sl.name === 'string' ? sl.name : '',
+    songIds: Array.isArray(sl.songIds) ? sl.songIds.filter((id) => typeof id === 'string') : [],
+    parts: [],
+  };
+  const seen = new Set();
+  (Array.isArray(sl.parts) ? sl.parts : []).forEach((p) => {
+    if (!p || typeof p !== 'object') return;
+    const start = typeof p.startIndex === 'number' && isFinite(p.startIndex)
+      ? Math.max(0, Math.min(out.songIds.length, Math.floor(p.startIndex))) : null;
+    const label = typeof p.label === 'string' ? p.label.trim() : '';
+    if (start === null || !label || seen.has(start)) return;
+    seen.add(start);
+    out.parts.push({ id: (typeof p.id === 'string' && p.id) ? p.id : 'part_' + Math.random().toString(36).slice(2, 9), label, startIndex: start });
+  });
+  out.parts.sort((a, b) => a.startIndex - b.startIndex);
+  return out;
+}
+
+function mirrorSlToSubsets(data, sl) {
+  if (!Array.isArray(data.songSubsets)) data.songSubsets = [];
+  let mirror = data.songSubsets.find((s) => s.id === sl.id);
+  if (!mirror) { mirror = { id: sl.id, name: sl.name, songIds: [] }; data.songSubsets.push(mirror); }
+  mirror.name = sl.name;
+  mirror.songIds = sl.songIds.slice();
+}
+
+/* List a file's setlists with resolved song titles and part labels. */
+export function listSetlists(file) {
+  if (!file) throw new Error('A file path is required.');
+  const data = loadSongbook(file);
+  if (!Array.isArray(data.setlists)) data.setlists = [];
+  const groups = new Map(data.sectionGroups.map((g) => [g.id, g]));
+  const sectionsByGroup = new Map();
+  for (const s of data.sections) sectionsByGroup.set(s.groupId, (sectionsByGroup.get(s.groupId) || 0) + 1);
+  return data.setlists.map((sl) => {
+    const n = normalizeSetlist(sl);
+    const songs = n.songIds.map((id) => {
+      const g = groups.get(id);
+      if (!g) return { id, title: null, note: 'song not in this file' };
+      return { id, title: g.name || 'Untitled song', artist: g.artist || '', sectionCount: sectionsByGroup.get(id) || 0 };
+    });
+    return { id: n.id, name: n.name, songCount: songs.length, parts: n.parts, songs };
+  });
+}
+
+/* Create or edit a setlist. Pass id to edit an existing setlist (name,
+   songIds order, parts all update); omit id to create one. songIds is the
+   performance order. parts items are { label, startIndex } (startIndex =
+   index into songIds where the labelled segment begins). */
+export function upsertSetlist(file, { id, name = '', songIds = [], parts = [] } = {}) {
+  if (!file) throw new Error('A file path is required.');
+  const data = loadSongbook(file);
+  if (!Array.isArray(data.setlists)) data.setlists = [];
+  const groups = new Set(data.sectionGroups.map((g) => g.id));
+  const unknown = songIds.filter((sid) => !groups.has(sid));
+  if (unknown.length) {
+    throw new Error(`Unknown song id(s): ${unknown.join(', ')} — list_songs first, then use song ids from that.`);
+  }
+  let sl;
+  if (id) {
+    sl = data.setlists.find((s) => s.id === id);
+    if (!sl) throw new Error(`No setlist with id ${id} — call list_setlists first.`);
+  }
+  const updated = normalizeSetlist({
+    id: sl ? sl.id : (id || undefined),
+    name: name || (sl ? sl.name : ''),
+    songIds,
+    parts,
+  });
+  if (sl) Object.assign(sl, updated); else data.setlists.push(updated);
+  mirrorSlToSubsets(data, updated);
+  saveSongbook(file, data);
+  return { id: updated.id, name: updated.name, songCount: updated.songIds.length, parts: updated.parts, created: !sl };
+}
+
+/* Generate a draft setlist from the file's songs: keep/hard selections
+   decided by the agent itself, given the available songs with their ready
+   status. Convenience: headline readiness + optional keyword filter. */
+export function generateSetlist(file, { name = '', filterStatus = '', filterText = '', songIds = [] } = {}) {
+  if (!file) throw new Error('A file path is required.');
+  const data = loadSongbook(file);
+  if (!Array.isArray(data.setlists)) data.setlists = [];
+  const groups = new Set(data.sectionGroups.map((g) => g.id));
+  const songs = data.sectionGroups.filter((g) => {
+    if (filterStatus && (g.readyStatus || 'not-ready') !== filterStatus) return false;
+    const hay = `${g.name || ''} ${g.artist || ''}`.toLowerCase();
+    if (filterText && !hay.includes(filterText.toLowerCase())) return false;
+    return true;
+  });
+  const chosen = songIds.length
+    ? songIds.filter((sid) => groups.has(sid))
+    : songs.map((g) => g.id);
+  if (!chosen.length) {
+    throw new Error('No songs matched — pass explicit songIds, or loosen filterStatus/filterText.');
+  }
+  const sl = normalizeSetlist({ name: name || 'Generated setlist', songIds: chosen });
+  data.setlists.push(sl);
+  mirrorSlToSubsets(data, sl);
+  saveSongbook(file, data);
+  return { id: sl.id, name: sl.name, songCount: sl.songIds.length, songs: sl.songIds };
+}
+
+/* Delete a setlist by id (mirrors in songSubsets go too). */
+export function deleteSetlist(file, id) {
+  if (!file) throw new Error('A file path is required.');
+  if (!id) throw new Error('A setlist id is required.');
+  const data = loadSongbook(file);
+  if (!Array.isArray(data.setlists)) data.setlists = [];
+  const before = data.setlists.length;
+  data.setlists = data.setlists.filter((s) => s.id !== id);
+  if (Array.isArray(data.songSubsets)) data.songSubsets = data.songSubsets.filter((s) => s.id !== id);
+  if (data.setlists.length === before) throw new Error(`No setlist with id ${id}.`);
+  saveSongbook(file, data);
+  return { deleted: id };
+}

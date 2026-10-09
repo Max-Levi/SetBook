@@ -8,7 +8,7 @@ import { z } from 'zod';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { scrapeSong, buildSongFromText, addSongToFile, listSongs } from './song-tools.mjs';
+import { scrapeSong, buildSongFromText, addSongToFile, listSongs, listSetlists, upsertSetlist, generateSetlist, deleteSetlist } from './song-tools.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const CONVENTIONS_PATH = join(here, 'conventions', 'CONVENTIONS.md');
@@ -93,6 +93,77 @@ server.tool(
     try {
       const songs = listSongs(file);
       return { content: [{ type: 'text', text: JSON.stringify(songs, null, 2) }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: 'Error: ' + e.message }], isError: true };
+    }
+  }
+);
+
+server.tool(
+  'list_setlists',
+  "List the setlists (ordered, labelled gig song lists) in a SetBook save file: id, name, set-label parts, and resolved song titles in performance order.",
+  { file: z.string().describe('Path to the SetBook save file (.json).') },
+  async ({ file }) => {
+    try {
+      const setlists = listSetlists(file);
+      return { content: [{ type: 'text', text: JSON.stringify(setlists, null, 2) }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: 'Error: ' + e.message }], isError: true };
+    }
+  }
+);
+
+server.tool(
+  'edit_setlist',
+  "Create or edit a setlist in a SetBook save file. Pass an existing setlist id (from list_setlists) to edit it, or omit id to create one. songIds must be valid song ids from this file; parts are { label, startIndex } set labels (e.g. {\"label\":\"Set 1\",\"startIndex\":0}).",
+  {
+    file: z.string().describe('Path to the SetBook save file (.json).'),
+    id: z.string().optional().describe('Setlist id to edit; omit to create a new one.'),
+    name: z.string().optional().describe('Setlist name (e.g. "Friday at the Roseland").'),
+    songIds: z.array(z.string()).describe('Song ids in performance order — the exact order the app and its PDF export use.'),
+    parts: z.array(z.object({ label: z.string(), startIndex: z.number().int().min(0) })).optional().describe('Set labels: each marks where a labelled segment begins in songIds.'),
+  },
+  async ({ file, id, name = '', songIds, parts = [] }) => {
+    try {
+      const res = upsertSetlist(file, { id, name, songIds, parts });
+      return { content: [{ type: 'text', text: (res.created ? 'Created' : 'Updated') + ' setlist "' + res.name + '" (' + res.songCount + ' songs, ' + res.parts.length + ' set label(s)) — id ' + res.id }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: 'Error: ' + e.message }], isError: true };
+    }
+  }
+);
+
+server.tool(
+  'generate_setlist',
+  "Generate a new setlist in a SetBook save file from the available songs: all songs matching an optional readiness filter and optional title/artist text filter, in file order — or an explicit songIds order. Returns the created setlist; use edit_setlist to refine order and labels.",
+  {
+    file: z.string().describe('Path to the SetBook save file (.json).'),
+    name: z.string().optional().describe('New setlist name.'),
+    filterStatus: z.enum(['', 'ready', 'in-progress', 'not-ready']).optional().describe('Only include songs with this ready status (omit for all).'),
+    filterText: z.string().optional().describe('Only include songs whose title/artist contains this text (case-insensitive).'),
+    songIds: z.array(z.string()).optional().describe('Explicit ordered song ids; when given, filters are ignored.'),
+  },
+  async ({ file, name = '', filterStatus = '', filterText = '', songIds = [] }) => {
+    try {
+      const res = generateSetlist(file, { name, filterStatus, filterText, songIds });
+      return { content: [{ type: 'text', text: 'Created setlist "' + res.name + '" with ' + res.songCount + ' songs — id ' + res.id + '. Use edit_setlist to reorder, label sets, or rename.' }] };
+    } catch (e) {
+      return { content: [{ type: 'text', text: 'Error: ' + e.message }], isError: true };
+    }
+  }
+);
+
+server.tool(
+  'delete_setlist',
+  'Delete a setlist (and its legacy subset mirror) from a SetBook save file by id.',
+  {
+    file: z.string().describe('Path to the SetBook save file (.json).'),
+    id: z.string().describe('The setlist id to delete.'),
+  },
+  async ({ file, id }) => {
+    try {
+      const res = deleteSetlist(file, id);
+      return { content: [{ type: 'text', text: 'Deleted setlist ' + res.deleted }] };
     } catch (e) {
       return { content: [{ type: 'text', text: 'Error: ' + e.message }], isError: true };
     }

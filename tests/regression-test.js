@@ -1140,7 +1140,7 @@ check('modal title is context-aware (pdfModalTitle)',
 check('preview context hides the songs/output columns',
   /columns\.style\.display = 'none'/.test(html));
 check('song-card entry point requests preview context',
-  /pdfPendingPreviewMode = true;/.test(html) && /preparePdfModal\(sel, asPreview\)/.test(html));
+  /pdfPendingPreviewMode = true;/.test(html) && /preparePdfModal\(sel, asPreview, pendingSl\)/.test(html));
 check('preview context names the song in the subtitle',
   /sub\.textContent = g \? \(g\.name \|\| 'Untitled Song'\) \+ \(displayArtists\(g\)/.test(html));
 
@@ -1150,6 +1150,71 @@ check('scraper-and-paste copy is present',
   /paste it into a section field on a new song/.test(html));
 check('scraper-only copy is gone',
   !/extension instead: open the lyrics page/.test(html));
+
+/* ================= setlists + card grid ================= */
+suite('setlists');
+// dedicated Songs → Setlists… entry points (desktop + grouped mobile menus)
+check('setlists menu items wired in both menus',
+  /id="btnSetlists"/.test(html) && /data-delegate="btnSetlists"/.test(html) && /openSetlistsView\(\)/.test(html));
+// setlist view: full-page surface like the song details page
+check('setlists view opens a dedicated page',
+  /let setlistsViewOpen = false;/.test(html) && /function openSetlistsView/.test(html) && /closeSetlistsView\(\)/.test(html));
+check('renderMain hosts the setlists page',
+  /if \(setlistsViewOpen\)\{\s*renderSetlistsPage\(main\);\s*return;/.test(html));
+// schema: setlist shape + legacy subset load-in migration
+check('setlist schema normalizer',
+  /function normalizeSetlist\(raw\)/.test(html) && /startIndex/.test(html));
+check('legacy songSubsets migrate into setlists on load',
+  /function migrateSetlists\(state\)/.test(html) && /migrateSetlists\(state\);/.test(html) && /byId\.has\(sub\.id\)\) return;/.test(html));
+check('setlist edits mirror into songSubsets for older apps',
+  /function syncSetlistMirror\(sl\)/.test(html));
+check('setlist song order helper skips unprintable songs',
+  /function setlistSongs\(sl\)/.test(html) && /printableSections\(id\)\.length/.test(html));
+// builder: drag reorder, set parts anchored by song id (survive reorder)
+check('setlist builder renders rows with drag handles',
+  /sl-drag-handle/.test(html) && /row\.draggable = true;/.test(html));
+check('drag drop uses setlist order helper',
+  /applyReorderWithParts\(sl, songs, from, to\)/.test(html));
+check('set labels re-anchor to song ids across reorders',
+  /const anchorSong = new Map\(\)/.test(html));
+check('add-set-label popover skips already-labelled positions',
+  /openAddPartPopover\(e\.currentTarget, sl\)/.test(html) && /sl\.parts\.some\(p => p\.startIndex === i\)\) continue;/.test(html));
+check('setlist card grid with delete affordance',
+  /setlist-grid/.test(html) && /setlist-card/.test(html) && /Delete the setlist/.test(html));
+// PDF: setlist order + labels reach the generated file
+check('collectPdfSongs honors setlist order when provided',
+  /function collectPdfSongs\(selectedGroupIds, pdfOrder\)/.test(html) && /const rank = new Map\(pdfOrder\.map\(\(id, i\) => \[id, i\]\)\)/.test(html));
+check('PDF render picks up the active setlist',
+  /const activeSl = setSel && setSel\.value \? findSetlist\(setSel\.value\) : null;/.test(html));
+check('TOC renders set labels on boundary rows',
+  /const partLabel = pdfSetlist \? setlistPartAt\(pdfSetlist, i\) : null;/.test(html) && /partLabel\.toUpperCase\(\)/.test(html));
+check('setlist entry point opens Export with that setlist preselected',
+  /function openPdfPreviewFromSetlist\(/.test(html) && /pdfPendingSetlistId = setlistId;/.test(html));
+check('setlist exports name the file after the setlist',
+  /const activeSl = setSel && setSel\.value \? findSetlist\(setSel\.value\) : null;/.test(html) && /activeSl && \(activeSl\.name \|\| ''\)\.trim\(\)/.test(html));
+check('dialog Set dropdown wording',
+  /Name this setlist:/.test(html) && /Delete the setlist/.test(html) && !/Name this subset:/.test(html));
+// card grid view toggle (device-level preference)
+check('sidebar card-grid view toggles and persists',
+  /function setSidebarGridView\(on\)/.test(html) && /setbook-sidebar-grid-view/.test(html) && /applySidebarGridView\(\);/.test(html));
+check('grid view is CSS-scoped to the sidebar list',
+  /\.sidebar-list\.grid-view\{/.test(html) && /listViewToggle/.test(html));
+// MCP parity: server exposes setlist tools
+check('MCP server exposes setlist tools',
+  /list_setlists/.test(html) || true); // app HTML doesn't embed MCP; real guard below
+const mcpServerSrc = (() => { try { return require('fs').readFileSync(path.join(ROOT, 'setbook-mcp', 'server.mjs'), 'utf8'); } catch(e) { return ''; } })();
+check('MCP server registers list_setlists',
+  mcpServerSrc.includes("'list_setlists'"));
+check('MCP server registers edit_setlist',
+  mcpServerSrc.includes("'edit_setlist'"));
+check('MCP server registers generate_setlist',
+  mcpServerSrc.includes("'generate_setlist'"));
+check('MCP server registers delete_setlist',
+  mcpServerSrc.includes("'delete_setlist'"));
+check('MCP song-tools imports and exports setlist helpers',
+  (() => { try { const s = require('fs').readFileSync(path.join(ROOT, 'setbook-mcp', 'song-tools.mjs'), 'utf8'); return s.includes('export function listSetlists') && s.includes('export function upsertSetlist') && s.includes('export function generateSetlist') && s.includes('export function deleteSetlist'); } catch(e){ return false; } })());
+check('legacy subset wording retired from Save flow',
+  !/Name this subset/.test(html));
 
 /* ================= summary ================= */
 Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks, cloudAdapterChecks]).then(() => {

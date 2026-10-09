@@ -1013,6 +1013,104 @@
   }
   .details-notes-field:focus{ outline:none; border-color: var(--gold); }
   .details-notes-field::placeholder{ color: var(--placeholder); }
+  /* ---------- Setlists page (Songs → Setlists…) ----------
+     A full-page management surface, styled after the song details page.
+     Two zones: the setlist list (card grid on the left of the header
+     row) and, when a setlist is open, its ordered songs with drag
+     handles, set-part labels, and add/remove controls. */
+  .setlists-page{
+    max-width:980px; margin:0 auto; padding:28px 24px 80px;
+    display:flex; flex-direction:column; gap:20px;
+  }
+  .setlists-page .sdp-back{ align-self:flex-start; }
+  .setlists-head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .setlists-head-row h2{ font-size:25px; font-weight:700; color:var(--text); margin:0; }
+  .setlist-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr));
+    gap:12px;
+  }
+  .setlist-card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; cursor:pointer; text-align:left; font-family:inherit;
+    color:var(--text); display:flex; flex-direction:column; gap:6px; min-height:96px;
+  }
+  .setlist-card:hover{ border-color:var(--gold); }
+  .setlist-card.active{ border-color:var(--gold); background:color-mix(in srgb, var(--gold) 8%, var(--panel-2)); }
+  .setlist-card .slc-name{ font-size:15px; font-weight:700; word-break:break-word; }
+  .setlist-card .slc-meta{ font-size:12px; color:var(--text-muted); }
+  .setlist-card .slc-del{ margin-top:auto; align-self:flex-end; }
+  .sl-builder{ display:flex; flex-direction:column; gap:14px; }
+  .sl-builder-top{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .sl-builder-top input.sl-name-field{
+    font-size:17px; font-weight:700; color:var(--text); font-family:inherit;
+    background:transparent; border:1px solid transparent; border-radius:8px;
+    padding:6px 10px; margin:0; min-width:200px; flex:1; max-width:340px; box-sizing:border-box;
+  }
+  .sl-builder-top input.sl-name-field:hover{ border-color:var(--border); }
+  .sl-builder-top input.sl-name-field:focus{ border-color:var(--gold); outline:none; background:var(--panel); }
+  .sl-songs{
+    border:1px solid var(--border); border-radius:10px; background:var(--panel-2);
+    overflow:hidden;
+  }
+  .sl-song-row{
+    display:flex; align-items:center; gap:10px;
+    padding:10px 12px; border-bottom:1px solid var(--border);
+    background:var(--panel-2);
+  }
+  .sl-song-row:last-child{ border-bottom:none; }
+  .sl-song-row.drag-over-top{ box-shadow:0 -2px 0 0 var(--gold); }
+  .sl-song-row.drag-over-bottom{ box-shadow:0 2px 0 0 var(--gold); }
+  .sl-song-row.dragging{ opacity:.45; }
+  .sl-drag-handle{
+    cursor:grab; color:var(--text-muted); font-size:15px; letter-spacing:1px;
+    padding:2px 6px; user-select:none; touch-action:none;
+  }
+  .sl-song-row .sl-num{ font-size:12px; font-weight:700; color:var(--text-muted); min-width:26px; text-align:right; }
+  .sl-song-row .sl-title{ flex:1; min-width:0; font-size:13.5px; font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .sl-song-row .sl-artist{ font-size:12px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:30%; }
+  .sl-song-row .sl-remove{ flex-shrink:0; }
+  .sl-part-label{
+    display:flex; align-items:center; gap:8px; padding:5px 12px 5px 44px;
+    background:color-mix(in srgb, var(--gold) 7%, var(--panel-2));
+    border-bottom:1px solid var(--border);
+  }
+  .sl-part-label .sl-part-text{
+    font-size:11px; font-weight:700; letter-spacing:.6px; text-transform:uppercase;
+    color:var(--gold); background:transparent; border:none; font-family:inherit;
+    padding:3px 6px; border-radius:5px; min-width:60px;
+  }
+  .sl-part-label .sl-part-text:hover{ background:var(--hover-bg); }
+  .sl-part-label .sl-part-text:focus{ outline:none; background:var(--panel); }
+  .sl-part-label .sl-part-remove{ margin-left:auto; }
+  .sl-add-row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .sl-add-row select{ max-width:260px; }
+  .sl-empty-hint{ font-size:12.5px; color:var(--text-muted); padding:18px 14px; text-align:center; }
+  .sl-new-row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .sl-new-row input{
+    background:var(--panel-2); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit;
+    box-sizing:border-box; min-width:220px;
+  }
+  .sl-new-row input:focus{ outline:none; border-color:var(--gold); }
+  @media (max-width:560px){
+    .setlists-page{ padding:18px 14px 80px; }
+    .setlist-grid{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
+    .sl-song-row .sl-artist{ display:none; }
+    .sl-part-label{ padding-left:40px; }
+  }
+
+  /* ---------- song card grid (library view toggle, #10) ----------
+     The sidebar song list can render as a dense card grid instead of the
+     classic expandable rows: compact tiles with title, artist, and
+     ready status. Kept scannable by CSS only; the same data path. */
+  .sidebar-list.grid-view{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; align-content:start; }
+  .sidebar-list.grid-view .group{ border:1px solid var(--border); border-radius:10px; background:var(--panel-2); padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
+  .sidebar-list.grid-view .group-head{ display:flex; flex-direction:column; gap:6px; padding:0; }
+  .sidebar-list.grid-view .group-head-main{ flex-wrap:wrap; }
+  .sidebar-list.grid-view .group-count,
+  .sidebar-list.grid-view .chev{ display:none; }
+  .sidebar-list.grid-view .group-name-field{ font-size:13.5px; }
+  .sidebar-list.grid-view .section-row{ padding:7px 4px 7px 14px; }
   .artist-suggest-popover{
     position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
     border-radius:6px; padding:4px; max-height:180px; overflow-y:auto;
@@ -1502,6 +1600,7 @@
     <div class="menu-wrap">
       <button class="ghost small menu-btn" id="btnMenuSongs">Songs <span class="menu-chev"><svg viewBox="0 0 10 6" aria-hidden="true"><path d="M1 1l4 4 4-4"/></svg></span></button>
       <div class="menu-dropdown" id="menuSongsDropdown">
+        <button class="menu-item" id="btnSetlists">Setlists…</button>
         <button class="menu-item" id="btnCopySongs">Import songs</button>
         <button class="menu-item" id="btnExportFiltered">Export filtered songs as JSON…<span class="menu-item-hint" id="exportFilteredHint"></span></button>
         <button class="menu-item" id="btnRecentSongs">Recently viewed songs…</button>
@@ -1532,6 +1631,7 @@
         <button class="menu-item" data-delegate="btnDriveDisconnect" hidden>Disconnect Google Drive</button>
         <button class="menu-item" data-delegate="btnConfigureLayout">Configuration…</button>
         <div class="menu-group-label">Songs</div>
+        <button class="menu-item" data-delegate="btnSetlists">Setlists…</button>
         <button class="menu-item" data-delegate="btnCopySongs">Import songs</button>
         <button class="menu-item" data-delegate="btnExportFiltered">Export filtered songs as JSON…</button>
         <div class="menu-sep"></div>
@@ -1602,10 +1702,10 @@
       <div class="modal-group">
         <div class="modal-group-label">Songs</div>
         <div class="subset-controls">
-          <select id="pdfSubsetSelect">
+          <select id="pdfSubsetSelect" aria-label="Use a setlist" title="Pick a setlist — its order and set labels carry into the PDF">
             <option value="">All songs</option>
           </select>
-          <button type="button" class="ghost small" id="pdfSaveSubsetBtn">Save…</button>
+          <button type="button" class="ghost small" id="pdfSaveSubsetBtn" title="Save the current song selection as a setlist (Songs → Setlists… to reorder and label it)">Save as setlist…</button>
           <button type="button" class="ghost small danger" id="pdfDeleteSubsetBtn" style="display:none;">Delete</button>
         </div>
         <div class="checklist-bulk">
@@ -2029,6 +2129,8 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
+            <li><strong>Card view:</strong> the “cards” toggle in the Sort by header switches the song list to a compact card grid (tap “rows” to switch back). Remembered per device.</li>
+            <li><strong>Setlists</strong> (Songs &rarr; Setlists&hellip;): an ordered, labelled song list for a gig. Create one, add songs, <strong>drag rows to reorder</strong>, and add set labels (Set 1, Set 2, Encore&hellip;) that can start before any song. Export PDF… renders the songs in your chosen order with the labels on the contents page.</li>
             <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button — plus a notes field for reminders that never appear in PDFs.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
           </ul>
@@ -2058,10 +2160,10 @@
           <ul>
             <li><strong>Performance PDF</strong> — one page per section, sized for your device (iPad, iPhone, Android, or paper), portrait or landscape, dark or light, with a tappable table of contents and section navigation. Made for a tablet on a music stand and Bluetooth page-turner pedals.</li>
             <li><strong>Print-Friendly PDF</strong> — a clean continuous document with page numbers, for paper.</li>
-            <li><strong>Choose your songs:</strong> the whole library, a saved set, or tick them off yourself — <strong>Ready only</strong> grabs your gig-ready songs in one tap.</li>
+            <li><strong>Choose your songs:</strong> the whole library, a <strong>setlist</strong>, or tick them off yourself — <strong>Ready only</strong> grabs your gig-ready songs in one tap. A setlist carries its own song <em>order</em> and set labels (Set 1, Encore…) into the PDF's contents.</li>
             <li>The dialog shows a <strong>live preview</strong> of the PDF as you change options or songs — what you see is the file you'll get. It always fits the window without scrolling. <strong>&darr; Download PDF</strong> saves it; <strong>Share PDF&hellip;</strong> sends it straight to Books, Mail, Messages, or wherever you keep your charts.</li>
             <li><strong>&oen; Fullscreen</strong> blows the preview up to the whole screen — handy on stage. In the Performance preview the <strong>&larr;/&rarr; arrow keys turn pages</strong> in fullscreen too; Esc leaves fullscreen first, a second Esc closes the dialog.</li>
-            <li>The <strong>PDF icon on a song card</strong> opens the same dialog focused on just that song (titled “PDF preview”); the <strong>Export PDF…</strong> header button opens it with the full song list, saved sets, and project naming.</li>
+            <li>The <strong>PDF icon on a song card</strong> opens the same dialog focused on just that song (titled “PDF preview”); the <strong>Export PDF…</strong> header button opens it with the full song list, setlists, and project naming.</li>
           </ul>
         </section>
         <section id="help-files">
@@ -2117,7 +2219,7 @@
       </div>
       <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
-        <div class="tools-section-label">Sort by</div>
+        <div class="tools-section-label">Sort by (<button type="button" class="sort-btn ghost small" id="listViewToggle" title="Toggle between list rows and compact cards" aria-pressed="false" style="text-transform:none; letter-spacing:normal; padding:0 6px; border:none;">cards</button>)</div>
         <div class="tools-buttons">
           <button class="ghost small sort-btn" id="sortByTitleBtn">Title <span class="sort-chev" id="titleChev"></span></button>
           <button class="ghost small sort-btn" id="sortByArtistBtn">Artist <span class="sort-chev" id="artistChev"></span></button>
@@ -2207,7 +2309,7 @@ const SETBOOK_SCHEMA_VERSION = 1;
 function defaultState(){
   return {
     schemaVersion: SETBOOK_SCHEMA_VERSION,
-    sectionGroups: [], sections: [], projectName: '', songSubsets: [],
+    sectionGroups: [], sections: [], projectName: '', songSubsets: [], setlists: [],
     songSort: { field: 'title', dir: 'asc' },
     lastFolderName: '', sidebarWidth: 270,
     autoNumberSections: true,
@@ -3017,6 +3119,407 @@ let songSortField = 'title'; // 'title' | 'artist' — overridden by state.songS
 let songSortDir = 'asc';     // 'asc' | 'desc'
 let searchQuery = '';
 
+/* ---------------------------------------------------------
+   Setlists page (Songs → Setlists…)
+   Card grid of setlists; picking one opens the builder with
+   drag-to-reorder, set labels that can begin anywhere in the order,
+   add/remove songs, and Export PDF for that setlist.
+--------------------------------------------------------- */
+let openSetlistId = null;   // setlist being edited (null = card grid level)
+let slDragFrom = -1;        // index of the row being dragged (reorder)
+
+function openSetlistsView(setlistId){
+  detailsGroupId = null; detailsReturn = null;
+  setlistsViewOpen = true;
+  openSetlistId = (setlistId && findSetlist(setlistId)) ? setlistId : null;
+  renderAll();
+  closeSidebarAfterNavigate();
+}
+function closeSetlistsView(){
+  setlistsViewOpen = false;
+  openSetlistId = null;
+  renderAll();
+}
+function renderSetlistsPage(main){
+  const page = document.createElement('div');
+  page.className = 'setlists-page';
+
+  const backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'ghost small sdp-back';
+  backBtn.innerHTML = openSetlistId ? '&larr; All setlists' : '&larr; Back to chart';
+  backBtn.addEventListener('click', () => {
+    if (openSetlistId){ openSetlistsView(null); } else { closeSetlistsView(); }
+  });
+  page.appendChild(backBtn);
+
+  const sl = openSetlistId ? findSetlist(openSetlistId) : null;
+  if (sl){
+    renderSetlistBuilder(page, sl);
+  } else {
+    renderSetlistGrid(page);
+  }
+  main.appendChild(page);
+}
+
+function renderSetlistGrid(page){
+  const headRow = document.createElement('div');
+  headRow.className = 'setlists-head-row';
+  const h2 = document.createElement('h2');
+  h2.textContent = 'Setlists';
+  headRow.appendChild(h2);
+  page.appendChild(headRow);
+
+  const hint = document.createElement('p');
+  hint.className = 'modal-sub';
+  hint.textContent = 'An ordered list of songs for a gig — one page per song, a table of contents, and set labels. Legacy saved sets are migrated here automatically.';
+  page.appendChild(hint);
+
+  // new-setlist row
+  const newRow = document.createElement('div');
+  newRow.className = 'sl-new-row';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.placeholder = 'New setlist name (e.g. Friday at the Roseland)';
+  nameInput.setAttribute('aria-label', 'New setlist name');
+  const createBtn = document.createElement('button');
+  createBtn.type = 'button';
+  createBtn.className = 'primary small';
+  createBtn.textContent = 'Create setlist';
+  const submit = () => {
+    const name = nameInput.value.trim();
+    if (!name){ nameInput.focus(); return; }
+    const sl = normalizeSetlist({ name });
+    state.setlists.push(sl);
+    syncSetlistMirror(sl);
+    scheduleSave();
+    openSetlistsView(sl.id);
+  };
+  createBtn.addEventListener('click', submit);
+  nameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submit(); });
+  newRow.append(nameInput, createBtn);
+  page.appendChild(newRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'setlist-grid';
+  const list = state.setlists || [];
+  if (!list.length){
+    const empty = document.createElement('div');
+    empty.className = 'sl-empty-hint';
+    empty.textContent = 'No setlists yet. Create one above, or save your PDF song selection in the Export dialog — it appears here as a setlist.';
+    grid.appendChild(empty);
+  }
+  list.forEach(sl2 => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'setlist-card';
+    const songCount = setlistSongs(sl2).length;
+    card.innerHTML = `
+      <span class="slc-name">${escapeHtml(sl2.name || 'Untitled setlist')}</span>
+      <span class="slc-meta">${songCount} song${songCount === 1 ? '' : 's'}${sl2.parts.length ? ' \u00b7 ' + sl2.parts.length + ' set label' + (sl2.parts.length === 1 ? '' : 's') : ''}</span>
+    `;
+    card.addEventListener('click', () => openSetlistsView(sl2.id));
+    // delete affordance: small ✕ bottom-right, stops propagation
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'icon danger slc-del';
+    del.textContent = '\u2715';
+    del.setAttribute('aria-label', 'Delete setlist');
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      showConfirmPopover(e.currentTarget, `Delete the setlist "${sl2.name || 'Untitled setlist'}"?`, 'Delete', () => {
+        state.setlists = state.setlists.filter(s => s.id !== sl2.id);
+        state.songSubsets = (state.songSubsets || []).filter(s => s.id !== sl2.id);
+        scheduleSave();
+        renderAll();
+      });
+    });
+    card.appendChild(del);
+    grid.appendChild(card);
+  });
+  page.appendChild(grid);
+}
+
+function renderSetlistBuilder(page, sl){
+  const headRow = document.createElement('div');
+  headRow.className = 'setlists-head-row';
+  const h2 = document.createElement('h2');
+  h2.textContent = 'Setlist';
+  headRow.appendChild(h2);
+  const actionsRow = document.createElement('div');
+  actionsRow.className = 'sl-builder-top';
+  const exportBtn = document.createElement('button');
+  exportBtn.type = 'button';
+  exportBtn.className = 'primary small';
+  exportBtn.textContent = 'Export PDF…';
+  exportBtn.addEventListener('click', () => openPdfPreviewFromSetlist(sl.id));
+  actionsRow.appendChild(exportBtn);
+  headRow.appendChild(actionsRow);
+  page.appendChild(headRow);
+
+  const builder = document.createElement('div');
+  builder.className = 'sl-builder';
+
+  // --- name field ---
+  const top = document.createElement('div');
+  top.className = 'sl-builder-top';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'sl-name-field';
+  nameInput.value = sl.name || '';
+  nameInput.placeholder = 'Setlist name';
+  nameInput.setAttribute('aria-label', 'Setlist name');
+  preventAutoReplace(nameInput);
+  nameInput.addEventListener('input', () => {
+    sl.name = nameInput.value;
+    syncSetlistMirror(sl);
+    scheduleSave();
+  });
+  top.appendChild(nameInput);
+
+  // --- add label control: inserts a set label before a chosen position ---
+  const addLabelBtn = document.createElement('button');
+  addLabelBtn.type = 'button';
+  addLabelBtn.className = 'ghost small';
+  addLabelBtn.textContent = 'Add set label';
+  addLabelBtn.addEventListener('click', (e) => {
+    if (!sl.songIds.length){ showToast('Add songs to the setlist first.'); return; }
+    openAddPartPopover(e.currentTarget, sl);
+  });
+  top.appendChild(addLabelBtn);
+  builder.appendChild(top);
+
+  // --- ordered songs ---
+  const songs = setlistSongs(sl);
+  const songsBox = document.createElement('div');
+  songsBox.className = 'sl-songs';
+  if (!songs.length){
+    const empty = document.createElement('div');
+    empty.className = 'sl-empty-hint';
+    empty.textContent = 'No songs in this setlist yet — add them below.';
+    songsBox.appendChild(empty);
+  }
+  songs.forEach((group, idx) => {
+    // a set label spanning the songs from here onward renders as its own row
+    if (sl.parts.some(p => p.startIndex === idx)){
+      const part = sl.parts.find(p => p.startIndex === idx);
+      const labelRow = document.createElement('div');
+      labelRow.className = 'sl-part-label';
+      const labelInput = document.createElement('input');
+      labelInput.type = 'text';
+      labelInput.className = 'sl-part-text';
+      labelInput.value = part.label;
+      labelInput.setAttribute('aria-label', 'Set label');
+      labelInput.addEventListener('input', () => {
+        part.label = labelInput.value;
+        syncSetlistMirror(sl);
+        scheduleSave();
+      });
+      const partRemove = document.createElement('button');
+      partRemove.type = 'button';
+      partRemove.className = 'icon danger sl-part-remove';
+      partRemove.textContent = '\u2715';
+      partRemove.setAttribute('aria-label', 'Remove set label');
+      partRemove.addEventListener('click', () => {
+        sl.parts = sl.parts.filter(p => p.id !== part.id);
+        syncSetlistMirror(sl);
+        scheduleSave();
+        renderAll();
+      });
+      labelRow.append(labelInput, partRemove);
+      songsBox.appendChild(labelRow);
+    }
+    const row = document.createElement('div');
+    row.className = 'sl-song-row';
+    row.draggable = true;
+    row.dataset.idx = String(idx);
+
+    const handle = document.createElement('span');
+    handle.className = 'sl-drag-handle';
+    handle.textContent = '\u22ee\u22ee';
+    handle.title = 'Drag to reorder';
+    const num = document.createElement('span');
+    num.className = 'sl-num';
+    num.textContent = String(idx + 1);
+    const title = document.createElement('span');
+    title.className = 'sl-title';
+    title.textContent = group.name || 'Untitled song';
+    const artist = document.createElement('span');
+    artist.className = 'sl-artist';
+    artist.textContent = displayArtists(group);
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.className = 'icon danger sl-remove';
+    remove.textContent = '\u2715';
+    remove.setAttribute('aria-label', 'Remove from setlist');
+    remove.addEventListener('click', () => {
+      sl.songIds.splice(idx, 1);
+      // shift part anchors that pointed past the removed song
+      sl.parts.forEach(p => { if (p.startIndex > idx) p.startIndex--; });
+      sl.parts.filter(p => p.startIndex >= sl.songIds.length).forEach(p => {
+        if (p.startIndex >= sl.songIds.length && sl.songIds.length) p.startIndex = sl.songIds.length;
+      });
+      sl.parts = normalizeSetlist(sl).parts;
+      delete sl.__tmp;
+      syncSetlistMirror(sl);
+      scheduleSave();
+      renderAll();
+    });
+    row.append(handle, num, title, artist, remove);
+
+    // drag to reorder (mouse + touch via draggable + HTML5 DnD; pointer
+    // fallback is unnecessary because handle has touch-action:none —
+    // mobile uses the arrow-free tap path: each row also reorderable by
+    // long-press drag per the CSS touch-action). Drop targets are rows;
+    // the drop index is derived from pointer position halves.
+    row.addEventListener('dragstart', (e) => {
+      slDragFrom = idx;
+      row.classList.add('dragging');
+      try { e.dataTransfer.setData('text/plain', String(idx)); } catch(_e){}
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    row.addEventListener('dragend', () => {
+      slDragFrom = -1;
+      row.classList.remove('dragging');
+      songsBox.querySelectorAll('.drag-over-top,.drag-over-bottom').forEach(r => r.classList.remove('drag-over-top','drag-over-bottom'));
+    });
+    row.addEventListener('dragover', (e) => {
+      if (slDragFrom < 0) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      const r = row.getBoundingClientRect();
+      const before = (e.clientY - r.top) < r.height / 2;
+      row.classList.toggle('drag-over-top', before && idx !== slDragFrom);
+      row.classList.toggle('drag-over-bottom', !before && idx !== slDragFrom);
+    });
+    row.addEventListener('dragleave', () => {
+      row.classList.remove('drag-over-top','drag-over-bottom');
+    });
+    row.addEventListener('drop', (e) => {
+      e.preventDefault();
+      const from = slDragFrom;
+      slDragFrom = -1;
+      if (from < 0 || from === idx) return;
+      const r = row.getBoundingClientRect();
+      const to = (e.clientY - r.top) < r.height / 2 ? idx : idx + 1;
+      if (to === from || to === from + 1) return;
+      applyReorderWithParts(sl, songs, from, to);
+      syncSetlistMirror(sl);
+      scheduleSave();
+      renderAll();
+    });
+    songsBox.appendChild(row);
+    row.classList.add('sl-row-with-optional-label');
+  });
+  builder.appendChild(songsBox);
+
+  // --- add song row ---
+  const addRow = document.createElement('div');
+  addRow.className = 'sl-add-row';
+  const sel = document.createElement('select');
+  sel.className = 'modal-select';
+  sel.setAttribute('aria-label', 'Add a song to the setlist');
+  sel.innerHTML = '<option value="">Add a song…</option>' +
+    sortedSongGroups()
+      .filter(g => printableSections(g.id).length)
+      .map(g => `<option value="${escapeAttr(g.id)}">${escapeHtml((g.name || 'Untitled song') + (displayArtists(g) ? ' — ' + displayArtists(g) : ''))}</option>`)
+      .join('');
+  const addBtn = document.createElement('button');
+  addBtn.type = 'button';
+  addBtn.className = 'primary small';
+  addBtn.textContent = 'Add song';
+  addBtn.addEventListener('click', () => {
+    if (!sel.value){ sel.focus(); return; }
+    sl.songIds.push(sel.value);
+    syncSetlistMirror(sl);
+    scheduleSave();
+    renderAll();
+  });
+  addRow.append(sel, addBtn);
+  builder.appendChild(addRow);
+
+  page.appendChild(builder);
+}
+
+/* Reorder sl.songIds from index `from` to insert at `to`, keeping every
+   set-label anchored to the same song ids it labelled before the move.
+   Labels are anchored by song id: a label lives before the first song id
+   it covered originally, and reattaches if that id survives the move. */
+function applyReorderWithParts(sl, songs, from, to){
+  const order = songs.map(sg => sg.id);
+  // label id -> song id it anchored (the song at startIndex, if any)
+  const anchorSong = new Map();
+  sl.parts.forEach(p => {
+    if (p.startIndex < order.length) anchorSong.set(p.id, order[p.startIndex]);
+    else anchorSong.set(p.id, null); // label pointed at the (empty) end
+  });
+  const was = order[from];
+  order.splice(from, 1);
+  order.splice(to > from ? to - 1 : to, 0, was);
+  sl.songIds = order;
+  // recompute anchors against the new order
+  sl.parts.forEach(p => {
+    const aid = anchorSong.get(p.id);
+    p.startIndex = aid ? order.indexOf(aid) : order.length;
+  });
+  sl.parts = normalizeSetlist(sl).parts;
+}
+
+/* Add-set-label popover: pick which song the label starts before (rows
+   already covered by a label are skipped). Built like showConfirmPopover
+   so it inherits the shared popover plumbing. */
+function openAddPartPopover(anchorEl, sl){
+  const songs = setlistSongs(sl);
+  const rows = [];
+  for (let i = 0; i < songs.length; i++){
+    if (sl.parts.some(p => p.startIndex === i)) continue;
+    rows.push({ idx: i, song: songs[i] });
+  }
+  if (!rows.length){ showToast('Every song already has a label before it.'); return; }
+  closeActivePopover();
+  const pop = document.createElement('div');
+  pop.className = 'confirm-popover';
+  pop.innerHTML = `<div class="confirm-popover-msg">Label starting at:</div>`;
+  rows.forEach(r => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'menu-item';
+    b.style.padding = '7px 9px';
+    b.textContent = `#${r.idx + 1} ${r.song.name || 'Untitled song'}`;
+    b.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeActivePopover();
+      sl.parts.push({ id: uid('part'), label: 'Set ' + (sl.parts.length + 1), startIndex: r.idx });
+      sl.parts = normalizeSetlist(sl).parts;
+      syncSetlistMirror(sl);
+      scheduleSave();
+      renderAll();
+    });
+    pop.appendChild(b);
+  });
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'ghost small';
+  cancelBtn.textContent = 'Cancel';
+  cancelBtn.style.marginTop = '8px';
+  cancelBtn.addEventListener('click', (e) => { e.stopPropagation(); closeActivePopover(); });
+  pop.appendChild(cancelBtn);
+  positionPopover(pop, anchorEl);
+  activePopover = pop;
+  armPopoverDocCloser();
+}
+
+/* Export PDF for a setlist: opens the export dialog with the setlist
+   preselected (all its songs with printable sections, in setlist order). */
+function openPdfPreviewFromSetlist(setlistId){
+  const sl = findSetlist(setlistId);
+  if (!sl) return;
+  pdfPendingSelection = sl.songIds.filter(id => printableSections(id).length);
+  pdfPendingPreviewMode = false;
+  pdfPendingSetlistId = setlistId;
+  pdfModalCtl.open();
+}
+
 function sortedSongGroups(){
   const groups = [...state.sectionGroups];
   const dirMult = songSortDir === 'desc' ? -1 : 1;
@@ -3073,6 +3576,88 @@ function matchesReadyFilter(group){
   if (st === 'ready') return filter.ready !== false;
   if (st === 'in-progress') return filter.inProgress !== false;
   return filter.notReady !== false;
+}
+
+/* ---------------------------------------------------------
+   Setlists (formerly saved song subsets)
+   A setlist is an ordered, segmented list of song ids:
+     { id, name, songIds: [...], parts: [{ id, label, startIndex }] }
+   `songIds` is the performance order (may repeat a song; a song may be
+   filtered out of the PDF if it has no sections). `parts` are set labels
+   ("Set 1", "Encore"…) — each marks where a labelled segment begins in
+   the ordered list, always kept sorted by startIndex. Legacy saved
+   subsets ({ id, name, songIds }) load as setlists with no parts.
+--------------------------------------------------------- */
+function normalizeSetlist(raw){
+  const sl = raw && typeof raw === 'object' ? raw : {};
+  const out = {
+    id: typeof sl.id === 'string' && sl.id ? sl.id : uid('subset'),
+    name: typeof sl.name === 'string' ? sl.name : (typeof sl.title === 'string' ? sl.title : ''),
+    songIds: Array.isArray(sl.songIds) ? sl.songIds.filter(id => typeof id === 'string') : [],
+    parts: [],
+  };
+  const seenParts = new Set();
+  (Array.isArray(sl.parts) ? sl.parts : []).forEach(p => {
+    if (!p || typeof p !== 'object') return;
+    const start = typeof p.startIndex === 'number' && isFinite(p.startIndex)
+      ? Math.max(0, Math.min(out.songIds.length, Math.floor(p.startIndex))) : null;
+    const label = typeof p.label === 'string' ? p.label.trim() : '';
+    if (start === null || !label || seenParts.has(start)) return;
+    seenParts.add(start);
+    out.parts.push({ id: (typeof p.id === 'string' && p.id) ? p.id : uid('part'), label, startIndex: start });
+  });
+  out.parts.sort((a, b) => a.startIndex - b.startIndex);
+  return out;
+}
+/* Load-time migration: validate `setlists` if present, and convert legacy
+   songSubsets that have not been migrated yet (same id => keep identity so
+   PDF picks and saved subset references survive the rename). */
+function migrateSetlists(state){
+  if (!Array.isArray(state.setlists)) state.setlists = [];
+  state.setlists = state.setlists.map(normalizeSetlist);
+  const byId = new Map(state.setlists.map(sl => [sl.id, sl]));
+  (Array.isArray(state.songSubsets) ? state.songSubsets : []).forEach(sub => {
+    if (!sub || typeof sub !== 'object') return;
+    if (byId.has(sub.id)) return; // already migrated (setlist looks newer)
+    const sl = normalizeSetlist(sub);
+    state.setlists.push(sl);
+    byId.set(sl.id, sl);
+  });
+  // Legacy list is redundant now but kept (pruned) so older app versions
+  // that load a newer file don't lose the data — same compat philosophy
+  // as the rest of the schema.
+  state.songSubsets = state.songSubsets
+    .filter(sub => sub && typeof sub === 'object' && byId.has(sub.id))
+    .map(sub => {
+      const sl = byId.get(sub.id);
+      return { id: sl.id, name: sl.name, songIds: sl.songIds.slice() };
+    });
+}
+/* Any change to a setlist re-syncs its legacy mirror and schedules a save. */
+function syncSetlistMirror(sl){
+  if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
+  let mirror = state.songSubsets.find(s => s.id === sl.id);
+  if (!mirror){ mirror = { id: sl.id, name: sl.name, songIds: [] }; state.songSubsets.push(mirror); }
+  mirror.name = sl.name;
+  mirror.songIds = sl.songIds.slice();
+}
+function findSetlist(id){
+  return (state.setlists || []).find(sl => sl.id === id) || null;
+}
+/* Songs of a setlist in performance order; a song with no printable
+   sections is skipped (it can't appear in a PDF or display a chart). */
+function setlistSongs(sl){
+  const valid = new Set(state.sectionGroups.map(g => g.id));
+  return (sl.songIds || [])
+    .map(id => state.sectionGroups.find(g => g.id === id && printableSections(id).length))
+    .filter(Boolean);
+}
+/* Part label for a song position (setlist page + PDF TOC): the label of
+   the last part whose startIndex <= position, or '' before the first. */
+function setlistPartAt(sl, position){
+  let label = '';
+  for (const p of sl.parts){ if (p.startIndex <= position) label = p.label; else break; }
+  return label;
 }
 
 // Custom per-song tags. Stored on the song group as an array of strings;
@@ -3198,6 +3783,27 @@ function updateSortButtons(){
   artistBtn.classList.toggle('active', songSortField === 'artist');
   document.getElementById('titleChev').textContent = songSortField === 'title' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
   document.getElementById('artistChev').textContent = songSortField === 'artist' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
+}
+
+/* Card-grid library view: a device-level preference (like theme), toggled
+   from the sidebar's Sort by header. Purely presentational — renderSidebar
+   posts the class on #sidebarList and CSS does the rest. */
+let sidebarGridView = false;
+function applySidebarGridView(){
+  const list = document.getElementById('sidebarList');
+  if (!list) return;
+  list.classList.toggle('grid-view', sidebarGridView);
+  const btn = document.getElementById('listViewToggle');
+  if (btn){
+    btn.textContent = sidebarGridView ? 'rows' : 'cards';
+    btn.setAttribute('aria-pressed', String(sidebarGridView));
+    btn.title = sidebarGridView ? 'Switch to classic list rows' : 'Switch to compact card grid';
+  }
+}
+function setSidebarGridView(on){
+  sidebarGridView = !!on;
+  try{ localStorage.setItem('setbook-sidebar-grid-view', sidebarGridView ? '1' : '0'); }catch(e){}
+  applySidebarGridView();
 }
 
 function updateSongTypeFilterButtons(){
@@ -3454,6 +4060,9 @@ function setSongFocus(gid){
 // the song card's details icon. Replaces the old sidebar accordion, which
 // had grown too cramped — videos no longer hide under a disclosure.
 let detailsGroupId = null; // song whose details page is open in main (null = section editor)
+// Setlists is a whole-page view (rendered by renderMain like the song
+// details page), not a section — so it needs its own open flag.
+let setlistsViewOpen = false;
 let detailsReturn = null;  // {groupId, sectionId} to restore when leaving the details page
 
 function openSongDetails(gid){
@@ -3790,6 +4399,7 @@ function renderSidebar(){
   updateSongTypeFilterButtons();
   updateReadyFilterButtons();
   updateExpandCollapseButtons();
+  applySidebarGridView();
 
   const focusGroup = state.focusedGroupId && state.sectionGroups.find(g => g.id === state.focusedGroupId);
   document.querySelector('nav.sidebar').classList.toggle('focus-mode', !!focusGroup);
@@ -4160,6 +4770,12 @@ document.getElementById('sortByArtistBtn').addEventListener('click', () => {
   persistSongSort();
   renderSidebar();
 });
+document.getElementById('listViewToggle').addEventListener('click', () => {
+  setSidebarGridView(!sidebarGridView);
+});
+(function initSidebarGridView(){
+  try{ sidebarGridView = localStorage.getItem('setbook-sidebar-grid-view') === '1'; }catch(e){}
+})();
 
 document.getElementById('expandAllBtn').addEventListener('click', () => {
   expandedGroups = new Set(state.sectionGroups.map(g => g.id));
@@ -6049,6 +6665,14 @@ function renderMain(){
 
   const sec = state.sections.find(s => s.id === selectedSectionId);
   const group = state.sectionGroups.find(g => g.id === selectedGroupId);
+
+  // Setlists view: a dedicated full-page management surface (like the song
+  // details page) for building, ordering, and labelling setlists. Takes
+  // over main until closed; the editor below is skipped while it is open.
+  if (setlistsViewOpen){
+    renderSetlistsPage(main);
+    return;
+  }
 
   const showCoach = group && isSongEmpty(group) && !isCoachDismissed();
 
@@ -8871,6 +9495,7 @@ function loadParsedState(parsed){
   if (typeof state.artistFilter !== 'string') state.artistFilter = '';
   if (typeof state.projectName !== 'string') state.projectName = '';
   if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
+  migrateSetlists(state);
   if (typeof state.lastFolderName !== 'string') state.lastFolderName = '';
   if (typeof state.autoNumberSections !== 'boolean') state.autoNumberSections = true;
   if (typeof state.numberSingleSections !== 'boolean') state.numberSingleSections = false;
@@ -9158,6 +9783,11 @@ function exportFilteredSongs(){
     out.songSubsets = out.songSubsets
       .map(sub => ({ ...sub, songIds: (sub.songIds || []).filter(id => keepIds.has(id)) }))
       .filter(sub => sub.songIds.length);
+    if (Array.isArray(out.setlists)){
+      out.setlists = out.setlists
+        .map(sl => ({ ...sl, songIds: (sl.songIds || []).filter(id => keepIds.has(id)), parts: (sl.parts || []).filter(p => p.startIndex <= sl.songIds.length) }))
+        .filter(sl => sl.songIds.length);
+    }
   }
   out.songTypeFilter = { cover: true, original: true };
   out.readyFilter = { ready: true, notReady: true };
@@ -9499,6 +10129,8 @@ document.getElementById('copyFileInput').addEventListener('change', (e) => {
   e.target.value = '';
 });
 
+document.getElementById('btnSetlists').addEventListener('click', () => openSetlistsView());
+
 document.getElementById('btnCopySongs').addEventListener('click', () => {
   copySourceState = null;
   copySourceName = '';
@@ -9595,15 +10227,18 @@ let pdfPreviewMode = false;
 // before opening, otherwise the dialog opens with all songs selected.
 // pdfPendingPreviewMode marks the per-song entry point so the dialog
 // opens in focused "PDF preview" context instead of full Export.
-let pdfPendingSelection = null, pdfPendingPreviewMode = false;
+// pdfPendingSetlistId preselects that setlist in the "Set" dropdown.
+let pdfPendingSelection = null, pdfPendingPreviewMode = false, pdfPendingSetlistId = null;
 const pdfModalCtl = wireModal({
   overlayId:'pdfModalOverlay', openBtnId:'btnPdf', closeBtnId:'pdfCancelBtn',
   onOpen(){
     const sel = pdfPendingSelection || allSongIdsWithSections();
     const asPreview = pdfPendingPreviewMode && sel.length === 1;
+    const pendingSl = pdfPendingSetlistId;
     pdfPendingSelection = null;
     pdfPendingPreviewMode = false;
-    preparePdfModal(sel, asPreview);
+    pdfPendingSetlistId = null;
+    preparePdfModal(sel, asPreview, pendingSl);
     schedulePdfRender();
   }
 });
@@ -9647,8 +10282,9 @@ function syncPdfControls(){
 }
 
 // Shared open path: reset the dialog to a given song selection,
-// then open it and kick off the first preview render.
-function preparePdfModal(songIds, asPreview){
+// then open it and kick off the first preview render. pendingSetlistId
+// preselects a setlist in the Set dropdown (setlist entry point).
+function preparePdfModal(songIds, asPreview, pendingSetlistId){
   // Pre-warm the lazy jsPDF library while the user looks at the
   // dialog; the first preview render then starts with it in memory.
   ensurePdfLib().catch(() => {});
@@ -9656,8 +10292,9 @@ function preparePdfModal(songIds, asPreview){
   pdfProjectNameInput.value = state.projectName || '';
   pdfSelectedSongIds = new Set(songIds);
   populateSubsetSelect();
-  document.getElementById('pdfSubsetSelect').value = '';
-  document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+  const setSel = document.getElementById('pdfSubsetSelect');
+  setSel.value = (pendingSetlistId && findSetlist(pendingSetlistId)) ? pendingSetlistId : '';
+  document.getElementById('pdfDeleteSubsetBtn').style.display = setSel.value ? '' : 'none';
   renderPdfSongChecklist();
   syncPdfControls();
   updatePdfModalCopy();
@@ -9704,9 +10341,9 @@ function renderPdfSongChecklist(){
 
 function populateSubsetSelect(){
   const sel = document.getElementById('pdfSubsetSelect');
-  const subsets = state.songSubsets || [];
+  const setlists = state.setlists || [];
   sel.innerHTML = '<option value="">All songs</option>' +
-    subsets.map(s => `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name)}</option>`).join('');
+    setlists.map(s => `<option value="${escapeAttr(s.id)}">${escapeHtml(s.name || 'Untitled setlist')}</option>`).join('');
 }
 
 document.getElementById('pdfSubsetSelect').addEventListener('change', (e) => {
@@ -9714,9 +10351,10 @@ document.getElementById('pdfSubsetSelect').addEventListener('change', (e) => {
   if (!id){
     pdfSelectedSongIds = new Set(allSongIdsWithSections());
   } else {
-    const subset = (state.songSubsets || []).find(s => s.id === id);
-    const validIds = new Set(state.sectionGroups.map(g => g.id));
-    pdfSelectedSongIds = new Set(subset ? subset.songIds.filter(gid => validIds.has(gid)) : []);
+    const sl = findSetlist(id);
+    // keep only songs that can actually render in the PDF
+    const keep = new Set((sl ? sl.songIds : []).filter(gid => printableSections(gid).length));
+    pdfSelectedSongIds = keep;
   }
   renderPdfSongChecklist();
   document.getElementById('pdfDeleteSubsetBtn').style.display = id ? '' : 'none';
@@ -9746,17 +10384,20 @@ document.getElementById('pdfSelectReadyBtn').addEventListener('click', () => {
 });
 
 document.getElementById('pdfSaveSubsetBtn').addEventListener('click', (e) => {
-  showPromptPopover(e.currentTarget, 'Name this subset:', '', 'Save', (trimmed) => {
+  showPromptPopover(e.currentTarget, 'Name this setlist:', '', 'Save', (trimmed) => {
+    if (!Array.isArray(state.setlists)) state.setlists = [];
     if (!Array.isArray(state.songSubsets)) state.songSubsets = [];
     const songIds = Array.from(pdfSelectedSongIds);
-    const existing = state.songSubsets.find(s => s.name.toLowerCase() === trimmed.toLowerCase());
+    const existing = state.setlists.find(s => (s.name || '').toLowerCase() === trimmed.toLowerCase());
     let targetId;
     if (existing){
       existing.songIds = songIds;
       targetId = existing.id;
     } else {
       targetId = uid('subset');
-      state.songSubsets.push({ id: targetId, name: trimmed, songIds });
+      const sl = normalizeSetlist({ id: targetId, name: trimmed, songIds });
+      state.setlists.push(sl);
+      syncSetlistMirror(sl);
     }
     scheduleSave();
     populateSubsetSelect();
@@ -9769,10 +10410,11 @@ document.getElementById('pdfSaveSubsetBtn').addEventListener('click', (e) => {
 document.getElementById('pdfDeleteSubsetBtn').addEventListener('click', (e) => {
   const sel = document.getElementById('pdfSubsetSelect');
   const id = sel.value;
-  const subset = (state.songSubsets || []).find(s => s.id === id);
-  if (!subset) return;
-  showConfirmPopover(e.currentTarget, `Delete the saved subset "${subset.name}"?`, 'Delete', () => {
-    state.songSubsets = state.songSubsets.filter(s => s.id !== id);
+  const sl = findSetlist(id);
+  if (!sl) return;
+  showConfirmPopover(e.currentTarget, `Delete the setlist "${sl.name || 'Untitled setlist'}"?`, 'Delete', () => {
+    state.setlists = state.setlists.filter(s => s.id !== id);
+    state.songSubsets = (state.songSubsets || []).filter(s => s.id !== id);
     scheduleSave();
     populateSubsetSelect();
     sel.value = '';
@@ -9918,9 +10560,14 @@ async function renderPdfPreview(){
       pvDestroyStripDoc();
       return;
     }
+    // A setlist pick exports in the setlist's order (and shows its set
+    // labels on the contents pages); manual ticks export title-sorted.
+    const setSel = document.getElementById('pdfSubsetSelect');
+    const activeSl = setSel && setSel.value ? findSetlist(setSel.value) : null;
+    const order = activeSl ? activeSl.songIds.filter(id => songIds.has(id)) : null;
     const { blob, filename } = pdfType === 'print-friendly'
-      ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, songIds)
-      : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, songIds);
+      ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, songIds, order)
+      : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, songIds, null, order);
     if (seq !== pvRenderSeq) return; // superseded by a newer render
     if (!pdfModal.classList.contains('open')) return;
     pvBlob = blob;
@@ -10373,11 +11020,19 @@ async function setupPdfDoc(deviceId, orientationId){
 
 // Songs that have at least one section (optionally narrowed to a saved
 // subset), sorted for the document. Throws when there is nothing to print.
-function collectPdfSongs(selectedGroupIds){
+function collectPdfSongs(selectedGroupIds, pdfOrder){
   const songs = state.sectionGroups
     .map(g => ({ group: g, sections: printableSections(g.id) }))
-    .filter(s => s.sections.length > 0 && (!selectedGroupIds || selectedGroupIds.has(s.group.id)))
-    .sort((a,b) => (a.group.name || 'Untitled Song').localeCompare(b.group.name || 'Untitled Song', undefined, { sensitivity:'base' }));
+    .filter(s => s.sections.length > 0 && (!selectedGroupIds || selectedGroupIds.has(s.group.id)));
+  // A setlist export keeps the setlist's performance order (labels and
+  // TOC rows follow it); any other export stays title-sorted.
+  if (Array.isArray(pdfOrder) && pdfOrder.length){
+    const rank = new Map(pdfOrder.map((id, i) => [id, i]));
+    songs.sort((a,b) => (rank.has(a.group.id) ? rank.get(a.group.id) : pdfOrder.length)
+      - (rank.has(b.group.id) ? rank.get(b.group.id) : pdfOrder.length));
+  } else {
+    songs.sort((a,b) => (a.group.name || 'Untitled Song').localeCompare(b.group.name || 'Untitled Song', undefined, { sensitivity:'base' }));
+  }
   if (!songs.length){
     throw new Error(selectedGroupIds ? 'None of the selected songs have a section yet.' : 'Add at least one song with a section before generating a PDF.');
   }
@@ -10397,7 +11052,7 @@ function pdfBlockHeight(block, fs){
   return h + fs * 0.35;
 }
 
-async function generatePerformancePdf(mode, deviceId, orientationId, selectedGroupIds, onlySectionId){
+async function generatePerformancePdf(mode, deviceId, orientationId, selectedGroupIds, onlySectionId, pdfOrder){
   const isDark = mode === 'dark';
   const { doc, monoFont, PAGE_W, PAGE_H, SCALE, sc, device, landscape } = await setupPdfDoc(deviceId, orientationId);
   const MARGIN = sc(40);
@@ -10407,7 +11062,11 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
   const TOC_ROW_H = sc(42);
 
   const palette = PDF_PALETTES[isDark ? 'dark' : 'light'];
-  let songs = collectPdfSongs(selectedGroupIds);
+  let songs = collectPdfSongs(selectedGroupIds, pdfOrder);
+  // Set labels ("Set 1", "Encore"…) follow the active setlist so the
+  // contents can mark where each segment begins.
+  const pdfSetlist = (Array.isArray(pdfOrder) && pdfOrder.length)
+    ? findSetlist(document.getElementById('pdfSubsetSelect')?.value || '') : null;
 
   // Section-preview mode (the section editor's "Section Preview"
   // accordion): render exactly one section — no set list, no song title
@@ -10611,13 +11270,26 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
       // the baseline sits near the bottom of the tall row so the tap
       // target gets padding above the text as well as below it
       const baseY = rowTop + TOC_ROW_H - sc(14);
+      // Set-list export: mark rows where a labelled segment ("Set 1",
+      // "Encore"…) begins — small accent text under the title line so
+      // band members can spot segment boundaries at a glance.
+      const partLabel = pdfSetlist ? setlistPartAt(pdfSetlist, i) : null;
+      const startsPart = !!(pdfSetlist && pdfSetlist.parts.some(p => p.startIndex === i));
+      if (startsPart && partLabel){
+        doc.setFont('helvetica','bold'); doc.setFontSize(sc(10));
+        doc.setTextColor(...palette.accent);
+        let partTxt = partLabel.toUpperCase();
+        const maxPartW = PAGE_W - 2 * MARGIN;
+        while (partTxt.length > 1 && doc.getTextWidth(partTxt + '\u2026') > maxPartW){ partTxt = partTxt.slice(0, -1); }
+        doc.text(partTxt + (partTxt.length < partLabel.toUpperCase().length ? '\u2026' : ''), MARGIN, rowTop + sc(12));
+      }
       // right-aligned page indicator: tappable, jumps to the song's title page.
       // Its left edge reserves space first, so a long title + artist never
       // runs into it — the artist is trimmed with an ellipsis when needed.
       const pageLabel = String(meta.firstPageNumber);
       doc.setFont('helvetica','bold'); doc.setFontSize(sc(15));
       const pageNumLeft = PAGE_W - MARGIN - doc.getTextWidth(pageLabel);
-      doc.setFont('helvetica','bold'); doc.setFontSize(sc(18));
+      doc.setFont('helvetica','bold'); doc.setFontSize(startsPart ? sc(15) : sc(18));
       doc.setTextColor(...palette.text);
       // long titles trim with an ellipsis before they can run into the
       // page indicator — same treatment the artist already gets
@@ -10907,7 +11579,13 @@ async function generatePerformancePdf(mode, deviceId, orientationId, selectedGro
 
 function buildPdfFilename(extraParts){
   const dateStr = new Date().toISOString().slice(0,10);
-  const base = state.projectName || (currentFileName ? currentFileName.replace(/\.json$/i,'') : 'setbook');
+  // A setlist export names the file after the setlist (falling back to the
+  // project name when the setlist is untitled), so gig files sort by gig.
+  const setSel = document.getElementById('pdfSubsetSelect');
+  const activeSl = setSel && setSel.value ? findSetlist(setSel.value) : null;
+  const base = (activeSl && (activeSl.name || '').trim())
+    || state.projectName
+    || (currentFileName ? currentFileName.replace(/\.json$/i,'') : 'setbook');
   const slug = base.trim().replace(/[^a-z0-9]+/gi,'-').replace(/(^-+|-+$)/g,'') || 'setbook';
   return qaStamp([slug, ...extraParts, dateStr].join('-') + '.pdf');
 }
@@ -10921,11 +11599,11 @@ function buildPdfFilename(extraParts){
    section. Always light mode, since dark backgrounds waste ink
    on paper.
 --------------------------------------------------------- */
-async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupIds){
+async function generatePrintFriendlyPdf(deviceId, orientationId, selectedGroupIds, pdfOrder){
   const { doc, monoFont, PAGE_W, PAGE_H, sc } = await setupPdfDoc(deviceId, orientationId);
   const MARGIN = sc(44);
   const palette = PDF_PALETTES.light;
-  const songs = collectPdfSongs(selectedGroupIds);
+  const songs = collectPdfSongs(selectedGroupIds, pdfOrder);
 
   const contentAvailableWidth = (PAGE_W - 2 * MARGIN) * 0.95;
   // a reasonable cap so a short document doesn't blow up to a huge size —

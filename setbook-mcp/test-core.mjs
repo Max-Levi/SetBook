@@ -21,7 +21,7 @@ import {
   autoSplitMassFields,
   uid,
 } from './core/setbook-core.mjs';
-import { buildSongFromText, addSongToFile, listSongs } from './song-tools.mjs';
+import { buildSongFromText, addSongToFile, listSongs, listSetlists, upsertSetlist, generateSetlist, deleteSetlist } from './song-tools.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const APP_HTML = process.env.SETBOOK_APP_HTML || join(here, '..', 'index.html');
@@ -129,6 +129,45 @@ test('add_song_to_file rejects text with no sections', () => {
   const dir = mkdtempSync(join(tmpdir(), 'setbook-mcp-'));
   try {
     assert.throws(() => addSongToFile(join(dir, 'x.json'), { title: 'Empty', text: '   \n  ' }), /no sections/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('setlists: create, edit, list, generate, delete', () => {
+  const dir = mkdtempSync(join(tmpdir(), 'setbook-mcp-'));
+  const file = join(dir, 'x.json');
+  try {
+    const a = addSongToFile(file, { title: 'Opener', text: 'G\nla' });
+    const b = addSongToFile(file, { title: 'Closer', text: 'Am\nboom' });
+    // create with explicit order
+    const created = upsertSetlist(file, { name: 'Gig', songIds: [b.songId, a.songId], parts: [{ label: 'Set 1', startIndex: 0 }] });
+    assert.equal(created.created, true);
+    assert.equal(created.songCount, 2);
+    const listed = listSetlists(file);
+    assert.equal(listed.length, 1);
+    assert.equal(listed[0].songs[0].id, b.songId, 'performance order preserved');
+    assert.equal(listed[0].songs[0].title, 'Closer');
+    assert.equal(listed[0].parts[0].label, 'Set 1');
+    assert.equal(listed[0].parts[0].startIndex, 0);
+    // edit: reorder + rename
+    const edited = upsertSetlist(file, { id: created.id, name: 'Gig v2', songIds: [a.songId, b.songId], parts: [{ label: 'Encore', startIndex: 1 }] });
+    assert.equal(edited.created, false);
+    assert.equal(edited.name, 'Gig v2');
+    assert.equal(listSetlists(file)[0].songs[0].title, 'Opener');
+    assert.equal(listSetlists(file)[0].parts[0].label, 'Encore');
+    // legacy mirror kept in songSubsets for older app versions
+    const raw = JSON.parse(readFileSync(file, 'utf8'));
+    assert.ok(Array.isArray(raw.songSubsets) && raw.songSubsets.some((s) => s.id === created.id), 'legacy mirror present');
+    // unknown song id rejected
+    assert.throws(() => upsertSetlist(file, { name: 'Bad', songIds: ['grp_nope'] }), /Unknown song id/);
+    // generate from a status filter
+    const gen = generateSetlist(file, { name: 'All of it', songIds: [a.songId, b.songId] });
+    assert.equal(gen.songCount, 2);
+    // delete
+    assert.throws(() => deleteSetlist(file, 'subset_missing'), /No setlist/);
+    deleteSetlist(file, gen.id);
+    assert.equal(listSetlists(file).length, 1);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
