@@ -562,6 +562,17 @@ compact paddings (`padding:6px 12px`/`font-size:12.5px` in the ≤780px
 media query) keeping the dialog fitting; verified no overflow and all
 controls visible at 1732×1248, 1732×780 and 900×640.
 
+**Revision note (2026-10-09 follow-up 2, preview starved on mid-height
+windows):** 783–900px-tall windows fell between the compact breakpoints:
+the song checklist kept its full 180px cap and the preview viewer was
+flex-squeezed to a ~20px sliver — “can't scroll to see the PDF
+preview”. The PDF dialog now caps the song checklist at 100px (internal
+scrolling) at every height, and a mid-band media query (781–900px)
+tightens paddings/margins so the viewer gets the remaining space
+(min-height 170px, growing to the full leftover when it has room).
+Verified zero overflow at 783/910/1248px heights with a 15-song,
+77-page export; page turning inside the strip unaffected.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
