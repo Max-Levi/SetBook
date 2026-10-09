@@ -552,6 +552,16 @@ localStorage) switches the song list to a card grid. MCP server gains
 13 checks; app regression suite now 257 checks incl. 27 new setlist/card
 guards; MCP package tests 14 after a setlist round-trip test).
 
+**Revision note (2026-10-09 follow-up, Export dialog controls clipped):**
+on short viewports the compact block had switched the PDF-type controls
+row to a single `nowrap` horizontally-scrollable line — but macOS's
+overlay scrollbars show nothing, so "Light mode", "Dark mode" and ⛶
+Fullscreen sat out of view with no affordance (user-reported:
+"controls are inaccessible"). The row now wraps normally again, with
+compact paddings (`padding:6px 12px`/`font-size:12.5px` in the ≤780px
+media query) keeping the dialog fitting; verified no overflow and all
+controls visible at 1732×1248, 1732×780 and 900×640.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.

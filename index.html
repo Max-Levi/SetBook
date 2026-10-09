@@ -558,12 +558,13 @@
        later in the stylesheet (media queries don't add specificity) */
     #pdfModalOverlay .modal-wide .modal-actions{ margin:8px -20px -16px; padding:10px 20px 16px; }
     #pdfModalOverlay .modal-wide .modal-sub{ margin-bottom:10px; }
-    /* Controls keep to one horizontally-scrollable line instead of
-       wrapping into three tall rows. */
-    #pdfModalOverlay .pdf-preview-controls{
-      flex-wrap:nowrap; overflow-x:auto; padding-bottom:2px; margin-bottom:8px;
-    }
-    #pdfModalOverlay .pdf-preview-controls .mode-toggle{ flex:0 0 auto; }
+    /* Controls wrap (nowrap+overflow would hide the outer buttons behind
+       an invisible macOS overlay scrollbar — “Light mode” and ⛶ became
+       unreachable). To keep the dialog fitting on short viewports, the
+       rows are tightened instead: smaller toggles and paddings. */
+    #pdfModalOverlay .pdf-preview-controls{ margin-bottom:8px; }
+    #pdfModalOverlay .pdf-preview-controls .mode-btn{ padding:6px 12px; font-size:12.5px; }
+    #pdfModalOverlay .pdf-preview-controls .modal-select{ padding:6px 8px; }
     /* The songs/output columns must be able to shrink with the dialog:
        the checklist scrolls internally instead of holding its ground. */
     #pdfModalOverlay .modal-columns{ align-items:stretch; min-height:0; }
