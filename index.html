@@ -526,6 +526,9 @@
   }
   .pdf-page h2{ margin:0 0 10px; font-size:25px; font-weight:700; color:var(--text); }
   .pdf-page .modal-sub{ margin-bottom:18px; }
+  /* the top back button hugs the left edge like on the other pages
+     (flex column children would otherwise stretch full width) */
+  .pdf-page .sdp-back{ align-self:flex-start; width:auto; }
   .pdf-page-panel{
     flex:1; max-width:1080px; margin:0 auto; width:100%;
     display:flex; flex-direction:column;
@@ -562,17 +565,34 @@
   /* standalone control (not inside a .mode-toggle), so opt out of the
      global .mode-btn flex:1 that would stretch it across the modal */
   #pdfModalOverlay #pvFullscreenBtn{ flex:0 0 auto; }
-  #pdfModalOverlay a.pdf-download-link{ margin-bottom:0; }
-  #pdfModalOverlay .modal-actions{ align-items:center; }
-  #pdfModalOverlay .modal-actions .pdf-download-link{ flex:1; }
-  /* Action bar: sticky to the bottom of the open page's viewport, so
-     Download and Back stay reachable no matter how far the page is
-     scrolled (the page itself is the scroll container). */
+  /* Action bar: a compact toolbar frozen to the bottom of the viewport
+     while the page scrolls — like the app header, not like a form footer.
+     Two balanced groups: (left) Back + the muted filename caption, so the
+     file name is metadata rather than a giant button label; (right) the
+     two real actions, Share and Download, as normal-sized buttons.
+     Download is the one primary action; Share is ghost, since browsers
+     without the file-share sheet hide it anyway. */
   #pdfModalOverlay .modal-actions{
     position:sticky; bottom:0; z-index:2;
-    margin:14px 0 0; margin-top:auto; padding:12px 0 18px;
+    margin:14px 0 0; margin-top:auto; padding:10px 6px 16px;
+    display:flex; justify-content:space-between; align-items:center; gap:12px;
+    flex-wrap:wrap;
     background:var(--panel); border-top:1px solid var(--border);
   }
+  .pdf-action-left, .pdf-action-right{ display:flex; align-items:center; gap:8px; min-width:0; }
+  /* The caption is inside the whole page flex column: shrink to the
+     available space (Bar may wrap on narrow widths), keep it single-line. */
+  .pdf-file-caption{
+    font-size:12px; color:var(--text-muted); white-space:nowrap;
+    overflow:hidden; text-overflow:ellipsis; min-width:0; flex:0 1 auto;
+  }
+  @media (max-width: 760px){
+    /* narrow screens: the caption is irrelevant next to two buttons */
+    .pdf-file-caption{ display:none; }
+  }
+  #pdfModalOverlay a.pdf-download-btn{ margin-bottom:0; }
+  #pdfModalOverlay .pdf-download-btn{ flex:0 0 auto; }
+  #pdfModalOverlay #pvFullscreenBtn{ flex:0 0 auto; }
   @media (max-width:560px){
     .pdf-preview-controls{ flex-direction:column; align-items:stretch; }
     .pdf-preview-controls .mode-toggle{ display:flex; }
@@ -580,6 +600,7 @@
     #pvStrip{ padding:10px 48px; gap:14px; }
     .pv-turn{ width:40px; height:40px; }
     #pdfModalOverlay .pdf-preview-viewer{ height:52vh; min-height:300px; }
+    #pdfModalOverlay .modal-actions{ padding:10px 0 12px; }
   }
   button.pdf-download-link[hidden]{ display:none; }
   /* Drive connected badge: a compact always-visible status chip in the
@@ -2238,10 +2259,15 @@
       Don't see Apple Books in the share sheet? <strong>↓ Download</strong>, open it from <strong>Files</strong>, and share from there — that sheet always offers Books.
     </p>
 
-    <div class="modal-actions">
-      <button type="button" class="ghost small" id="pdfCancelBtn">← Back to chart</button>
-      <button type="button" class="pdf-download-link" id="pdfShareBtn" style="display:none;" hidden>↗ Share PDF…</button>
-      <a id="pvDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
+    <div class="modal-actions pdf-action-bar">
+      <div class="pdf-action-left">
+        <button type="button" class="ghost small" id="pdfCancelBtn">← Back to chart</button>
+        <span class="pdf-file-caption" id="pdfFileCaption" role="status">Preview ready</span>
+      </div>
+      <div class="pdf-action-right">
+        <button type="button" class="ghost small" id="pdfShareBtn" style="display:none;" hidden>↗ Share…</button>
+        <a id="pvDownloadLink" class="primary small pdf-download-btn" style="display:none;" download="">↓ Download PDF</a>
+      </div>
     </div>
     </div>
 </section>
@@ -10580,7 +10606,7 @@ async function renderPdfPreview(){
     pvFileName = filename;
     if (pvBlobUrl) URL.revokeObjectURL(pvBlobUrl);
     pvBlobUrl = URL.createObjectURL(blob);
-    link.textContent = `↓ Download ${previewUniquePdfName(filename)}`;
+    updatePdfFileCaption();
     link.style.display = '';
     showPdfShareBtn();
     if (pdfType === 'performance'){
@@ -10839,8 +10865,16 @@ document.getElementById('pvDownloadLink').addEventListener('click', () => {
   const uniqueName = claimUniquePdfName(pvFileName);
   link.href = pvBlobUrl;
   link.download = uniqueName;
-  link.textContent = `↓ Download ${uniqueName}`;
+  updatePdfFileCaption();
 });
+// Muted caption next to Back: the next download's filename (with the
+// session's "(n)" numbering already predicted), not a button label.
+function updatePdfFileCaption(){
+  const cap = document.getElementById('pdfFileCaption');
+  if (!cap) return;
+  if (!pvFileName){ cap.textContent = 'Preview ready'; return; }
+  cap.textContent = pvFileName + ' — ↓ Download (preview = file)';
+}
 
 // Share the rendered PDF via the device's share sheet (Apple Books,
 // Messages, Mail, AirDrop, …) where the Web Share API supports files.
@@ -10866,7 +10900,8 @@ function showPdfShareBtn(){
   const file = new File([pvBlob], pvFileName || 'setbook.pdf', { type: 'application/pdf' });
   const can = window.navigator.canShare && window.navigator.share && window.navigator.canShare({ files: [file] });
   pdfShareBtn.hidden = !can;
-  pdfShareBtn.style.display = can ? 'block' : 'none';
+  pdfShareBtn.style.display = can ? '' : 'none';
+  updatePdfFileCaption();
   // Where the share sheet exists but is the reduced navigator.share variant
   // (iPadOS: no Books in its app row or its Edit Actions list), show the
   // Download → Files → Share hint instead of leaving people stuck.

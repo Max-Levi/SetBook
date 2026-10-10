@@ -601,6 +601,24 @@ checks (pdf-preview-modal suite rewritten around page semantics); MCP
 49-page strip preview visible after scrolling, bar pinned) and
 1732×1248; all three entry points open/close cleanly.
 
+**Revision note (2026-10-10 follow-up, action bar redesign):** the
+sticky footer was a wall of gold: Share was a full-width outlined
+gold bar and ↓ Download stretched the whole filename across a huge
+gold button. The bar is now a compact toolbar with two groups — left:
+**← Back to chart** plus a muted caption showing the next download's
+filename ("Max-s-SetBook-….pdf — ↓ Download (preview = file)", a
+status, not a button); right: **↗ Share…** (ghost, only where the Web
+Share API can hand over files) and **↓ Download PDF** as the single
+primary action. `pvDownloadLink` keeps its id and download-counting
+(`claimUniquePdfName`/`previewUniquePdfName`); the caption
+(`#pdfFileCaption`) is updated via `updatePdfFileCaption()` on every
+render and after each download. The top-of-page back button no longer
+stretches full-width (`.pdf-page .sdp-back{ align-self:flex-start }`)
+and the bar got right-side breathing room (6px). Verified in-browser
+at 1732×900 and 1732×640: caption truncates instead of wrapping,
+caption hides ≤760px width where two buttons say enough; regression
+259/259, MCP 14/14.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
