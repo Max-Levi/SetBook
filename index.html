@@ -10843,6 +10843,11 @@ function pvTeardownPage(){
   if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
   if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
   pvBlob = null;
+  // The filename belongs to this page's last render: without clearing it,
+  // reopening the page showed the previous export's name in the caption
+  // (and would hand it to Share) until the new render completed.
+  pvFileName = '';
+  updatePdfFileCaption();
   pvDestroyStripDoc();
   document.getElementById('pvStrip').innerHTML = '';
   document.getElementById('pvFrame').removeAttribute('src');
