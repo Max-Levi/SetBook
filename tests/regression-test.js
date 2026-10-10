@@ -1202,14 +1202,26 @@ check('setlist exports name the file after the setlist',
   /const activeSl = setSel && setSel\.value \? findSetlist\(setSel\.value\) : null;/.test(html) && /activeSl && \(activeSl\.name \|\| ''\)\.trim\(\)/.test(html));
 check('dialog Set dropdown wording',
   /Name this setlist:/.test(html) && /Delete the setlist/.test(html) && !/Name this subset:/.test(html));
-// card grid view toggle (device-level preference)
-check('sidebar card-grid view toggles and persists',
-  /function setSidebarGridView\(on\)/.test(html) && /setbook-sidebar-grid-view/.test(html) && /applySidebarGridView\(\);/.test(html));
-check('grid view is CSS-scoped to the sidebar list',
-  /\.sidebar-list\.grid-view\{/.test(html) && /listViewToggle/.test(html));
+// card grid view: a dedicated full-page library view
+check('View: cards opens a full-page library card view (renderMain-hosted, like Setlists)',
+  /function setSidebarGridView\(on\)/.test(html) && /function openLibraryGridView\(/.test(html) &&
+  /let libraryGridOpen = false;/.test(html) &&
+  /if \(libraryGridOpen\)\{\s*renderLibraryGridPage\(main\);\s*return;/.test(html));
+check('library card view is a full-page grid, no sidebar tile CSS left behind',
+  /\.lib-page\{/.test(html) && /\.lib-grid\{/.test(html) && /function renderLibraryGridPage\(/.test(html) &&
+  !/\.sidebar-list\.grid-view\{/.test(html));
+check('library cards stay summarized: no section-edit rows inside a card',
+  /function renderLibraryGridPage\([\s\S]{0,5000}?sectionBaseName/.test(html) &&
+  !/function renderLibraryGridPage\([\s\S]{0,5000}?group-name-field/.test(html) &&
+  /lic-sections/.test(html) &&
+  !/\.lib-card .{0,60}section-row/.test(html));
+check('clicking a library card opens the song details page (song focus view)',
+  /function renderLibraryGridPage\([\s\S]{0,5000}?openSongDetails\(group\.id\)/.test(html) &&
+  /function openSongDetails\(gid\)\{/.test(html) &&
+  /\.className = 'lib-grid';/.test(html));
 check('library view toggle is always visible above the filters panel',
   /list-view-row"[\s\S]{0,200}id="listViewToggle"/.test(html) &&
-  /View: rows/.test(html));
+  /View: cards/.test(html));
 // MCP parity: server exposes setlist tools
 check('MCP server exposes setlist tools',
   /list_setlists/.test(html) || true); // app HTML doesn't embed MCP; real guard below

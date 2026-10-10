@@ -619,6 +619,31 @@ at 1732×900 and 1732×640: caption truncates instead of wrapping,
 caption hides ≤760px width where two buttons say enough; regression
 259/259, MCP 14/14.
 
+**Revision note (2026-10-10 follow-up, library card view became a
+full page):** the sidebar "View: cards" toggle had been CSS-re-rendering
+the song **rows** as tiles — the expandable group markup leaked through
+(truncated name inputs, section rows, action icons — unreadable in a
+150px tile). The card view is now a dedicated full **page** instead:
+"View: cards" calls `openLibraryGridView()` and `renderMain()` hosts
+`renderLibraryGridPage(main)` (same pattern as Setlists; the page takes
+over `#main` so the editor is skipped while open, and there is no
+sidebar grid CSS any more — `.sidebar-list.grid-view` is gone, replaced
+by `.lib-page`/`.lib-grid`/`.lib-card`). One summarized card per song:
+title, artist, Cover/Original + ready-status pills (spans reusing
+`.group-type-badge` classes), and a plain-text line like "3 sections ·
+Verse, Chorus, Bridge" built from `sectionBaseName` — no section rows,
+no edit inputs. Clicking a card calls `openSongDetails(group.id)` (the
+song details/focus page); the page's ← Back to chart exits via
+`closeLibraryGridView()`. Cards follow the sidebar's sort and all
+search/filters (via the same matcher chain as the row list); the flag
+is **not** persisted — the page resets on reload. The sidebar button
+reads "View: rows" while the page is open and returns to the chart;
+`closeSongDetails()` also clears `libraryGridOpen`/`setlistsViewOpen`
+so any whole-page view exits '>'-handoff-safe. Help and MAINTAINER
+card-view text updated; regression suite now 261 checks (old
+sidebar-grid checks replaced with the page pattern, cards-summarized,
+and card→details-open wiring); MCP 14/14. Verified in-browser below.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.

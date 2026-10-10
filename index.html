@@ -806,7 +806,8 @@
   .filters-clear{ flex-shrink:0; }
   /* Library view toggle (View: rows / View: cards): a full-width button
      on its own row, always visible above the collapsible Sort & Filter
-     panel — the card view was hard to find tucked inside that panel. */
+     panel. "View: cards" opens the dedicated full-page card grid; while
+     that page is open the button reads "View: rows" to return. */
   .list-view-row{ margin-bottom:9px; }
   .list-view-row .sort-btn{ width:100%; }
   .filters-clear[hidden]{ display:none; }
@@ -1094,18 +1095,43 @@
     .sl-part-label{ padding-left:40px; }
   }
 
-  /* ---------- song card grid (library view toggle, #10) ----------
-     The sidebar song list can render as a dense card grid instead of the
-     classic expandable rows: compact tiles with title, artist, and
-     ready status. Kept scannable by CSS only; the same data path. */
-  .sidebar-list.grid-view{ display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:10px; align-content:start; }
-  .sidebar-list.grid-view .group{ border:1px solid var(--border); border-radius:10px; background:var(--panel-2); padding:10px 12px; display:flex; flex-direction:column; gap:6px; }
-  .sidebar-list.grid-view .group-head{ display:flex; flex-direction:column; gap:6px; padding:0; }
-  .sidebar-list.grid-view .group-head-main{ flex-wrap:wrap; }
-  .sidebar-list.grid-view .group-count,
-  .sidebar-list.grid-view .chev{ display:none; }
-  .sidebar-list.grid-view .group-name-field{ font-size:13.5px; }
-  .sidebar-list.grid-view .section-row{ padding:7px 4px 7px 14px; }
+  /* ---------- Library card view (full page, #10) ----------
+     "View: cards" opens a dedicated full-page card grid for the whole
+     library — one summarized card per song (title, artist, type, ready
+     status, section summary). No section rows or edit fields here:
+     clicking a card opens that song's details page. */
+  .lib-page{
+    max-width:980px; margin:0 auto; padding:28px 24px 80px;
+    display:flex; flex-direction:column; gap:20px;
+  }
+  .lib-page .sdp-back{ align-self:flex-start; }
+  .lib-head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  .lib-head-row h2{ font-size:25px; font-weight:700; color:var(--text); margin:0; }
+  .lib-count{ font-size:12.5px; color:var(--text-muted); }
+  .lib-grid{
+    display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
+    gap:12px; align-content:start;
+  }
+  .lib-card{
+    background:var(--panel-2); border:1px solid var(--border); border-radius:10px;
+    padding:12px 14px; cursor:pointer; text-align:left; font-family:inherit;
+    color:var(--text); display:flex; flex-direction:column; gap:6px; min-height:96px;
+  }
+  .lib-card:hover{ border-color:var(--gold); }
+  .lib-card .lic-name{
+    font-size:15px; font-weight:700; word-break:break-word;
+    overflow:hidden; text-overflow:ellipsis;
+  }
+  .lib-card .lic-artist{
+    font-size:11px; color:var(--text-muted);
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .lib-card .lic-pills{ display:flex; gap:4px; flex-wrap:wrap; align-items:center; margin-top:auto; }
+  .lib-card .lic-sections{ font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  @media (max-width:560px){
+    .lib-page{ padding:18px 14px 80px; }
+    .lib-grid{ grid-template-columns:repeat(auto-fill, minmax(160px, 1fr)); }
+  }
   .artist-suggest-popover{
     position:fixed; z-index:410; background: var(--panel-2); border:1px solid var(--border);
     border-radius:6px; padding:4px; max-height:180px; overflow-y:auto;
@@ -2024,7 +2050,7 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list switches the library to a compact card grid (tap “View: rows” to switch back). Remembered per device.</li>
+            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list opens a full-page grid of cards — one per song, showing its artist, ready status, and a quick summary of its sections. Click a card to open that song's details page; “View: rows” brings the chart editor back.</li>
             <li><strong>Setlists</strong> (Songs &rarr; Setlists&hellip;): an ordered, labelled song list for a gig. Create one, add songs, <strong>drag rows to reorder</strong>, and add set labels (Set 1, Set 2, Encore&hellip;) that can start before any song. Export PDF… renders the songs in your chosen order with the labels on the contents page.</li>
             <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button — plus a notes field for reminders that never appear in PDFs.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
@@ -2113,7 +2139,7 @@
       <button type="button" id="filtersClearBtn" class="ghost small filters-clear" title="Clear search and all filters" aria-label="Clear search and all filters" hidden>Clear all</button>
       </div>
       <div class="tools-buttons list-view-row">
-        <button type="button" class="ghost small sort-btn" id="listViewToggle" title="Toggle between list rows and compact cards" aria-pressed="false">View: rows</button>
+        <button type="button" class="ghost small sort-btn" id="listViewToggle" title="Open the full-page card grid of songs" aria-pressed="false">View: cards</button>
       </div>
       <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
@@ -3127,6 +3153,22 @@ let songSortField = 'title'; // 'title' | 'artist' — overridden by state.songS
 let songSortDir = 'asc';     // 'asc' | 'desc'
 let searchQuery = '';
 
+/* Library card view: a whole-page grid of one summarized card per song
+   (like Setlists, rendered by renderMain). Replaces the old sidebar tile
+   grid — a card click opens that song's details page. */
+let libraryGridOpen = false;
+function openLibraryGridView(){
+  detailsGroupId = null; detailsReturn = null;
+  setlistsViewOpen = false;
+  libraryGridOpen = true;
+  renderAll();
+  closeSidebarAfterNavigate();
+}
+function closeLibraryGridView(){
+  libraryGridOpen = false;
+  renderAll();
+}
+
 /* ---------------------------------------------------------
    Setlists page (Songs → Setlists…)
    Card grid of setlists; picking one opens the builder with
@@ -3246,6 +3288,76 @@ function renderSetlistGrid(page){
     grid.appendChild(card);
   });
   page.appendChild(grid);
+}
+
+/* Library card view page: one summarized card per song — title, artist,
+   type, ready status, and a plain-text section summary. Clicking a card
+   opens that song's details page (the song focus view). Sorted by the
+   sidebar's current sort setting. */
+function renderLibraryGridPage(main){
+  const page = document.createElement('div');
+  page.className = 'lib-page';
+
+  const backBtn = document.createElement('button');
+  backBtn.type = 'button';
+  backBtn.className = 'ghost small sdp-back';
+  backBtn.innerHTML = '&larr; Back to chart';
+  backBtn.addEventListener('click', closeLibraryGridView);
+  page.appendChild(backBtn);
+
+  const songs = sortedSongGroups()
+    .filter(matchesSongTypeFilter).filter(matchesReadyFilter)
+    .filter(matchesTagFilter).filter(matchesArtistFilter)
+    .filter(g => !searchQuery.trim() || searchSections(searchQuery).some(r => r.group.id === g.id));
+
+  const headRow = document.createElement('div');
+  headRow.className = 'lib-head-row';
+  const h2 = document.createElement('h2');
+  h2.textContent = 'Songs';
+  const count = document.createElement('span');
+  count.className = 'lib-count';
+  count.textContent = `${songs.length} song${songs.length === 1 ? '' : 's'}`;
+  headRow.append(h2, count);
+  page.appendChild(headRow);
+
+  const grid = document.createElement('div');
+  grid.className = 'lib-grid';
+  if (!songs.length){
+    const empty = document.createElement('div');
+    empty.className = 'sl-empty-hint';
+    empty.textContent = 'No songs match the current search and filters — adjust them in the sidebar and try again.';
+    grid.appendChild(empty);
+  }
+  songs.forEach(group => {
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = 'lib-card';
+    const secs = groupSections(group.id);
+    const kinds = [];
+    secs.forEach(s => {
+      const base = sectionBaseName(s);
+      if (!base || base === '(Continued)') return;
+      if (!kinds.some(k => k.toLowerCase() === base.toLowerCase())) kinds.push(base);
+    });
+    const secSummary = secs.length
+      ? `${secs.length} section${secs.length === 1 ? '' : 's'}${kinds.length ? ' \u00b7 ' + kinds.slice(0, 3).join(', ') : ''}`
+      : 'No sections yet';
+    const st = songStatus(group);
+    const isOrig = (group.type || 'cover') === 'original';
+    card.innerHTML = `
+      <span class="lic-name">${escapeHtml(group.name || 'Untitled song')}</span>
+      ${displayArtists(group) ? `<span class="lic-artist">${escapeHtml(displayArtists(group))}</span>` : ''}
+      <span class="lic-sections">${escapeHtml(secSummary)}</span>
+      <span class="lic-pills">
+        <span class="group-type-badge ${isOrig ? 'is-original' : ''}">${isOrig ? 'Original' : 'Cover'}</span>
+        <span class="group-type-badge ${st === 'ready' ? 'is-ready' : st === 'in-progress' ? 'is-in-progress' : ''}">${st === 'ready' ? 'Ready' : st === 'in-progress' ? 'In Progress' : 'Not Ready'}</span>
+      </span>
+    `;
+    card.addEventListener('click', () => openSongDetails(group.id));
+    grid.appendChild(card);
+  });
+  page.appendChild(grid);
+  main.appendChild(page);
 }
 
 function renderSetlistBuilder(page, sl){
@@ -3793,25 +3905,22 @@ function updateSortButtons(){
   document.getElementById('artistChev').textContent = songSortField === 'artist' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
 }
 
-/* Card-grid library view: a device-level preference (like theme), toggled
-   from the sidebar's Sort by header. Purely presentational — renderSidebar
-   posts the class on #sidebarList and CSS does the rest. */
+/* Library card view: "View: cards" in the sidebar opens the dedicated
+   full-page card grid (rendered by renderMain like Setlists); the button
+   then reads "View: rows" to return to the chart editor. The flag is NOT
+   persisted — reopen the page with the button whenever you want it. */
 let sidebarGridView = false;
 function applySidebarGridView(){
-  const list = document.getElementById('sidebarList');
-  if (!list) return;
-  list.classList.toggle('grid-view', sidebarGridView);
   const btn = document.getElementById('listViewToggle');
   if (btn){
-    btn.textContent = sidebarGridView ? 'View: rows' : 'View: cards';
-    btn.setAttribute('aria-pressed', String(sidebarGridView));
-    btn.title = sidebarGridView ? 'Switch to classic list rows' : 'Switch to compact card grid';
+    btn.textContent = libraryGridOpen ? 'View: rows' : 'View: cards';
+    btn.setAttribute('aria-pressed', String(libraryGridOpen));
+    btn.title = libraryGridOpen ? 'Back to the chart editor' : 'Open the full-page card grid of songs';
   }
 }
 function setSidebarGridView(on){
-  sidebarGridView = !!on;
-  try{ localStorage.setItem('setbook-sidebar-grid-view', sidebarGridView ? '1' : '0'); }catch(e){}
-  applySidebarGridView();
+  if (on) openLibraryGridView();
+  else closeLibraryGridView();
 }
 
 function updateSongTypeFilterButtons(){
@@ -4068,8 +4177,9 @@ function setSongFocus(gid){
 // the song card's details icon. Replaces the old sidebar accordion, which
 // had grown too cramped — videos no longer hide under a disclosure.
 let detailsGroupId = null; // song whose details page is open in main (null = section editor)
-// Setlists is a whole-page view (rendered by renderMain like the song
-// details page), not a section — so it needs its own open flag.
+// Setlists and the library card view are whole-page views (rendered by
+// renderMain like the song details page), not sections — each needs its
+// own open flag.
 let setlistsViewOpen = false;
 let detailsReturn = null;  // {groupId, sectionId} to restore when leaving the details page
 
@@ -4082,6 +4192,7 @@ function openSongDetails(gid){
 }
 function closeSongDetails(){
   detailsGroupId = null;
+  libraryGridOpen = false; setlistsViewOpen = false; // leaving via '← Back to chart' closes any whole-page view
   if (detailsReturn){
     selectedGroupId = detailsReturn.groupId;
     selectedSectionId = detailsReturn.sectionId;
@@ -4420,6 +4531,7 @@ function renderSidebar(){
   }
 
   if (searchQuery.trim()){
+    if (libraryGridOpen) return; // the page needs no sidebar rows
     renderSearchResults(el);
     return;
   }
@@ -4754,6 +4866,7 @@ function updateArtistDatalist(){
 
 document.getElementById('sidebarSearch').addEventListener('input', (e) => {
   searchQuery = e.target.value;
+  if (libraryGridOpen) renderMain(); // keep the card grid's filter live
   renderSidebar();
 });
 preventAutoReplace(document.getElementById('sidebarSearch'));
@@ -4779,12 +4892,8 @@ document.getElementById('sortByArtistBtn').addEventListener('click', () => {
   renderSidebar();
 });
 document.getElementById('listViewToggle').addEventListener('click', () => {
-  setSidebarGridView(!sidebarGridView);
+  if (libraryGridOpen) closeLibraryGridView(); else openLibraryGridView();
 });
-(function initSidebarGridView(){
-  try{ sidebarGridView = localStorage.getItem('setbook-sidebar-grid-view') === '1'; }catch(e){}
-})();
-
 document.getElementById('expandAllBtn').addEventListener('click', () => {
   expandedGroups = new Set(state.sectionGroups.map(g => g.id));
   renderSidebar();
@@ -6679,6 +6788,14 @@ function renderMain(){
   // over main until closed; the editor below is skipped while it is open.
   if (setlistsViewOpen){
     renderSetlistsPage(main);
+    return;
+  }
+
+  // Library card view: a dedicated full-page grid of summarized song
+  // cards (like Setlists). Takes over main until closed; the editor
+  // below is skipped while it is open.
+  if (libraryGridOpen){
+    renderLibraryGridPage(main);
     return;
   }
 
