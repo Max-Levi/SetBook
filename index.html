@@ -494,15 +494,6 @@
     #openConflictModalOverlay .modal-actions .ghost.small, #openConflictModalOverlay .modal-actions .primary.small{
       min-height:44px;
     }
-    /* In the PDF exporter the action footer can scroll far out of sight
-       on phones: pin it to the bottom of the visible modal.
-       Solid panel background (plus a divider) so content slides under it. */
-    #pdfModalOverlay .modal-actions{
-      position:sticky; bottom:0; z-index:4;
-      background:var(--panel);
-      border-top:1px solid var(--border);
-      margin:14px -16px -18px; padding:12px 16px;
-    }
   }
   .pdf-download-link{
     display:block; text-align:center; text-decoration:none;
@@ -522,80 +513,40 @@
      keeps the vertical-scrolling iframe above). Pages snap to center; the
      ‹ › buttons and arrow keys turn pages like a book. */
   #pvStripWrap{ position:relative; display:block; width:100%; height:54vh; min-height:300px; background:#262626; overflow:hidden; }
-  /* The dialog must fit the viewport without scrolling: the modal is a
-     fixed-height flex column (header, controls and song list keep their
-     natural size; the viewer absorbs whatever is left), and #pvFrame /
-     #pvStripWrap absolutely fill that flexible viewer box instead of using
-     a fixed vh height. overflow-y stays as a last-resort safety net on
-     very short windows. The strip re-fits its pages when the available
-     height changes (window resize, fullscreen) — see the resize listener. */
-  #pdfModalOverlay .modal-wide{
+  /* The page keeps its comfortable sizes at every window height — roomy
+     song list, generous viewer — and the page scrolls normally when the
+     window is shorter than the content. No height math, no flex
+     squeezing, no clipped preview: the page is a document like any other,
+     which is exactly the fix for “I can't scroll down to see the preview”.
+     The viewer is a real box (its frame/strip children fill it
+     absolutely); the action bar rides at the bottom of the viewport. */
+  #pdfModalOverlay.pdf-page:not([hidden]){
     display:flex; flex-direction:column;
-    height:calc(100vh - 36px);
-    height:calc(100dvh - 36px);
+    flex:1; min-width:0; overflow-y:auto; padding:24px 32px 60px;
   }
-  #pdfModalOverlay .pdf-preview-viewer{ flex:1 1 auto; min-height:220px; }
+  .pdf-page h2{ margin:0 0 10px; font-size:25px; font-weight:700; color:var(--text); }
+  .pdf-page .modal-sub{ margin-bottom:18px; }
+  .pdf-page-panel{
+    flex:1; max-width:1080px; margin:0 auto; width:100%;
+    display:flex; flex-direction:column;
+  }
+  /* The viewer is a real box: its frame/strip children fill it
+     absolutely, so it supplies its own height (the page scrolls
+     normally below and around it). */
+  #pdfModalOverlay .pdf-preview-viewer{ flex:0 0 auto; height:54vh; min-height:340px; }
   #pdfModalOverlay #pvFrame{ position:absolute; inset:0; width:100%; height:100%; min-height:0; }
-  #pdfModalOverlay #pvStripWrap{ position:absolute; inset:0; }
+  #pdfModalOverlay #pvStripWrap{ position:absolute; inset:0; height:100%; min-height:0; }
   /* higher-specificity override so [hidden] still wins over the inset rules */
   #pdfModalOverlay #pvFrame[hidden], #pdfModalOverlay #pvStripWrap[hidden]{ display:none; }
-  /* Fullscreen preview: the dialog itself goes fullscreen, so the viewer
-     gets the whole screen; Esc leaves fullscreen first, a second Esc
-     closes the dialog. */
-  #pdfModalOverlay .modal-wide:fullscreen{
+  /* Fullscreen preview: the page itself goes fullscreen, the viewer gets
+     the whole screen; Esc leaves fullscreen first, a second Esc closes
+     the page. */
+  #pdfModalOverlay:fullscreen{
     width:100vw; height:100vh; max-height:none;
-    border:0; border-radius:0;
+    background:var(--panel);
   }
-  /* Short viewports: tighten the song list, the viewer floor and the
-     chrome so the dialog fits without scrolling. The song checklist is
-     capped tightly at every dialog height: the space it would eat
-     belongs to the PDF preview, and 44px (≈2 rows + scroll) is enough
-     to see there are more songs. The breakpoint is high (≤900px) so
-     laptops with little chrome height (e.g. 800px windows) get it too. */
-  @media (max-height:780px){
-    #pdfModalOverlay #pdfSongChecklist{ max-height:100px; }
-    #pdfModalOverlay .pdf-preview-viewer{ min-height:140px; }
-    #pdfModalOverlay .modal-wide{ padding:16px 20px; }
-    #pdfModalOverlay .modal-columns .modal-group{ padding:10px 12px; }
-    #pdfModalOverlay .pdf-preview-controls{ margin-bottom:6px; }
-    /* extra-specific selectors so these win over the base footer rule
-       later in the stylesheet (media queries don't add specificity) */
-    #pdfModalOverlay .modal-wide .modal-actions{ margin:8px -20px -16px; padding:10px 20px 16px; }
-    #pdfModalOverlay .modal-wide .modal-sub{ margin-bottom:10px; }
-    /* Controls wrap (nowrap+overflow would hide the outer buttons behind
-       an invisible macOS overlay scrollbar — “Light mode” and ⛶ became
-       unreachable). To keep the dialog fitting on short viewports, the
-       rows are tightened instead: smaller toggles and paddings. */
-    #pdfModalOverlay .pdf-preview-controls{ margin-bottom:8px; }
-    #pdfModalOverlay .pdf-preview-controls .mode-btn{ padding:6px 12px; font-size:12.5px; }
-    #pdfModalOverlay .pdf-preview-controls .modal-select{ padding:6px 8px; }
-    /* The songs/output columns must be able to shrink with the dialog:
-       the checklist scrolls internally instead of holding its ground. */
-    #pdfModalOverlay .modal-columns{ align-items:stretch; min-height:0; }
-    #pdfModalOverlay .modal-columns .modal-group{
-      display:flex; flex-direction:column; min-height:0; margin-bottom:8px;
-    }
-    #pdfModalOverlay .modal-columns .modal-group:last-child{ margin-bottom:8px; }
-    #pdfModalOverlay #pdfSongChecklist{
-      flex:1 1 auto; min-height:44px; max-height:none; margin-bottom:8px;
-    }
-  }
-  /* The song checklist is capped in the PDF dialog at any height: its
-     roomy 180px default belongs to the preview. 100px (~2.5 songs) plus
-     internal scrolling is enough; the viewer keeps min-height 220px. */
-  #pdfModalOverlay #pdfSongChecklist{ max-height:100px; margin-bottom:8px; }
-  @media (max-height:900px) and (min-height:781px){
-    #pdfModalOverlay .pdf-preview-viewer{ min-height:170px; }
-    #pdfModalOverlay .modal-wide{ padding:16px 20px; }
-    #pdfModalOverlay .subset-controls{ margin-bottom:6px; }
-    #pdfModalOverlay .checklist-bulk{ margin-bottom:6px; }
-    #pdfModalOverlay .modal-columns .modal-group{ padding:10px 12px; }
-    #pdfModalOverlay .modal-columns .modal-group .modal-label{ margin-bottom:3px; }
-    #pdfModalOverlay .modal-columns .modal-group .modal-input{ margin-bottom:4px; }
-    #pdfModalOverlay .modal-columns .modal-group{ margin-bottom:8px; }
-    #pdfModalOverlay .modal-group-label{ margin-bottom:6px; }
-    #pdfModalOverlay .modal-wide .modal-actions{ margin:8px -20px -16px; padding:10px 20px 16px; }
-    #pdfModalOverlay .modal-wide .modal-sub{ margin-bottom:10px; }
+  #pdfModalOverlay:fullscreen .pdf-preview-viewer{
+    flex:1 1 auto; height:auto; min-height:0;
   }
   #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
   .pv-page{ scroll-snap-align:center; flex:0 0 auto; line-height:0; box-shadow:0 6px 22px rgba(0,0,0,.5); border-radius:3px; }
@@ -614,25 +565,21 @@
   #pdfModalOverlay a.pdf-download-link{ margin-bottom:0; }
   #pdfModalOverlay .modal-actions{ align-items:center; }
   #pdfModalOverlay .modal-actions .pdf-download-link{ flex:1; }
-  /* Export PDF modal: wider than other modals so the embedded viewer has
-     room, sized to the viewport (see the flex-column rules above) so the
-     whole dialog fits without scrolling, and a sticky footer so
-     Close/Download stay reachable on very short viewports when it can't. */
-  #pdfModalOverlay .modal-wide{ width:880px; }
+  /* Action bar: sticky to the bottom of the open page's viewport, so
+     Download and Back stay reachable no matter how far the page is
+     scrolled (the page itself is the scroll container). */
   #pdfModalOverlay .modal-actions{
     position:sticky; bottom:0; z-index:2;
-    margin:12px -26px -24px; padding:12px 26px 24px;
+    margin:14px 0 0; margin-top:auto; padding:12px 0 18px;
     background:var(--panel); border-top:1px solid var(--border);
   }
   @media (max-width:560px){
     .pdf-preview-controls{ flex-direction:column; align-items:stretch; }
     .pdf-preview-controls .mode-toggle{ display:flex; }
     .pdf-preview-controls .mode-toggle .mode-btn{ flex:1; }
-    #pvFrame{ height:52vh; min-height:280px; }
-    #pvStripWrap{ height:52vh; min-height:280px; }
     #pvStrip{ padding:10px 48px; gap:14px; }
     .pv-turn{ width:40px; height:40px; }
-    #pdfModalOverlay .pdf-preview-viewer{ min-height:200px; }
+    #pdfModalOverlay .pdf-preview-viewer{ height:52vh; min-height:300px; }
   }
   button.pdf-download-link[hidden]{ display:none; }
   /* Drive connected badge: a compact always-visible status chip in the
@@ -836,6 +783,11 @@
   .filters-toggle-row{ display:flex; gap:8px; align-items:stretch; margin-bottom:9px; }
   .filters-toggle-row .filters-toggle{ flex:1; min-width:0; width:auto; margin-bottom:0; }
   .filters-clear{ flex-shrink:0; }
+  /* Library view toggle (View: rows / View: cards): a full-width button
+     on its own row, always visible above the collapsible Sort & Filter
+     panel — the card view was hard to find tucked inside that panel. */
+  .list-view-row{ margin-bottom:9px; }
+  .list-view-row .sort-btn{ width:100%; }
   .filters-clear[hidden]{ display:none; }
   /* Expand/Collapse live outside the panel, always reachable. */
   .expand-collapse-row{ margin-top:12px; margin-bottom:9px; }
@@ -1671,106 +1623,6 @@
   </div>
 </header>
 
-<div class="modal-overlay" id="pdfModalOverlay">
-  <div class="modal modal-wide">
-    <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
-    <h2 id="pdfModalTitle">Export PDF</h2>
-    <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
-    <div class="pdf-preview-controls">
-      <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
-        <button type="button" class="mode-btn active" data-pvtype="performance">Performance PDF</button>
-        <button type="button" class="mode-btn" data-pvtype="print-friendly">Print Friendly PDF</button>
-      </div>
-      <select id="pvDeviceSelect" class="modal-select" aria-label="Device">
-        <optgroup label="iPad">
-          <option value="ipad-102">iPad 10.2" (8th/9th gen)</option>
-          <option value="ipad" selected>iPad 10.9"/11" (10th gen+, Air)</option>
-          <option value="ipad-pro-11">iPad Pro 11"</option>
-          <option value="ipad-pro-13">iPad Pro 12.9"/13"</option>
-          <option value="ipad-mini-79">iPad mini 7.9"</option>
-          <option value="ipad-mini">iPad mini 8.3"</option>
-        </optgroup>
-        <optgroup label="iPhone">
-          <option value="iphone-se">iPhone SE</option>
-          <option value="iphone">iPhone 14/15/16 (6.1")</option>
-          <option value="iphone-max">iPhone Pro Max (6.7"&ndash;6.9")</option>
-        </optgroup>
-        <optgroup label="Android tablets">
-          <option value="android-tab-11">Galaxy Tab / Pixel Tablet 11"</option>
-          <option value="android-tab-124">Galaxy Tab 12.4"</option>
-          <option value="android-tab-10">Android tablet 10" (16:10)</option>
-        </optgroup>
-        <optgroup label="Android phones">
-          <option value="android-phone">Android phone 6.2" (Galaxy S, Pixel)</option>
-          <option value="android-phone-xl">Android phone 6.8" (Ultra, XL)</option>
-        </optgroup>
-        <optgroup label="Paper">
-          <option value="letter">US Letter (print)</option>
-          <option value="a4">A4 (print)</option>
-        </optgroup>
-      </select>
-      <div class="mode-toggle" id="pvOrientationToggle" role="group" aria-label="Orientation">
-        <button type="button" class="mode-btn" data-pvorientation="portrait">Portrait</button>
-        <button type="button" class="mode-btn active" data-pvorientation="landscape">Landscape</button>
-      </div>
-      <div class="mode-toggle" id="pvAppearanceToggle" role="group" aria-label="Appearance">
-        <button type="button" class="mode-btn active" data-pvmode="light">Light mode</button>
-        <button type="button" class="mode-btn" data-pvmode="dark">Dark mode</button>
-      </div>
-      <button type="button" class="mode-btn" id="pvFullscreenBtn" aria-pressed="false" title="Show the preview fullscreen (Esc leaves fullscreen)">⛶ Fullscreen</button>
-    </div>
-
-    <div class="modal-columns">
-      <div class="modal-group">
-        <div class="modal-group-label">Songs</div>
-        <div class="subset-controls">
-          <select id="pdfSubsetSelect" aria-label="Use a setlist" title="Pick a setlist — its order and set labels carry into the PDF">
-            <option value="">All songs</option>
-          </select>
-          <button type="button" class="ghost small" id="pdfSaveSubsetBtn" title="Save the current song selection as a setlist (Songs → Setlists… to reorder and label it)">Save as setlist…</button>
-          <button type="button" class="ghost small danger" id="pdfDeleteSubsetBtn" style="display:none;">Delete</button>
-        </div>
-        <div class="checklist-bulk">
-          <button type="button" class="ghost small" id="pdfSelectAllBtn">Select all</button>
-          <button type="button" class="ghost small" id="pdfSelectNoneBtn">Select none</button>
-          <button type="button" class="ghost small" id="pdfSelectReadyBtn">Ready only</button>
-        </div>
-        <div class="song-checklist" id="pdfSongChecklist"></div>
-      </div>
-
-      <div class="modal-group">
-        <div class="modal-group-label">Output</div>
-        <label class="modal-label" for="pdfProjectName">Project name</label>
-        <input id="pdfProjectName" class="modal-input" placeholder="e.g. Great North Band">
-      </div>
-    </div>
-
-    <div class="pdf-preview-viewer">
-      <div class="pdf-preview-loading" id="pvLoading">Rendering preview…</div>
-      <iframe id="pvFrame" title="PDF preview"></iframe>
-      <div id="pvStripWrap" hidden>
-        <div id="pvStrip" role="region" aria-label="Performance PDF pages, left to right"></div>
-        <button type="button" class="pv-turn" id="pvPrevPage" aria-label="Previous page">‹</button>
-        <button type="button" class="pv-turn" id="pvNextPage" aria-label="Next page">›</button>
-        <div id="pvPageIndicator" aria-live="polite"></div>
-      </div>
-    </div>
-    <!-- iPadOS quirk: the sheet navigator.share() shows can be a reduced
-         one whose Edit Actions list omits Books entirely (no user-side way
-         to add it). This hint routes around it: the Download-then-Files
-         path goes through a real file, whose share sheet DOES offer Books. -->
-    <p class="modal-sub" id="pdfShareBooksHint" style="display:none; margin:12px 0 0; text-align:center;">
-      Don't see Apple Books in the share sheet? <strong>↓ Download</strong>, open it from <strong>Files</strong>, and share from there — that sheet always offers Books.
-    </p>
-
-    <div class="modal-actions">
-      <button type="button" class="ghost small" id="pdfCancelBtn">Close</button>
-      <button type="button" class="pdf-download-link" id="pdfShareBtn" style="display:none;" hidden>↗ Share PDF…</button>
-      <a id="pvDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
-    </div>
-  </div>
-</div>
-
 <div class="modal-overlay" id="urlImportOverlay">
   <div class="modal">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
@@ -2151,7 +2003,7 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Card view:</strong> the “cards” toggle in the Sort by header switches the song list to a compact card grid (tap “rows” to switch back). Remembered per device.</li>
+            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list switches the library to a compact card grid (tap “View: rows” to switch back). Remembered per device.</li>
             <li><strong>Setlists</strong> (Songs &rarr; Setlists&hellip;): an ordered, labelled song list for a gig. Create one, add songs, <strong>drag rows to reorder</strong>, and add set labels (Set 1, Set 2, Encore&hellip;) that can start before any song. Export PDF… renders the songs in your chosen order with the labels on the contents page.</li>
             <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button — plus a notes field for reminders that never appear in PDFs.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
@@ -2239,9 +2091,12 @@
       </button>
       <button type="button" id="filtersClearBtn" class="ghost small filters-clear" title="Clear search and all filters" aria-label="Clear search and all filters" hidden>Clear all</button>
       </div>
+      <div class="tools-buttons list-view-row">
+        <button type="button" class="ghost small sort-btn" id="listViewToggle" title="Toggle between list rows and compact cards" aria-pressed="false">View: rows</button>
+      </div>
       <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
-        <div class="tools-section-label">Sort by (<button type="button" class="sort-btn ghost small" id="listViewToggle" title="Toggle between list rows and compact cards" aria-pressed="false" style="text-transform:none; letter-spacing:normal; padding:0 6px; border:none;">cards</button>)</div>
+        <div class="tools-section-label">Sort by</div>
         <div class="tools-buttons">
           <button class="ghost small sort-btn" id="sortByTitleBtn">Title <span class="sort-chev" id="titleChev"></span></button>
           <button class="ghost small sort-btn" id="sortByArtistBtn">Artist <span class="sort-chev" id="artistChev"></span></button>
@@ -2285,6 +2140,111 @@
   </nav>
   <div class="sidebar-scrim" id="sidebarScrim"></div>
   <main id="main"></main>
+
+<!-- ---------- Export PDF page (full-page surface, like the Setlists
+     page) ---------- Sits beside #main inside .layout and swaps places
+     with it: opening the exporter hides the editor and shows this page
+     (the sidebar and header stay). Every element id from the old dialog
+     version is unchanged, so the render/preview code works as before. -->
+<section class="pdf-page" id="pdfModalOverlay" hidden>
+    <button type="button" class="ghost small sdp-back" id="pdfPageBackBtn">&larr; Back to chart</button>
+    <div class="pdf-page-panel">
+    <h2 id="pdfModalTitle">Export PDF</h2>
+    <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
+    <div class="pdf-preview-controls">
+      <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
+        <button type="button" class="mode-btn active" data-pvtype="performance">Performance PDF</button>
+        <button type="button" class="mode-btn" data-pvtype="print-friendly">Print Friendly PDF</button>
+      </div>
+      <select id="pvDeviceSelect" class="modal-select" aria-label="Device">
+        <optgroup label="iPad">
+          <option value="ipad-102">iPad 10.2" (8th/9th gen)</option>
+          <option value="ipad" selected>iPad 10.9"/11" (10th gen+, Air)</option>
+          <option value="ipad-pro-11">iPad Pro 11"</option>
+          <option value="ipad-pro-13">iPad Pro 12.9"/13"</option>
+          <option value="ipad-mini-79">iPad mini 7.9"</option>
+          <option value="ipad-mini">iPad mini 8.3"</option>
+        </optgroup>
+        <optgroup label="iPhone">
+          <option value="iphone-se">iPhone SE</option>
+          <option value="iphone">iPhone 14/15/16 (6.1")</option>
+          <option value="iphone-max">iPhone Pro Max (6.7"&ndash;6.9")</option>
+        </optgroup>
+        <optgroup label="Android tablets">
+          <option value="android-tab-11">Galaxy Tab / Pixel Tablet 11"</option>
+          <option value="android-tab-124">Galaxy Tab 12.4"</option>
+          <option value="android-tab-10">Android tablet 10" (16:10)</option>
+        </optgroup>
+        <optgroup label="Android phones">
+          <option value="android-phone">Android phone 6.2" (Galaxy S, Pixel)</option>
+          <option value="android-phone-xl">Android phone 6.8" (Ultra, XL)</option>
+        </optgroup>
+        <optgroup label="Paper">
+          <option value="letter">US Letter (print)</option>
+          <option value="a4">A4 (print)</option>
+        </optgroup>
+      </select>
+      <div class="mode-toggle" id="pvOrientationToggle" role="group" aria-label="Orientation">
+        <button type="button" class="mode-btn" data-pvorientation="portrait">Portrait</button>
+        <button type="button" class="mode-btn active" data-pvorientation="landscape">Landscape</button>
+      </div>
+      <div class="mode-toggle" id="pvAppearanceToggle" role="group" aria-label="Appearance">
+        <button type="button" class="mode-btn active" data-pvmode="light">Light mode</button>
+        <button type="button" class="mode-btn" data-pvmode="dark">Dark mode</button>
+      </div>
+      <button type="button" class="mode-btn" id="pvFullscreenBtn" aria-pressed="false" title="Show the preview fullscreen (Esc leaves fullscreen)">⛶ Fullscreen</button>
+    </div>
+
+    <div class="modal-columns">
+      <div class="modal-group">
+        <div class="modal-group-label">Songs</div>
+        <div class="subset-controls">
+          <select id="pdfSubsetSelect" aria-label="Use a setlist" title="Pick a setlist — its order and set labels carry into the PDF">
+            <option value="">All songs</option>
+          </select>
+          <button type="button" class="ghost small" id="pdfSaveSubsetBtn" title="Save the current song selection as a setlist (Songs → Setlists… to reorder and label it)">Save as setlist…</button>
+          <button type="button" class="ghost small danger" id="pdfDeleteSubsetBtn" style="display:none;">Delete</button>
+        </div>
+        <div class="checklist-bulk">
+          <button type="button" class="ghost small" id="pdfSelectAllBtn">Select all</button>
+          <button type="button" class="ghost small" id="pdfSelectNoneBtn">Select none</button>
+          <button type="button" class="ghost small" id="pdfSelectReadyBtn">Ready only</button>
+        </div>
+        <div class="song-checklist" id="pdfSongChecklist"></div>
+      </div>
+
+      <div class="modal-group">
+        <div class="modal-group-label">Output</div>
+        <label class="modal-label" for="pdfProjectName">Project name</label>
+        <input id="pdfProjectName" class="modal-input" placeholder="e.g. Great North Band">
+      </div>
+    </div>
+
+    <div class="pdf-preview-viewer">
+      <div class="pdf-preview-loading" id="pvLoading">Rendering preview…</div>
+      <iframe id="pvFrame" title="PDF preview"></iframe>
+      <div id="pvStripWrap" hidden>
+        <div id="pvStrip" role="region" aria-label="Performance PDF pages, left to right"></div>
+        <button type="button" class="pv-turn" id="pvPrevPage" aria-label="Previous page">‹</button>
+        <button type="button" class="pv-turn" id="pvNextPage" aria-label="Next page">›</button>
+        <div id="pvPageIndicator" aria-live="polite"></div>
+      </div>
+    </div>
+    <!-- iPadOS quirk: the sheet navigator.share() shows can be a reduced
+         one whose Edit Actions list omits Books entirely (no user-side way
+         to add it). This hint routes around it: the Download-then-Files
+         path goes through a real file, whose share sheet DOES offer Books. -->
+    <p class="modal-sub" id="pdfShareBooksHint" style="display:none; margin:12px 0 0; text-align:center;">
+      Don't see Apple Books in the share sheet? <strong>↓ Download</strong>, open it from <strong>Files</strong>, and share from there — that sheet always offers Books.
+    </p>
+
+    <div class="modal-actions">
+      <button type="button" class="ghost small" id="pdfCancelBtn">← Back to chart</button>
+      <button type="button" class="pdf-download-link" id="pdfShareBtn" style="display:none;" hidden>↗ Share PDF…</button>
+      <a id="pvDownloadLink" class="pdf-download-link" style="display:none;" download="">↓ Download PDF</a>
+    </div>
+    </div>
+</section>
 </div>
 <datalist id="artistOptions"></datalist>
 
@@ -3539,7 +3499,7 @@ function openPdfPreviewFromSetlist(setlistId){
   pdfPendingSelection = sl.songIds.filter(id => printableSections(id).length);
   pdfPendingPreviewMode = false;
   pdfPendingSetlistId = setlistId;
-  pdfModalCtl.open();
+  openPdfPage();
 }
 
 function sortedSongGroups(){
@@ -3817,7 +3777,7 @@ function applySidebarGridView(){
   list.classList.toggle('grid-view', sidebarGridView);
   const btn = document.getElementById('listViewToggle');
   if (btn){
-    btn.textContent = sidebarGridView ? 'rows' : 'cards';
+    btn.textContent = sidebarGridView ? 'View: rows' : 'View: cards';
     btn.setAttribute('aria-pressed', String(sidebarGridView));
     btn.title = sidebarGridView ? 'Switch to classic list rows' : 'Switch to compact card grid';
   }
@@ -9960,6 +9920,10 @@ document.addEventListener('keydown', (e) => {
     if (activePopover){ closeActivePopover(); return; }
     const openOverlays = document.querySelectorAll('.modal-overlay.open');
     if (openOverlays.length){ openOverlays[openOverlays.length - 1].classList.remove('open'); return; }
+    // The Export PDF page closes on Esc too (the browser consumes Esc
+    // itself while fullscreen, so this path only runs with fullscreen
+    // already exited — Exiting fullscreen via the API covers the rest).
+    if (!pdfPageHidden()){ closePdfPage(); return; }
     if (document.body.classList.contains('sidebar-open')) setSidebarOpen(false);
   }
 });
@@ -10251,20 +10215,40 @@ let pdfPreviewMode = false;
 // opens in focused "PDF preview" context instead of full Export.
 // pdfPendingSetlistId preselects that setlist in the "Set" dropdown.
 let pdfPendingSelection = null, pdfPendingPreviewMode = false, pdfPendingSetlistId = null;
-const pdfModalCtl = wireModal({
-  overlayId:'pdfModalOverlay', openBtnId:'btnPdf', closeBtnId:'pdfCancelBtn',
-  onOpen(){
-    const sel = pdfPendingSelection || allSongIdsWithSections();
-    const asPreview = pdfPendingPreviewMode && sel.length === 1;
-    const pendingSl = pdfPendingSetlistId;
-    pdfPendingSelection = null;
-    pdfPendingPreviewMode = false;
-    pdfPendingSetlistId = null;
-    preparePdfModal(sel, asPreview, pendingSl);
-    schedulePdfRender();
-  }
-});
-const pdfModal = pdfModalCtl.overlay;
+/* The exporter is a dedicated full page (like the Setlists page), not a
+   modal: the song list, project name, and a big live preview no longer
+   have to fight for space inside a dialog — at every window height the
+   layout keeps its comfortable sizes and the page scrolls normally, so
+   the whole preview is always reachable. Opening the page hides #main
+   and shows #pdfModalOverlay beside the (unchanged) sidebar and header.
+   Every close path (✕, the ← Back buttons, Escape, and exiting
+   fullscreen) funnels through the page's [hidden] attribute, which the
+   render code treats exactly like the modal's old 'open' class. */
+const pdfModal = document.getElementById('pdfModalOverlay');
+const pdfPageHidden = () => pdfModal.hidden;
+function openPdfPage(){
+  const sel = pdfPendingSelection || allSongIdsWithSections();
+  const asPreview = pdfPendingPreviewMode && sel.length === 1;
+  const pendingSl = pdfPendingSetlistId;
+  pdfPendingSelection = null;
+  pdfPendingPreviewMode = false;
+  pdfPendingSetlistId = null;
+  pdfModal.hidden = false;
+  document.getElementById('main').style.display = 'none';
+  document.getElementById('pdfShareBooksHint').style.display = 'none';
+  preparePdfModal(sel, asPreview, pendingSl);
+  schedulePdfRender();
+  window.scrollTo(0, 0);
+}
+function closePdfPage(){
+  if (document.fullscreenElement === pdfModal){ document.exitFullscreen().catch(() => {}); }
+  pdfModal.hidden = true;
+  document.getElementById('main').style.display = '';
+  pvTeardownPage();
+}
+document.getElementById('btnPdf').addEventListener('click', openPdfPage);
+document.getElementById('pdfCancelBtn').addEventListener('click', closePdfPage);
+document.getElementById('pdfPageBackBtn').addEventListener('click', closePdfPage);
 const pdfProjectNameInput = document.getElementById('pdfProjectName');
 const pdfShareBtn = document.getElementById('pdfShareBtn');
 
@@ -10329,7 +10313,7 @@ function openPdfPreview(songId){
   if (!group || !printableSections(songId).length) return;
   pdfPendingSelection = [songId];
   pdfPendingPreviewMode = true;
-  pdfModalCtl.open();
+  openPdfPage();
 }
 
 /* ---- song subset (which songs go in the PDF) ---- */
@@ -10591,7 +10575,7 @@ async function renderPdfPreview(){
       ? await generatePrintFriendlyPdf(pdfDevice, pdfOrientation, songIds, order)
       : await generatePerformancePdf(pdfMode, pdfDevice, pdfOrientation, songIds, null, order);
     if (seq !== pvRenderSeq) return; // superseded by a newer render
-    if (!pdfModal.classList.contains('open')) return;
+    if (pdfPageHidden()) return;
     pvBlob = blob;
     pvFileName = filename;
     if (pvBlobUrl) URL.revokeObjectURL(pvBlobUrl);
@@ -10659,9 +10643,9 @@ async function renderPvStrip(blob, seq){
   strip.innerHTML = ''; // clearing the children also resets scrollLeft to 0
   showPvStrip();
   const data = await blob.arrayBuffer();
-  if (seq !== pvRenderSeq || !pdfModal.classList.contains('open')) return;
+  if (seq !== pvRenderSeq || pdfPageHidden()) return;
   const pdf = await window.pdfjsLib.getDocument({ data }).promise;
-  if (seq !== pvRenderSeq || !pdfModal.classList.contains('open')){
+  if (seq !== pvRenderSeq || pdfPageHidden()){
     try{ await pdf.destroy(); }catch(e){}
     return;
   }
@@ -10685,7 +10669,7 @@ async function renderPvStripPages(pdf, seq, keepPage){
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
   const targetCssH = Math.max(200, strip.clientHeight - 28);
   for (let n = 1; n <= pdf.numPages; n++){
-    if (seq !== pvRenderSeq || !pdfModal.classList.contains('open')){
+    if (seq !== pvRenderSeq || pdfPageHidden()){
       pvDestroyStripDoc();
       strip.innerHTML = '';
       return;
@@ -10776,7 +10760,7 @@ document.getElementById('pvStrip').addEventListener('scroll', () => {
 document.getElementById('pvPrevPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() - 1));
 document.getElementById('pvNextPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() + 1));
 document.addEventListener('keydown', (e) => {
-  if (!pdfModal.classList.contains('open')) return;
+  if (pdfPageHidden()) return;
   if (pdfType !== 'performance') return;
   if (document.getElementById('pvStripWrap').hidden) return;
   const tag = (document.activeElement && document.activeElement.tagName) || '';
@@ -10815,7 +10799,7 @@ document.addEventListener('fullscreenchange', () => {
 // re-render is needed because the PDF document itself hasn't changed.
 let pvResizeTimer = null;
 window.addEventListener('resize', () => {
-  if (!pdfModal.classList.contains('open')) return;
+  if (pdfPageHidden()) return;
   if (document.getElementById('pvStripWrap').hidden) return;
   clearTimeout(pvResizeTimer);
   pvResizeTimer = setTimeout(() => {
@@ -10824,18 +10808,22 @@ window.addEventListener('resize', () => {
   }, 180);
 });
 
-// Releasing viewer resources when the modal closes (every close path funnels
-// through the overlay's class); the next render mints fresh ones.
+// Releasing viewer resources when the page closes (every close path
+// funnels through the page's [hidden] attribute); the next render mints
+// fresh ones. Ship: closePdfPage itself clears transient state so the
+// editor returns without stale pages around. Observed too, because the
+// close paths are three different buttons.
+function pvTeardownPage(){
+  if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
+  if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
+  pvBlob = null;
+  pvDestroyStripDoc();
+  document.getElementById('pvStrip').innerHTML = '';
+  document.getElementById('pvFrame').removeAttribute('src');
+}
 new MutationObserver(() => {
-  if (!pdfModal.classList.contains('open')){
-    if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
-    if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
-    pvBlob = null;
-    pvDestroyStripDoc();
-    document.getElementById('pvStrip').innerHTML = '';
-    document.getElementById('pvFrame').removeAttribute('src');
-  }
-}).observe(pdfModal, { attributes: true, attributeFilter: ['class'] });
+  if (pdfModal.hidden) pvTeardownPage();
+}).observe(pdfModal, { attributes: true, attributeFilter: ['hidden'] });
 
 // Every tap on the download link mints a fresh blob URL and claims the next
 // unique filename, so downloading the same rendered PDF twice (or ten

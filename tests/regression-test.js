@@ -1094,29 +1094,37 @@ const cloudAdapterChecks = (async () => {
   }
 }
 
-/* ================= PDF preview modal (fit, fullscreen, contexts, copy) ================= */
+/* ================= PDF export page (layout, fullscreen, contexts, copy) ================= */
 suite('pdf-preview-modal');
-// The dialog is a fixed-height flex column so the whole thing fits the
-// viewport without scrolling; the viewer absorbs the leftover space and
-// #pvFrame / #pvStripWrap absolutely fill it (regression for the old
-// fixed-54vh viewer that made the modal overflow and scroll).
-check('modal is a viewport-height flex column',
-  /#pdfModalOverlay \.modal-wide\{\s*display:flex; flex-direction:column;\s*height:calc\(100vh - 36px\);/.test(html));
-check('viewer flexes and floors instead of a fixed vh height',
-  /#pdfModalOverlay \.pdf-preview-viewer\{ flex:1 1 auto; min-height:/.test(html));
+// The exporter is a dedicated full page (like the Setlists page), not a
+// modal: opening it swaps it in for #main beside the unchanged sidebar
+// and header, and the page scrolls normally at any window height — no
+// dialog height math, no clipped preview. The viewer is a real box its
+// absolutely-positioned children fill. (Regression for the modal era,
+// where a short window clipped the preview and the controls.)
+check('exporter is a dedicated page hiding the editor while open',
+  /<section class="pdf-page" id="pdfModalOverlay" hidden>/.test(html) &&
+  /document\.getElementById\('main'\)\.style\.display = 'none';/.test(html) &&
+  /function closePdfPage\(\)/.test(html));
+check('every entry point funnels through openPdfPage',
+  /pdfPendingPreviewMode = true;/.test(html) && /openPdfPage\(\);/.test(html) &&
+  /preparePdfModal\(sel, asPreview, pendingSl\)/.test(html));
+check('page scrolls normally; viewer is a real 54vh-min box',
+  /#pdfModalOverlay\.pdf-page:not\(\[hidden\]\)\{[^}]*overflow-y:auto/.test(html) &&
+  /#pdfModalOverlay \.pdf-preview-viewer\{ flex:0 0 auto; height:54vh; min-height:340px; \}/.test(html));
 check('frame and strip absolutely fill the viewer',
   /#pdfModalOverlay #pvFrame\{ position:absolute; inset:0;/.test(html) &&
   /#pdfModalOverlay #pvStripWrap\{ position:absolute; inset:0;/.test(html));
 check('[hidden] still wins over the absolute fill rules',
   /#pdfModalOverlay #pvFrame\[hidden\], #pdfModalOverlay #pvStripWrap\[hidden\]\{ display:none; \}/.test(html));
-check('short-viewport compaction exists (list cap + tighter chrome)',
-  /@media \(max-height:780px\)\{\s*#pdfModalOverlay #pdfSongChecklist\{ max-height:100px; \}/.test(html));
+check('fullscreen mode grows the viewer to the whole screen',
+  /#pdfModalOverlay:fullscreen \.pdf-preview-viewer\{\s*flex:1 1 auto; height:auto; min-height:0;/.test(html));
 
 // The strip re-fits its pages when the available height changes (window
 // resize, entering/leaving fullscreen) without a full PDF re-render.
 check('strip re-renders pages on resize with current page preserved',
   /renderPvStripPages\(pvStripDoc, pvRenderSeq, pvCurrentPage\(\)\)/.test(html) &&
-  /window\.addEventListener\('resize', \(\) => \{\s*if \(!pdfModal\.classList\.contains\('open'\)\) return;/.test(html));
+  /window\.addEventListener\('resize', \(\) => \{\s*if \(pdfPageHidden\(\)\) return;/.test(html));
 check('renderPvStripPages jumps instantly and syncs indicator',
   /pvGoToPage\(Math\.min\(keepPage \|\| 1, pvStripPages\), true\);/.test(html));
 
@@ -1128,8 +1136,8 @@ check('fullscreen state syncs button label + aria-pressed',
   /fullscreenchange[\s\S]{0,300}aria-pressed', String\(active\)\)/.test(html));
 check('print-friendly fullscreen hands focus to the embedded viewer',
   /document\.getElementById\('pvFrame'\)\.contentWindow\.focus\(\)/.test(html));
-check('fullscreen modal fills the screen edge-to-edge',
-  /#pdfModalOverlay \.modal-wide:fullscreen\{\s*width:100vw; height:100vh; max-height:none;/.test(html));
+check('fullscreen page fills the screen edge-to-edge',
+  /#pdfModalOverlay:fullscreen\{\s*width:100vw; height:100vh; max-height:none;/.test(html));
 check('fullscreen button opts out of the global .mode-btn flex:1',
   /#pdfModalOverlay #pvFullscreenBtn\{ flex:0 0 auto; \}/.test(html));
 
@@ -1199,6 +1207,9 @@ check('sidebar card-grid view toggles and persists',
   /function setSidebarGridView\(on\)/.test(html) && /setbook-sidebar-grid-view/.test(html) && /applySidebarGridView\(\);/.test(html));
 check('grid view is CSS-scoped to the sidebar list',
   /\.sidebar-list\.grid-view\{/.test(html) && /listViewToggle/.test(html));
+check('library view toggle is always visible above the filters panel',
+  /list-view-row"[\s\S]{0,200}id="listViewToggle"/.test(html) &&
+  /View: rows/.test(html));
 // MCP parity: server exposes setlist tools
 check('MCP server exposes setlist tools',
   /list_setlists/.test(html) || true); // app HTML doesn't embed MCP; real guard below

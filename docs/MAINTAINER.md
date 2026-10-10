@@ -573,6 +573,34 @@ tightens paddings/margins so the viewer gets the remaining space
 Verified zero overflow at 783/910/1248px heights with a 15-song,
 77-page export; page turning inside the strip unaffected.
 
+**Revision note (2026-10-10, Export PDF became a page — scrolling
+restored):** after three rounds of dialog squeeze-and-fit patches the
+exporter still clipped its preview on short windows (“can't scroll down
+to see the full preview”), so the whole approach changed: the Export PDF
+**dialog is gone** and the exporter is now a **dedicated full page",
+like the Setlists page. `#pdfModalOverlay` is a `<section class="pdf-page">
+inside `.layout` next to `#main` (kept the historical id — all inner ids
+are unchanged); opening it (`openPdfPage`) hides `#main` and shows the
+section; closing (`closePdfPage`, three buttons + Escape + the hidden
+MutationObserver teardown `pvTeardownPage`) restores the editor.
+Everything that used to read the modal's `open` class now asks
+`pdfPageHidden()`. Because the page is just a document inside `main`'s
+scroll area, comfortable sizes win at every window height: the viewer is
+a real box (`height:54vh; min-height:340px`, absolutely-filled frame/strip
+unchanged), the checklist keeps its roomy 180px cap, and no compact
+media bands are needed — the page scrolls normally, and the footer bar
+(← Back to chart / ↓ Download) is sticky at the viewport bottom. All
+entry points funnel through `preparePdfModal(sel, asPreview, pendingSl)`
+unchanged (header ⌘E, song-card icon = focused “PDF preview” context,
+setlist Export PDF…). In-app Help documents that Esc closes the page.
+The sidebar “cards” toggle left the collapsible Sort & Filter panel for
+its own always-visible **View: rows / View: cards** button above it
+(label is “View: …” now, not bare “cards”). Regression suite: 259
+checks (pdf-preview-modal suite rewritten around page semantics); MCP
+14/14 untouched. Verified in-browser at 1732×640 (page scrolls, full
+49-page strip preview visible after scrolling, bar pinned) and
+1732×1248; all three entry points open/close cleanly.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
