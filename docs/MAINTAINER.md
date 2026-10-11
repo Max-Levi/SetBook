@@ -686,6 +686,31 @@ re-opens the page, card click → song details. Regression 263/263, MCP
 
 ---
 
+**Revision note (2026-10-11, Setlists page crashing fix):** reported
+symptom was "can't access the Setlists feature anymore". Root cause: a
+setlist in memory with `parts: undefined` (or `songIds` missing/not an
+array) threw `Cannot read properties of undefined (reading 'length')`
+inside `renderSetlistGrid`'s card template (`sl2.parts.length`), which
+blanked the entire Setlists page — the menu item appeared dead while
+the flag was actually set. Every normal load path (`loadParsedState` →
+`migrateSetlists`) normalizes setlists, but two entry paths skipped
+them: **`restoreSnapshot()`** assigned `snap.state` directly with no
+`loadParsedState` (snapshots predate `normalizeSetlist` and older app
+versions wrote `parts: undefined` into the mirror), and setlists in a
+linked file written by an external tool. Fixed in two layers:
+`restoreSnapshot()` now runs `loadParsedState(state)` on the restored
+raw data (try/catch so an unparseable snapshot still restores), and
+`renderSetlistGrid` defensively `normalizeSetlist`s any list entry
+missing `songIds`/`parts` in place and schedules a save, so a malformed
+entry self-repairs on first sight instead of killing the page. Verified
+in-browser: four hostile shapes (`parts: undefined`, `songIds: null`,
+`songIds` as string, no fields) all render as cards after the fix (the
+first three repair themselves in state) and each card opens its
+builder; regression now 265 checks (+2: render normalize + snapshot
+migration), MCP 14/14, all inline scripts parse.
+
+---
+
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
 Keep it current: it is the reference any tool or human uses to maintain
 and extend this app.*

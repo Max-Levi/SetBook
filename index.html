@@ -3302,7 +3302,18 @@ function renderSetlistGrid(page){
     empty.textContent = 'No setlists yet. Create one above, or save your PDF song selection in the Export dialog — it appears here as a setlist.';
     grid.appendChild(empty);
   }
-  list.forEach(sl2 => {
+  list.forEach((sl2, i) => {
+    // Defensive normalize: snapshots restored by older versions, or files
+    // written by external tools, can carry a setlist whose `parts` is
+    // missing — one malformed entry used to blank the whole page with a
+    // TypeError. Normalize in place (then persist the repair via
+    // scheduleSave when practical) so every entry always renders.
+    if (!Array.isArray(sl2.songIds) || !Array.isArray(sl2.parts)){
+      list[i] = sl2 = normalizeSetlist(sl2);
+      const inState = (state.setlists || []).indexOf(list[i]);
+      if (inState >= 0 && state.setlists[inState] !== sl2) state.setlists[inState] = sl2;
+      scheduleSave();
+    }
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'setlist-card';
@@ -8166,6 +8177,13 @@ function restoreSnapshot(id){
   if (!snap) return;
   takeSnapshot(`Before restoring \u201c${snap.label}\u201d`);
   state = JSON.parse(JSON.stringify(snap.state));
+  // Snapshots are raw deep-copies written before normalize existed and by
+  // any older app version — run the same migration a file load gets so setlists
+  // (and other shaped data) can't be left malformed (undefined parts once
+  // crashed the whole Setlists page here).
+  if (typeof loadParsedState === 'function' && Array.isArray(state.sectionGroups) && Array.isArray(state.sections)){
+    try { loadParsedState(state); } catch(_){ /* keep raw restored data */ }
+  }
   // The restored library keeps whatever file is currently linked; the next
   // save writes the restored content there.
   showSnapshotList();

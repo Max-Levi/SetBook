@@ -1176,6 +1176,13 @@ check('legacy songSubsets migrate into setlists on load',
   /function migrateSetlists\(state\)/.test(html) && /migrateSetlists\(state\);/.test(html) && /byId\.has\(sub\.id\)\) return;/.test(html));
 check('setlist edits mirror into songSubsets for older apps',
   /function syncSetlistMirror\(sl\)/.test(html));
+// malformed setlists in memory (snapshot restores / external files) must not
+// blank the page: card grid normalizes entries missing parts/songIds, and
+// snapshot restore runs the load migration
+check('malformed setlists normalized at render (no page crash)',
+  /if \(!Array\.isArray\(sl2\.songIds\) \|\| !Array\.isArray\(sl2\.parts\)\)\{/.test(html) && /normalizeSetlist\(sl2\)/.test(html));
+check('snapshot restore runs load migration',
+  /restoreSnapshot\([\s\S]{0,600}?loadParsedState\(state\)/.test(html) && /crashed the whole Setlists page/.test(html));
 check('setlist song order helper skips unprintable songs',
   /function setlistSongs\(sl\)/.test(html) && /printableSections\(id\)\.length/.test(html));
 // builder: drag reorder, set parts anchored by song id (survive reorder)
