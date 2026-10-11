@@ -635,14 +635,54 @@ Verse, Chorus, Bridge" built from `sectionBaseName` — no section rows,
 no edit inputs. Clicking a card calls `openSongDetails(group.id)` (the
 song details/focus page); the page's ← Back to chart exits via
 `closeLibraryGridView()`. Cards follow the sidebar's sort and all
-search/filters (via the same matcher chain as the row list); the flag
+search/filters (via the same matcher chain as the row list) — see the
+follow-up note below, which supersedes the sidebar-visibility and
+control-mirroring details here — the flag
 is **not** persisted — the page resets on reload. The sidebar button
-reads "View: rows" while the page is open and returns to the chart;
+reads "View: rows" while the page is open and returns to the chart —
+amended in the follow-up note below to the explicit "← View: rows"
+exit button in the page header;
 `closeSongDetails()` also clears `libraryGridOpen`/`setlistsViewOpen`
 so any whole-page view exits '>'-handoff-safe. Help and MAINTAINER
-card-view text updated; regression suite now 261 checks (old
-sidebar-grid checks replaced with the page pattern, cards-summarized,
-and card→details-open wiring); MCP 14/14. Verified in-browser below.
+card-view text updated; regression suite now 263 checks (old sidebar-grid checks
+replaced with the page pattern, cards-summarized, and
+card→details-open wiring); MCP 14/14. Verified in-browser below.
+
+**Revision note (2026-10-10 follow-up 2, card page owns the surface):**
+while the card page is open the **sidebar is hidden entirely**
+(`body.lib-grid-open nav.sidebar{ display:none }`, plus the scrim) —
+the row view is not visible beside it. The page carries its own
+**mirrored controls at the top** of `.lib-controls`: the search input
+and the whole `#filtersPanel` are rendered there with the *same DOM
+ids* as the sidebar originals (`sidebarSearch`, `filtersPanel`, pill,
+sort, tag/artist-select ids). `renderSidebar()` early-returns while
+`libraryGridOpen` is true. Because IDs are duplicated,
+`getElementById` handlers would only ever bind the sidebar copy, so
+**all twelve mirrored filter/sort/clear controls are wired via
+delegated `document.addEventListener('click'/'change')` with
+`e.target.closest('#...')`** — a click or change on either copy runs
+the same logic. The visual-state updaters (`updateSortButtons`,
+`updateSongTypeFilterButtons`, `updateReadyFilterButtons`,
+`updateFilterSelects`, `updateFiltersSummary`, and the
+`filtersClearBtn`/`tagFilterClear`/`artistFilterClear` visibility) use
+`querySelectorAll` so both copies stay in sync;
+`syncLibraryGridControls()` (called from `initLibraryGridControls`)
+brings a freshly cloned panel up to date, and `updateFilterSelects`
+now builds the option HTML once and assigns it to every copy. The page
+search's input handler re-runs `renderLibraryGridPage(main)` directly
+for speed; `renderLibraryGridPage` removes any previous `.lib-page`
+first, so re-renders never stack. The page's exit button is labeled
+**"← View: rows"** (`exitLibraryGridViewToRows()`), and the sidebar's
+"View: cards" button does the reverse — click-to-toggle both ways.
+Opening song details from a card also exits the card page. Filter/sort
+handlers funnel through `afterLibraryGridChange()` before their
+`renderAll()`/`renderSidebar()`, which re-renders the card page when
+it is open. Verified in-browser at 1732×900 and 900×640: sidebar
+hidden, search filters live (`Scarlet` → 1 card, no-match → 0 with the
+hint line), mirrored pills/selects/sort update card counts and both
+summary labels, "← View: rows" restores the rows, "View: cards"
+re-opens the page, card click → song details. Regression 263/263, MCP
+14/14.
 
 ---
 

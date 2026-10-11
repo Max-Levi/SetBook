@@ -1202,11 +1202,18 @@ check('setlist exports name the file after the setlist',
   /const activeSl = setSel && setSel\.value \? findSetlist\(setSel\.value\) : null;/.test(html) && /activeSl && \(activeSl\.name \|\| ''\)\.trim\(\)/.test(html));
 check('dialog Set dropdown wording',
   /Name this setlist:/.test(html) && /Delete the setlist/.test(html) && !/Name this subset:/.test(html));
-// card grid view: a dedicated full-page library view
+// card grid view: a dedicated full-page library view (sidebar hidden)
 check('View: cards opens a full-page library card view (renderMain-hosted, like Setlists)',
-  /function setSidebarGridView\(on\)/.test(html) && /function openLibraryGridView\(/.test(html) &&
+  /function applyLibraryGridChrome\(\)/.test(html) && /function openLibraryGridView\(/.test(html) &&
   /let libraryGridOpen = false;/.test(html) &&
   /if \(libraryGridOpen\)\{\s*renderLibraryGridPage\(main\);\s*return;/.test(html));
+check('card page hides the sidebar and carries mirrored search + filter controls',
+  /body\.lib-grid-open nav\.sidebar\{ display:none; \}/.test(html) &&
+  /initLibraryGridControls/.test(html) &&
+  /nav\.sidebar #filtersPanel/.test(html));
+check('card page exits explicitly back to the row view (View: rows)',
+  /&larr; View: rows/.test(html) && /function exitLibraryGridViewToRows\(\)/.test(html) &&
+  /if \(libraryGridOpen\) return; \/\/ the card page owns the whole surface/.test(html));
 check('library card view is a full-page grid, no sidebar tile CSS left behind',
   /\.lib-page\{/.test(html) && /\.lib-grid\{/.test(html) && /function renderLibraryGridPage\(/.test(html) &&
   !/\.sidebar-list\.grid-view\{/.test(html));

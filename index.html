@@ -1099,7 +1099,12 @@
      "View: cards" opens a dedicated full-page card grid for the whole
      library — one summarized card per song (title, artist, type, ready
      status, section summary). No section rows or edit fields here:
-     clicking a card opens that song's details page. */
+     clicking a card opens that song's details page. While the page is
+     open the sidebar (search, filters, song rows) is hidden entirely —
+     the card page carries its own copy of the search and sort/filter
+     controls at the top. */
+  body.lib-grid-open nav.sidebar{ display:none; }
+  body.lib-grid-open .sidebar-scrim{ display:none; }
   .lib-page{
     max-width:980px; margin:0 auto; padding:28px 24px 80px;
     display:flex; flex-direction:column; gap:20px;
@@ -1108,6 +1113,30 @@
   .lib-head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
   .lib-head-row h2{ font-size:25px; font-weight:700; color:var(--text); margin:0; }
   .lib-count{ font-size:12.5px; color:var(--text-muted); }
+  /* Search + sort/filter row, mirrored from the sidebar's controls.
+     Mirroring the ids keeps every existing handler and summary update
+     working without a second code path. */
+  .lib-controls{
+    border:1px solid var(--border); border-radius:10px; background:var(--panel-2);
+    padding:12px 14px; display:flex; flex-direction:column; gap:10px;
+  }
+  .lib-controls .lib-search{
+    width:100%; background:var(--panel); border:1px solid var(--border); color:var(--text);
+    border-radius:6px; padding:8px 10px; font-size:13px; font-family:inherit;
+    box-sizing:border-box;
+  }
+  .lib-controls .lib-search:focus{ outline:none; border-color:var(--focus-border); }
+  .lib-filters-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%;
+    background:transparent; border:none; border-bottom:1px solid var(--border); border-radius:0;
+    color:var(--text); font-family:inherit; font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.6px; cursor:pointer; text-align:left;
+    padding:4px 2px 8px;
+  }
+  .lib-filters-head:hover .lib-filters-label{ color:var(--gold); }
+  .lib-filters-head .lib-filters-chev{ display:inline-block; transition:transform .15s ease; }
+  .lib-filters-head[aria-expanded="true"] .lib-filters-chev{ transform:rotate(90deg); }
+  .lib-filters-body[hidden]{ display:none; }
   .lib-grid{
     display:grid; grid-template-columns:repeat(auto-fill, minmax(200px,1fr));
     gap:12px; align-content:start;
@@ -2050,7 +2079,7 @@
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
             <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
             <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list opens a full-page grid of cards — one per song, showing its artist, ready status, and a quick summary of its sections. Click a card to open that song's details page; “View: rows” brings the chart editor back.</li>
+            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list opens a full-page grid of cards — one per song, showing its artist, ready status, and a quick summary of its sections. The page has its own search and Sort &amp; Filter controls at the top; the sidebar's song list is hidden while the cards are up. Click a card to open that song's details page; “View: rows” brings the song list back.</li>
             <li><strong>Setlists</strong> (Songs &rarr; Setlists&hellip;): an ordered, labelled song list for a gig. Create one, add songs, <strong>drag rows to reorder</strong>, and add set labels (Set 1, Set 2, Encore&hellip;) that can start before any song. Export PDF… renders the songs in your chosen order with the labels on the contents page.</li>
             <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button — plus a notes field for reminders that never appear in PDFs.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
@@ -3155,17 +3184,31 @@ let searchQuery = '';
 
 /* Library card view: a whole-page grid of one summarized card per song
    (like Setlists, rendered by renderMain). Replaces the old sidebar tile
-   grid — a card click opens that song's details page. */
+   grid — a card click opens that song's details page. While the page is
+   open the sidebar is hidden entirely (body.lib-grid-open); the page
+   carries its own mirrored search + sort/filter controls, and lenient
+   handlers first clear the flag so row-view code can never corrupt the
+   hidden sidebar. Exiting via "View: rows" returns to the row view. */
 let libraryGridOpen = false;
+function applyLibraryGridChrome(){
+  document.body.classList.toggle('lib-grid-open', libraryGridOpen);
+}
 function openLibraryGridView(){
   detailsGroupId = null; detailsReturn = null;
   setlistsViewOpen = false;
   libraryGridOpen = true;
+  applyLibraryGridChrome();
   renderAll();
-  closeSidebarAfterNavigate();
+  window.scrollTo(0, 0);
 }
 function closeLibraryGridView(){
   libraryGridOpen = false;
+  applyLibraryGridChrome();
+}
+function exitLibraryGridViewToRows(){
+  if (!libraryGridOpen) return;
+  libraryGridOpen = false;
+  applyLibraryGridChrome();
   renderAll();
 }
 
@@ -3291,41 +3334,79 @@ function renderSetlistGrid(page){
 }
 
 /* Library card view page: one summarized card per song — title, artist,
-   type, ready status, and a plain-text section summary. Clicking a card
-   opens that song's details page (the song focus view). Sorted by the
-   sidebar's current sort setting. */
+   type, ready status, and a plain-text section summary. The sidebar is
+   hidden while the page is open, so the page mirrors the sidebar's
+   search + sort/filter controls at the top (same ids → same handlers).
+   Clicking a card opens that song's details page (the song focus view). */
 function renderLibraryGridPage(main){
+  // The page can be re-rendered directly (search typing, filter clicks on the
+  // mirrored panel) without a full renderMain(), so drop any previous copy
+  // of this page before appending the fresh one.
+  main.querySelectorAll('.lib-page').forEach(p => p.remove());
   const page = document.createElement('div');
   page.className = 'lib-page';
 
-  const backBtn = document.createElement('button');
-  backBtn.type = 'button';
-  backBtn.className = 'ghost small sdp-back';
-  backBtn.innerHTML = '&larr; Back to chart';
-  backBtn.addEventListener('click', closeLibraryGridView);
-  page.appendChild(backBtn);
+  const exitBtn = document.createElement('button');
+  exitBtn.type = 'button';
+  exitBtn.className = 'ghost small sdp-back';
+  exitBtn.innerHTML = '&larr; View: rows';
+  exitBtn.title = 'Return to the song list in the sidebar';
+  exitBtn.addEventListener('click', exitLibraryGridViewToRows);
+  page.appendChild(exitBtn);
+
+  const headRow = document.createElement('div');
+  headRow.className = 'lib-head-row';
+  const h2 = document.createElement('h2');
+  h2.textContent = 'Songs';
+  headRow.appendChild(h2);
+  page.appendChild(headRow);
+
+  // --- Controls: the sidebar's search + sort/filter, mirrored by id ---
+  // reWrites are appended before the grid so focus order is natural.
+  const controls = document.createElement('div');
+  controls.className = 'lib-controls';
+  const search = document.createElement('input');
+  search.id = 'sidebarSearch';
+  search.type = 'text';
+  search.className = 'lib-search';
+  search.placeholder = 'Search lyrics, chords, sections…';
+  search.value = searchQuery;
+  controls.appendChild(search);
+
+  const fHead = document.createElement('button');
+  fHead.type = 'button';
+  fHead.className = 'lib-filters-head';
+  fHead.setAttribute('aria-expanded', 'false');
+  fHead.setAttribute('aria-controls', 'filtersPanel');
+  fHead.innerHTML = `<span class="lib-filters-label">Sort &amp; Filter</span>` +
+    `<span class="lib-filters-label" id="filtersSummary"></span>` +
+    `<span class="lib-filters-chev">▸</span>`;
+  controls.appendChild(fHead);
+  const fBody = document.createElement('div');
+  fBody.id = 'filtersPanel';
+  fBody.className = 'lib-filters-body';
+  fBody.hidden = true;
+  controls.appendChild(fBody);
+  page.appendChild(controls);
 
   const songs = sortedSongGroups()
     .filter(matchesSongTypeFilter).filter(matchesReadyFilter)
     .filter(matchesTagFilter).filter(matchesArtistFilter)
     .filter(g => !searchQuery.trim() || searchSections(searchQuery).some(r => r.group.id === g.id));
 
-  const headRow = document.createElement('div');
-  headRow.className = 'lib-head-row';
-  const h2 = document.createElement('h2');
-  h2.textContent = 'Songs';
-  const count = document.createElement('span');
-  count.className = 'lib-count';
-  count.textContent = `${songs.length} song${songs.length === 1 ? '' : 's'}`;
-  headRow.append(h2, count);
-  page.appendChild(headRow);
+  if (songs.length){
+    const count = document.createElement('span');
+    count.className = 'lib-count';
+    count.textContent = `${songs.length} song${songs.length === 1 ? '' : 's'}`;
+    headRow.appendChild(count);
+  }
 
   const grid = document.createElement('div');
   grid.className = 'lib-grid';
   if (!songs.length){
     const empty = document.createElement('div');
     empty.className = 'sl-empty-hint';
-    empty.textContent = 'No songs match the current search and filters — adjust them in the sidebar and try again.';
+    empty.textContent = 'No songs match the current search and filters — adjust them above and try again.';
     grid.appendChild(empty);
   }
   songs.forEach(group => {
@@ -3358,6 +3439,46 @@ function renderLibraryGridPage(main){
   });
   page.appendChild(grid);
   main.appendChild(page);
+  initLibraryGridControls(fHead, fBody, search);
+}
+
+/* Wire the mirrored controls: #filtersPanel's nodes are cloned into the
+   page so the card page shows the identical Sort & Filter panel. The
+   clones reuse the sidebar ids and are driven by the same DELEGATED
+   document-level handlers (see above) — no separate wiring needed. A
+   fresh mirrored panel starts closed, independent of the sidebar's. */
+function initLibraryGridControls(fHead, fBody, search){
+  const proto = document.querySelector('nav.sidebar #filtersPanel');
+  if (proto){
+    [...proto.children].forEach(child => fBody.appendChild(child.cloneNode(true)));
+  }
+  // A fresh mirrored panel starts closed, independent of the sidebar's note.
+  fBody.hidden = true;
+  fHead.addEventListener('click', () => {
+    const willOpen = fBody.hidden;
+    fBody.hidden = !willOpen;
+    fHead.setAttribute('aria-expanded', String(willOpen));
+  });
+  search.addEventListener('input', (e) => {
+    searchQuery = e.target.value;
+    renderLibraryGridPage(document.getElementById('main'));
+  });
+  preventAutoReplace(search);
+  // Bring the fresh clone's pill/select/summary state up to date — the
+  // sidebar copies were synced before this page existed.
+  syncLibraryGridControls();
+}
+
+/* Mirror visual state onto every copy of the filter controls (sidebar +
+   card page). Called after each card-page render so the fresh clone shows
+   the same active pills, dropdown selections, ✕ buttons, and summary line
+   as the hidden sidebar panel. */
+function syncLibraryGridControls(){
+  updateSongTypeFilterButtons();
+  updateReadyFilterButtons();
+  updateSortButtons();
+  updateFilterSelects();
+  updateFiltersSummary();
 }
 
 function renderSetlistBuilder(page, sl){
@@ -3897,37 +4018,33 @@ function persistSongSort(){
 }
 
 function updateSortButtons(){
-  const titleBtn = document.getElementById('sortByTitleBtn');
-  const artistBtn = document.getElementById('sortByArtistBtn');
-  titleBtn.classList.toggle('active', songSortField === 'title');
-  artistBtn.classList.toggle('active', songSortField === 'artist');
-  document.getElementById('titleChev').textContent = songSortField === 'title' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
-  document.getElementById('artistChev').textContent = songSortField === 'artist' ? (songSortDir === 'asc' ? '▲' : '▼') : '';
+  // Both copies (sidebar + card-page clone) reflect the current sort.
+  document.querySelectorAll('#sortByTitleBtn').forEach(btn => btn.classList.toggle('active', songSortField === 'title'));
+  document.querySelectorAll('#sortByArtistBtn').forEach(btn => btn.classList.toggle('active', songSortField === 'artist'));
+  document.querySelectorAll('#titleChev').forEach(chev => chev.textContent = songSortField === 'title' ? (songSortDir === 'asc' ? '▲' : '▼') : '');
+  document.querySelectorAll('#artistChev').forEach(chev => chev.textContent = songSortField === 'artist' ? (songSortDir === 'asc' ? '▲' : '▼') : '');
 }
 
 /* Library card view: "View: cards" in the sidebar opens the dedicated
-   full-page card grid (rendered by renderMain like Setlists); the button
-   then reads "View: rows" to return to the chart editor. The flag is NOT
+   full-page card grid (rendered by renderMain like Setlists), which hides
+   the sidebar entirely; the page's own "View: rows" exit returns to the
+   chart editor with the row list visible again. The flag is NOT
    persisted — reopen the page with the button whenever you want it. */
-let sidebarGridView = false;
 function applySidebarGridView(){
   const btn = document.getElementById('listViewToggle');
-  if (btn){
-    btn.textContent = libraryGridOpen ? 'View: rows' : 'View: cards';
-    btn.setAttribute('aria-pressed', String(libraryGridOpen));
-    btn.title = libraryGridOpen ? 'Back to the chart editor' : 'Open the full-page card grid of songs';
+  if (btn && !libraryGridOpen){
+    btn.textContent = 'View: cards';
+    btn.setAttribute('aria-pressed', 'false');
+    btn.title = 'Open the full-page card grid of songs';
   }
-}
-function setSidebarGridView(on){
-  if (on) openLibraryGridView();
-  else closeLibraryGridView();
 }
 
 function updateSongTypeFilterButtons(){
+  // Both copies (sidebar + card-page clone) reflect the current filter.
   const filter = state.songTypeFilter || { cover:true, original:true };
-  document.getElementById('filterCoverBtn').classList.toggle('active', !!filter.cover);
-  document.getElementById('filterOriginalBtn').classList.toggle('active', !!filter.original);
-  document.getElementById('filterAllTypesBtn').classList.toggle('active', !!filter.cover && !!filter.original);
+  document.querySelectorAll('#filterCoverBtn').forEach(btn => btn.classList.toggle('active', !!filter.cover));
+  document.querySelectorAll('#filterOriginalBtn').forEach(btn => btn.classList.toggle('active', !!filter.original));
+  document.querySelectorAll('#filterAllTypesBtn').forEach(btn => btn.classList.toggle('active', !!filter.cover && !!filter.original));
 }
 
 // Expand all / Collapse all reflect the current expansion state, like the
@@ -3942,94 +4059,135 @@ function updateExpandCollapseButtons(){
   document.getElementById('collapseAllBtn').classList.toggle('active', allCollapsed);
 }
 
-document.getElementById('filterCoverBtn').addEventListener('click', () => {
-  state.songTypeFilter.cover = !state.songTypeFilter.cover;
-  updateSongTypeFilterButtons();
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+/* Mirrored-control wiring: the filter/sort buttons exist in TWO places
+   (the sidebar's panel and the clone on the card page), so plain
+   getElementById listeners would only ever bind one of them. These are
+   delegated at document level instead — an actual click or change on
+   either copy runs the same logic. e.target.closest() keeps chevrons
+   and option labels inside a button working. */
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterCoverBtn');
+  if (btn){
+    state.songTypeFilter.cover = !state.songTypeFilter.cover;
+    updateSongTypeFilterButtons();
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
-document.getElementById('filterOriginalBtn').addEventListener('click', () => {
-  state.songTypeFilter.original = !state.songTypeFilter.original;
-  updateSongTypeFilterButtons();
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterOriginalBtn');
+  if (btn){
+    state.songTypeFilter.original = !state.songTypeFilter.original;
+    updateSongTypeFilterButtons();
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
 /* "All" is the escape hatch when both pills in a group are off: one tap
    turns the pair back on. Its active state mirrors "both on". */
-document.getElementById('filterAllTypesBtn').addEventListener('click', () => {
-  state.songTypeFilter.cover = true;
-  state.songTypeFilter.original = true;
-  updateSongTypeFilterButtons();
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterAllTypesBtn');
+  if (btn){
+    state.songTypeFilter.cover = true;
+    state.songTypeFilter.original = true;
+    updateSongTypeFilterButtons();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
 
 function updateReadyFilterButtons(){
+  // Both copies (sidebar + card-page clone) reflect the current filter.
   const filter = state.readyFilter || { ready:true, notReady:true, inProgress:true };
-  document.getElementById('filterReadyBtn').classList.toggle('active', filter.ready !== false);
+  document.querySelectorAll('#filterReadyBtn').forEach(btn => btn.classList.toggle('active', filter.ready !== false));
   document.getElementById('filterInProgressBtn').classList.toggle('active', filter.inProgress !== false);
   document.getElementById('filterNotReadyBtn').classList.toggle('active', filter.notReady !== false);
   document.getElementById('filterAllReadyBtn').classList.toggle('active',
     filter.ready !== false && filter.inProgress !== false && filter.notReady !== false);
 }
 
-document.getElementById('filterReadyBtn').addEventListener('click', () => {
-  state.readyFilter.ready = !state.readyFilter.ready;
-  updateReadyFilterButtons();
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterReadyBtn');
+  if (btn){
+    state.readyFilter.ready = !state.readyFilter.ready;
+    updateReadyFilterButtons();
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
-document.getElementById('filterInProgressBtn').addEventListener('click', () => {
-  state.readyFilter.inProgress = state.readyFilter.inProgress === false;
-  updateReadyFilterButtons();
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterInProgressBtn');
+  if (btn){
+    state.readyFilter.inProgress = state.readyFilter.inProgress === false;
+    updateReadyFilterButtons();
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
-document.getElementById('filterNotReadyBtn').addEventListener('click', () => {
-  state.readyFilter.notReady = !state.readyFilter.notReady;
-  updateReadyFilterButtons();
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterNotReadyBtn');
+  if (btn){
+    state.readyFilter.notReady = !state.readyFilter.notReady;
+    updateReadyFilterButtons();
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
-document.getElementById('filterAllReadyBtn').addEventListener('click', () => {
-  state.readyFilter.ready = true;
-  state.readyFilter.inProgress = true;
-  state.readyFilter.notReady = true;
-  updateReadyFilterButtons();
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filterAllReadyBtn');
+  if (btn){
+    state.readyFilter.ready = true;
+    state.readyFilter.inProgress = true;
+    state.readyFilter.notReady = true;
+    updateReadyFilterButtons();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
 
 // Tag and artist pickers. Options are rebuilt from the library on every
 // sidebar render (tags/artists can appear, disappear, or be renamed at any
 // time); a selection that no longer exists falls back to "All".
 function updateFilterSelects(){
-  const tagSel = document.getElementById('tagFilterSelect');
-  const artistSel = document.getElementById('artistFilterSelect');
-  if (!tagSel || !artistSel) return;
+  // Both copies (sidebar + card-page clone) get the same option lists.
+  const tagSels = document.querySelectorAll('#tagFilterSelect');
+  const artistSels = document.querySelectorAll('#artistFilterSelect');
   const tags = allTags();
   if (state.tagFilter && !tags.some(t => t.tag.toLowerCase() === String(state.tagFilter).toLowerCase())) state.tagFilter = '';
   const tagWant = String(state.tagFilter || '').toLowerCase();
-  tagSel.innerHTML = '<option value="">All tags</option>' + tags.map(t =>
+  const tagOptions = '<option value="">All tags</option>' + tags.map(t =>
     `<option value="${escapeAttr(t.tag)}"${t.tag.toLowerCase() === tagWant ? ' selected' : ''}>${escapeHtml(t.tag)} (${t.count})</option>`
   ).join('');
   const artists = allArtists();
   if (state.artistFilter && !artists.some(a => a.artist.toLowerCase() === String(state.artistFilter).toLowerCase())) state.artistFilter = '';
   const artistWant = String(state.artistFilter || '').toLowerCase();
-  artistSel.innerHTML = '<option value="">All artists</option>' + artists.map(a =>
+  const artistOptions = '<option value="">All artists</option>' + artists.map(a =>
     `<option value="${escapeAttr(a.artist)}"${a.artist.toLowerCase() === artistWant ? ' selected' : ''}>${escapeHtml(a.artist)} (${a.count})</option>`
   ).join('');
+  tagSels.forEach(tagSel => { tagSel.innerHTML = tagOptions; });
+  artistSels.forEach(artistSel => { artistSel.innerHTML = artistOptions; });
 }
-document.getElementById('tagFilterSelect').addEventListener('change', e => {
-  state.tagFilter = e.target.value;
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+document.addEventListener('change', e => {
+  const sel = e.target.closest('#tagFilterSelect');
+  if (sel){
+    state.tagFilter = sel.value;
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
 
 // Collapsible Sort & Filter row. Sort, Show, and the tag/artist pickers live
@@ -4070,6 +4228,8 @@ function updateFiltersSummary(){
     parts.push('Sort: ' + (songSortField === 'artist' ? 'Artist' : 'Title') + ' ' + (songSortDir === 'asc' ? 'A–Z' : 'Z–A'));
   const el = document.getElementById('filtersSummary');
   if (el) el.textContent = parts.join(' · ');
+  // Both copies (sidebar + card-page clone) show the same summary.
+  document.querySelectorAll('#filtersSummary').forEach(node => node.textContent = parts.join(' · '));
   // The Clear all button appears whenever something is narrowing the song
   // list — a dropdown filter, a type/ready pill, or search text — whether the
   // panel is open or closed. Each dropdown also gets its own ✕ clear button
@@ -4081,44 +4241,64 @@ function updateFiltersSummary(){
     || (typeof searchQuery === 'string' && searchQuery.trim());
   const clearBtn = document.getElementById('filtersClearBtn');
   if (clearBtn) clearBtn.hidden = !narrowing;
+  document.querySelectorAll('#filtersClearBtn').forEach(btn => btn.hidden = !narrowing);
   const tagX = document.getElementById('tagFilterClear');
   if (tagX) tagX.hidden = !state.tagFilter;
+  document.querySelectorAll('#tagFilterClear').forEach(btn => btn.hidden = !state.tagFilter);
   const artistX = document.getElementById('artistFilterClear');
   if (artistX) artistX.hidden = !state.artistFilter;
+  document.querySelectorAll('#artistFilterClear').forEach(btn => btn.hidden = !state.artistFilter);
 }
 
-document.getElementById('filtersToggle').addEventListener('click', () => {
-  filtersPanelOpen = !filtersPanelOpen;
-  try { localStorage.setItem(FILTERS_PANEL_KEY, filtersPanelOpen ? '1' : '0'); } catch(_){}
-  updateFiltersPanel();
-  updateFiltersSummary(); // refresh the Clear button visibility for the new state
+// The mirrored filter/sort controls on the card page share DOM ids with
+// the sidebar originals (getElementById resolves to the sidebar copy).
+// Their click/change handlers are therefore DELEGATED at document level
+// — fire for either copy, funnel through here, and end with refreshes
+// for both surfaces.
+function afterLibraryGridChange(){
+  if (libraryGridOpen) renderLibraryGridPage(document.getElementById('main'));
+}
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#filtersClearBtn');
+  if (btn){
+    state.tagFilter = '';
+    state.artistFilter = '';
+    state.songTypeFilter = { cover: true, original: true };
+    state.readyFilter = { ready: true, notReady: true };
+    searchQuery = '';
+    document.querySelectorAll('#sidebarSearch').forEach(input => { input.value = ''; });
+    scheduleSave();
+    afterLibraryGridChange(); // refresh the card grid when it's open, sidebar otherwise
+    renderAll();
+  }
 });
-document.getElementById('filtersClearBtn').addEventListener('click', () => {
-  state.tagFilter = '';
-  state.artistFilter = '';
-  state.songTypeFilter = { cover: true, original: true };
-  state.readyFilter = { ready: true, notReady: true };
-  searchQuery = '';
-  const searchInput = document.getElementById('sidebarSearch');
-  if (searchInput) searchInput.value = '';
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#tagFilterClear');
+  if (btn){
+    state.tagFilter = '';
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
-document.getElementById('tagFilterClear').addEventListener('click', () => {
-  state.tagFilter = '';
-  scheduleSave();
-  renderAll();
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#artistFilterClear');
+  if (btn){
+    state.artistFilter = '';
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
-document.getElementById('artistFilterClear').addEventListener('click', () => {
-  state.artistFilter = '';
-  scheduleSave();
-  renderAll();
-});
-document.getElementById('artistFilterSelect').addEventListener('change', e => {
-  state.artistFilter = e.target.value;
-  closeOpenSongIfFilteredOut();
-  scheduleSave();
-  renderAll();
+document.addEventListener('change', e => {
+  const sel = e.target.closest('#artistFilterSelect');
+  if (sel){
+    state.artistFilter = sel.value;
+    closeOpenSongIfFilteredOut();
+    scheduleSave();
+    afterLibraryGridChange();
+    renderAll();
+  }
 });
 
 function searchSections(query){
@@ -4187,12 +4367,13 @@ function openSongDetails(gid){
   if (detailsGroupId !== gid) detailsReturn = { groupId: selectedGroupId, sectionId: selectedSectionId };
   detailsGroupId = gid;
   selectedGroupId = gid;
+  // Opening a song detail hides the card page for good (back goes to chart)
+  exitLibraryGridViewToRows();
   renderAll();
   closeSidebarAfterNavigate();
 }
 function closeSongDetails(){
   detailsGroupId = null;
-  libraryGridOpen = false; setlistsViewOpen = false; // leaving via '← Back to chart' closes any whole-page view
   if (detailsReturn){
     selectedGroupId = detailsReturn.groupId;
     selectedSectionId = detailsReturn.sectionId;
@@ -4510,6 +4691,7 @@ function updateArtistSummary(scopeEl, group){
 }
 
 function renderSidebar(){
+  if (libraryGridOpen) return; // the card page owns the whole surface; rows must be untouched
   updateFilterSelects();
   updateFiltersSummary();
   const el = document.getElementById('sidebarList');
@@ -4531,7 +4713,6 @@ function renderSidebar(){
   }
 
   if (searchQuery.trim()){
-    if (libraryGridOpen) return; // the page needs no sidebar rows
     renderSearchResults(el);
     return;
   }
@@ -4866,33 +5047,42 @@ function updateArtistDatalist(){
 
 document.getElementById('sidebarSearch').addEventListener('input', (e) => {
   searchQuery = e.target.value;
-  if (libraryGridOpen) renderMain(); // keep the card grid's filter live
+  if (libraryGridOpen) return; // the sidebar field is hidden while cards are open; the page has its own
   renderSidebar();
 });
 preventAutoReplace(document.getElementById('sidebarSearch'));
 
-document.getElementById('sortByTitleBtn').addEventListener('click', () => {
-  if (songSortField === 'title'){
-    songSortDir = songSortDir === 'asc' ? 'desc' : 'asc';
-  } else {
-    songSortField = 'title';
-    songSortDir = 'asc';
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#sortByTitleBtn');
+  if (btn){
+    if (songSortField === 'title'){
+      songSortDir = songSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      songSortField = 'title';
+      songSortDir = 'asc';
+    }
+    persistSongSort();
+    afterLibraryGridChange();
+    renderSidebar();
   }
-  persistSongSort();
-  renderSidebar();
 });
-document.getElementById('sortByArtistBtn').addEventListener('click', () => {
-  if (songSortField === 'artist'){
-    songSortDir = songSortDir === 'asc' ? 'desc' : 'asc';
-  } else {
-    songSortField = 'artist';
-    songSortDir = 'asc';
+document.addEventListener('click', e => {
+  const btn = e.target.closest('#sortByArtistBtn');
+  if (btn){
+    if (songSortField === 'artist'){
+      songSortDir = songSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      songSortField = 'artist';
+      songSortDir = 'asc';
+    }
+    persistSongSort();
+    afterLibraryGridChange();
+    renderSidebar();
   }
-  persistSongSort();
-  renderSidebar();
 });
 document.getElementById('listViewToggle').addEventListener('click', () => {
-  if (libraryGridOpen) closeLibraryGridView(); else openLibraryGridView();
+  if (libraryGridOpen){ exitLibraryGridViewToRows(); return; }
+  openLibraryGridView();
 });
 document.getElementById('expandAllBtn').addEventListener('click', () => {
   expandedGroups = new Set(state.sectionGroups.map(g => g.id));
