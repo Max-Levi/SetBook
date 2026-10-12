@@ -816,6 +816,19 @@ song-preview context hides `#pdfTuningColumns` entirely (as before) and
 clears the class. Regression 277/277, MCP 14/14, all inline scripts
 parse; verified in-browser at 1620×1245 in both contexts.
 
+**Revision note (2026-10-12, Setlists page left-justified):** same fix
+as the song details page — the Setlists page was a centered 980px column
+(`.setlists-page{ max-width:980px; margin:0 auto }`) while the section
+editor and song details pages already start flush at main's left edge.
+Swapped the centered-column rule for `padding:0 0 80px` (keeping the
+column flex + gap), so the Setlists content left edge is now exactly the
+section editor's (302px at a 1620-wide window). Main's own padding
+provides the side edges, as with the details page. The mobile media
+query override (`.setlists-page{ padding:18px 14px 80px }`) is untouched.
+The library card page (`.lib-page`) still keeps its centered 980px
+column — not part of this change. Regression 277/277, MCP 14/14,
+scripts parse; verified in-browser: `.setlists-page` content left = 302px.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
