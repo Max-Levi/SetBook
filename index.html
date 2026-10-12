@@ -541,9 +541,15 @@
      otherwise stretch full width) */
   .pdf-page .sdp-back{ align-self:flex-start; width:auto; flex:0 0 auto; }
   /* Equal heights across the controls row: pills, selects, and buttons
-     share one 38px box regardless of font size. */
+     share one 38px box regardless of font size. The global .mode-toggle
+     margin-bottom:20px ALSO applies to the pill wrappers here — it made
+     the wrapper's margin box 58px tall, so align-items:center then
+     dropped the zero-margin select and Fullscreen button 10px below the
+     pills (a real top-offset mismatch, not a height mismatch). The
+     wrapper margins go to zero too. */
   #pdfModalOverlay .pdf-preview-controls{ align-items:center; margin:2px 0 10px; }
   #pdfModalOverlay .pdf-preview-controls .mode-btn, #pdfModalOverlay .pdf-preview-controls .modal-select{ min-height:38px; margin-bottom:0; height:38px; }
+  #pdfModalOverlay .pdf-preview-controls .mode-toggle{ margin-bottom:0; }
   /* The select's vertical padding fights height:38 — zero it out so the
      device dropdown is exactly the same height as its pill neighbors. */
   #pdfModalOverlay .pdf-preview-controls .modal-select{ padding-top:0; padding-bottom:0; }

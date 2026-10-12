@@ -1262,7 +1262,8 @@ check('title/sub live in a pdf-head-text block inside the panel',
 check('action bar is a plain flex row, no sticky overlap',
   !/#pdfModalOverlay \.modal-actions\{\s*position:sticky/.test(html));
 check('controls share one fixed height so buttons stop jumping',
-  /#pdfModalOverlay \.pdf-preview-controls \.mode-btn, #pdfModalOverlay \.pdf-preview-controls \.modal-select\{ min-height:38px; margin-bottom:0; height:38px; \}/.test(html));
+  /#pdfModalOverlay \.pdf-preview-controls \.mode-btn, #pdfModalOverlay \.pdf-preview-controls \.modal-select\{ min-height:38px; margin-bottom:0; height:38px; \}/.test(html) &&
+  /#pdfModalOverlay \.pdf-preview-controls \.mode-toggle\{ margin-bottom:0; \}/.test(html));
 check('download is a real primary button, not a bare anchor',
   /<button type="button" class="primary small" id="pvDownloadBtn"/.test(html) &&
   /function triggerPdfDownload\(\)/.test(html));

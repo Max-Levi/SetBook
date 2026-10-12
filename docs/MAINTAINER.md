@@ -769,6 +769,19 @@ Download flow unchanged: `triggerPdfDownload()` mints a fresh blob URL
 controls + real download button, −1 merged redundant-back check), MCP
 14/14, verified in-browser at 1620×1245.
 
+**Revision note (2026-10-11 follow-up 2, controls still misaligned):**
+the 38px fixed heights were right but the select and Fullscreen button
+still sat 10px lower than the pills. The real culprit: the global
+`.mode-toggle{ margin-bottom:20px }` also applies to the pill
+*wrappers* in the controls row — their margin box is 58px (38+20)
+while the select/button's margin box is 38px, so
+`align-items:center` centers the margin boxes and drops the
+zero-margin items by exactly 58−38 = 20 ⇒ 10px visual offset.
+`#pdfModalOverlay .pdf-preview-controls .mode-toggle{ margin-bottom:0 }`
+zeroes the wrapper margins. Verified in-browser (live-site page at
+2005-wide and 1620-wide windows): all five control groups measure
+top=115.5 h=38.0 identically. Regression 277/277, MCP 14/14.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
