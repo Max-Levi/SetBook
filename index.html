@@ -503,7 +503,27 @@
   }
   .pdf-download-link:hover{ background: var(--gold-tint-strong); }
   button.pdf-download-link{ display:block; width:100%; cursor:pointer; font-family:inherit; }
-  /* ---- unified Export PDF modal ---- */
+  /* Export-context "fine tuning": the Songs checklist + project name are
+     a collapsed accordion so the fitted single-screen page keeps its
+     no-scroll preview. The header shows a live summary of the selection
+     ("5 songs · Great North Band"); expanding pushes content into a
+     scrollable page (overflow returns), so everything stays reachable. */
+  .pdf-tuning-head{
+    display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+    background:transparent; border:none; font-family:inherit; cursor:pointer;
+    padding:4px 2px; color:var(--text); font-size:11px; font-weight:700;
+    text-transform:uppercase; letter-spacing:.6px;
+  }
+  .pdf-tuning-head:hover{ background:var(--hover-bg); border-radius:6px; }
+  .pdf-tuning-head .pdf-tuning-chev{ display:inline-block; color:var(--text-muted); transition:transform .15s ease; font-size:9px; }
+  .pdf-tuning-head[aria-expanded="true"] .pdf-tuning-chev{ transform:rotate(90deg); }
+  .pdf-tuning-summary{ flex:1; min-width:0; font-weight:600; text-transform:none; letter-spacing:0; color:var(--text-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pdf-tuning-body[hidden]{ display:none; }
+  /* When the accordion is open the fitted page grows: the overlay allows
+     scrolling again so the whole panel + preview stay reachable. */
+  #pdfModalOverlay.pdf-page.pdf-tuning-open{ overflow-y:auto; }
+  #pdfModalOverlay.pdf-page.pdf-tuning-open .pdf-preview-viewer{ flex:0 0 auto; min-height:340px; }
+
   .pdf-preview-controls{ display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin:2px 0 12px; }
   .pdf-preview-controls .modal-select{ width:auto; max-width:100%; }
   .pdf-preview-viewer{ position:relative; border:1px solid var(--border); border-radius:10px; overflow:hidden; background:var(--card); margin-top:4px; }
@@ -2312,7 +2332,12 @@
       <button type="button" class="mode-btn" id="pvFullscreenBtn" aria-pressed="false" title="Show the preview fullscreen (Esc leaves fullscreen)">⛶ Fullscreen</button>
     </div>
 
-    <div class="modal-columns">
+    <div class="modal-columns" id="pdfTuningColumns">
+      <div class="pdf-tuning-head" id="pdfTuningHead" aria-expanded="false" aria-controls="pdfTuningBody" role="button" tabindex="0">
+        <span class="pdf-tuning-chev">▸</span>
+        <span class="pdf-tuning-summary" id="pdfTuningSummary">Songs &amp; output</span>
+      </div>
+      <div class="pdf-tuning-body" id="pdfTuningBody" hidden>
       <div class="modal-group">
         <div class="modal-group-label">Songs</div>
         <div class="subset-controls">
@@ -2334,6 +2359,7 @@
         <div class="modal-group-label">Output</div>
         <label class="modal-label" for="pdfProjectName">Project name</label>
         <input id="pdfProjectName" class="modal-input" placeholder="e.g. Great North Band">
+      </div>
       </div>
     </div>
 
@@ -10715,13 +10741,63 @@ function updatePdfModalCopy(){
     title.textContent = songName + ' PDF Preview';
     sub.textContent = g && displayArtists(g) ? displayArtists(g) : '';
     columns.style.display = 'none';
+    pdfModal.classList.remove('pdf-tuning-open'); // preview context: fitted page, no accordion
   } else {
     title.textContent = 'Export PDF';
     sub.textContent = PDF_TYPE_COPY[pdfType].sub;
     columns.style.display = '';
   }
   document.getElementById('pvAppearanceToggle').style.display = pdfType === 'print-friendly' ? 'none' : '';
+  updatePdfTuningSummary();
 }
+
+/* Export-context fine-tuning accordion: Songs checklist + project name
+   collapse to one summary line so the fitted single-screen page keeps
+   its no-scroll preview (same spirit as the song preview page). The
+   summary live-updates with the selection so users can see what the
+   export covers without expanding. Expanding adds .pdf-tuning-open to
+   the page: the overlay scrolls again and the viewer takes a fixed
+   comfortable size instead of "everything left". Closed state is
+   remembered per page-open (module var, not localStorage — always
+   start collapsed so the preview owns the screen). */
+let pdfTuningOpen = false;
+function updatePdfTuningSummary(){
+  const el = document.getElementById('pdfTuningSummary');
+  if (!el || pdfPreviewMode) return;
+  const setSel = document.getElementById('pdfSubsetSelect');
+  const sl = setSel && setSel.value ? findSetlist(setSel.value) : null;
+  const n = pdfSelectedSongIds.size;
+  const names = [];
+  if (sl) names.push(sl.name || 'Setlist');
+  names.push((n === 1 ? '1 song' : n + ' songs'));
+  const proj = (document.getElementById('pdfProjectName').value || '').trim();
+  if (proj) names.push(proj);
+  el.textContent = names.join(' · ') || 'Songs & output';
+}
+function setPdfTuningOpen(open){
+  pdfTuningOpen = !!open;
+  const body = document.getElementById('pdfTuningBody');
+  const head = document.getElementById('pdfTuningHead');
+  body.hidden = !pdfTuningOpen;
+  head.setAttribute('aria-expanded', String(pdfTuningOpen));
+  pdfModal.classList.toggle('pdf-tuning-open', pdfTuningOpen);
+  if (pdfTuningOpen){
+    // Let the reflow land, then re-fit the strip pages to the resized viewer.
+    pvFitViewerHeight();
+  } else {
+    // Collapsing back: the overlay is overflow:hidden again; reset any
+    // scroll from the expanded state so the header stays visible.
+    pdfModal.scrollTop = 0;
+    pvFitViewerHeight();
+  }
+}
+document.getElementById('pdfTuningHead').addEventListener('click', () => {
+  setPdfTuningOpen(!pdfTuningOpen);
+});
+// Keyboard: the head is a role=button — Enter/Space toggle.
+document.getElementById('pdfTuningHead').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); setPdfTuningOpen(!pdfTuningOpen); }
+});
 
 function syncPdfControls(){
   document.querySelectorAll('#pvTypeToggle .mode-btn').forEach(b => b.classList.toggle('active', b.dataset.pvtype === pdfType));
@@ -10746,6 +10822,9 @@ function preparePdfModal(songIds, asPreview, pendingSetlistId){
   document.getElementById('pdfDeleteSubsetBtn').style.display = setSel.value ? '' : 'none';
   renderPdfSongChecklist();
   syncPdfControls();
+  // Export context always starts collapsed: the preview owns the screen;
+  // the Songs/output accordion is one tap away.
+  if (!asPreview) setPdfTuningOpen(false);
   updatePdfModalCopy();
 }
 
@@ -10782,6 +10861,7 @@ function renderPdfSongChecklist(){
       else pdfSelectedSongIds.delete(group.id);
       document.getElementById('pdfSubsetSelect').value = '';
       document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+      updatePdfTuningSummary();
       schedulePdfRender();
     });
     list.appendChild(row);
@@ -10807,8 +10887,11 @@ document.getElementById('pdfSubsetSelect').addEventListener('change', (e) => {
   }
   renderPdfSongChecklist();
   document.getElementById('pdfDeleteSubsetBtn').style.display = id ? '' : 'none';
+  updatePdfTuningSummary();
   schedulePdfRender();
 });
+
+// Bulk song selection for the PDF checklist. Like a manual checkbox change,
 
 // Bulk song selection for the PDF checklist. Like a manual checkbox change,
 // these reset the subset dropdown so the selection is clearly manual.
@@ -10817,6 +10900,7 @@ function applyPdfChecklistSelection(ids){
   renderPdfSongChecklist();
   document.getElementById('pdfSubsetSelect').value = '';
   document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+  updatePdfTuningSummary();
   schedulePdfRender();
 }
 document.getElementById('pdfSelectAllBtn').addEventListener('click', () => {
@@ -10852,6 +10936,7 @@ document.getElementById('pdfSaveSubsetBtn').addEventListener('click', (e) => {
     populateSubsetSelect();
     document.getElementById('pdfSubsetSelect').value = targetId;
     document.getElementById('pdfDeleteSubsetBtn').style.display = '';
+    updatePdfTuningSummary();
     schedulePdfRender();
   });
 });
@@ -10868,6 +10953,7 @@ document.getElementById('pdfDeleteSubsetBtn').addEventListener('click', (e) => {
     populateSubsetSelect();
     sel.value = '';
     document.getElementById('pdfDeleteSubsetBtn').style.display = 'none';
+    updatePdfTuningSummary();
     schedulePdfRender();
   });
 });
@@ -10875,6 +10961,7 @@ document.getElementById('pdfDeleteSubsetBtn').addEventListener('click', (e) => {
 pdfProjectNameInput.addEventListener('input', (e) => {
   state.projectName = e.target.value;
   scheduleSave();
+  updatePdfTuningSummary();
   schedulePdfRender(); // the download filename comes from the rendered PDF
 });
 preventAutoReplace(pdfProjectNameInput);

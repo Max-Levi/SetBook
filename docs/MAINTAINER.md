@@ -793,6 +793,29 @@ edge (302px) is exactly the section editor's content left edge. The
 "extra padding" the user asked about — with the centered column gone,
 the page sits flush. Regression 277/277, MCP 14/14.
 
+**Revision note (2026-10-12, Export-context fine-tuning accordion):**
+the redesigned fitted single-screen page trapped the Export context:
+the Songs checklist + project name block (`.modal-columns`, ~230px)
+droppped the action bar below the fold and `overflow:hidden` made it
+unreachable — no scroll to the export buttons. Fix, using the accordion
+the user suggested: in Export context those two groups collapse into a
+**fine-tuning accordion** (`.pdf-tuning-head`/`.pdf-tuning-body` inside
+`#pdfTuningColumns`, wrapped in a `<div class="pdf-tuning-body">` that
+carries the original markup untouched) whose header is a live summary —
+setlist name if any, song count, project name ("4 songs · Great North
+Band"), updated by `updatePdfTuningSummary()` from every selection/
+subset/save/bulk/project-name path. `setPdfTuningOpen()` (click or
+Enter/Space on the role=button head) toggles; **expanding** adds
+`.pdf-tuning-open` to the overlay, which restores `overflow-y:auto` and
+fixes the viewer to a comfortable `flex:0 0 auto; min-height:340px`, so
+all selection controls + the bar fit on screen (verified: everything
+reachable with zero scroll at 1620×1245); **collapsing** resets scroll
+to 0 and re-fits the strip pages (`pvFitViewerHeight` on both paths).
+Export opens always start collapsed (`preparePdfModal`); the focused
+song-preview context hides `#pdfTuningColumns` entirely (as before) and
+clears the class. Regression 277/277, MCP 14/14, all inline scripts
+parse; verified in-browser at 1620×1245 in both contexts.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
