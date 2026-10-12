@@ -1003,9 +1003,11 @@
     color: var(--text-muted); font-size:11px; line-height:1.35; overflow-wrap:break-word;
   }
   /* Song details page: dedicated full-page view for song-level data,
-     opened from the song card's details icon. */
+     opened from the song card's details icon. Left-justified like the
+     section editor beside it: content starts at main's left padding edge
+     and runs the available width — no centered column. */
   .song-details-page{
-    max-width:680px; margin:0 auto; padding:28px 24px 80px;
+    padding:0 0 80px;
     display:flex; flex-direction:column; gap:20px;
   }
   .song-details-page .sdp-back{ align-self:flex-start; }

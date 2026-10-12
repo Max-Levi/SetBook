@@ -782,6 +782,17 @@ zeroes the wrapper margins. Verified in-browser (live-site page at
 2005-wide and 1620-wide windows): all five control groups measure
 top=115.5 h=38.0 identically. Regression 277/277, MCP 14/14.
 
+**Revision note (2026-10-12, song details page left-justified):** the
+song details page was a centered 680px column
+(`.song-details-page{ max-width:680px; margin:0 auto }`) — user asked
+for it to start at the left edge like the section editor. The page now
+spans main's full content width (padding 0; main's own `24px 32px 60px`
+padding provides the edges), and measured in-browser its content left
+edge (302px) is exactly the section editor's content left edge. The
+`main` padding that the old centered offset used to add to is the
+"extra padding" the user asked about — with the centered column gone,
+the page sits flush. Regression 277/277, MCP 14/14.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
