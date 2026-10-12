@@ -1109,16 +1109,16 @@ check('exporter is a dedicated page hiding the editor while open',
 check('every entry point funnels through openPdfPage',
   /pdfPendingPreviewMode = true;/.test(html) && /openPdfPage\(\);/.test(html) &&
   /preparePdfModal\(sel, asPreview, pendingSl\)/.test(html));
-check('page scrolls normally; viewer is a real 54vh-min box',
-  /#pdfModalOverlay\.pdf-page:not\(\[hidden\]\)\{[^}]*overflow-y:auto/.test(html) &&
-  /#pdfModalOverlay \.pdf-preview-viewer\{ flex:0 0 auto; height:54vh; min-height:340px; \}/.test(html));
+check('page is a fitted single screen; viewer flexes to remaining space',
+  /#pdfModalOverlay\.pdf-page:not\(\[hidden\]\)\{[^}]*overflow:hidden/.test(html) &&
+  /#pdfModalOverlay \.pdf-preview-viewer\{ flex:1 1 auto; min-height:180px; \}/.test(html));
 check('frame and strip absolutely fill the viewer',
   /#pdfModalOverlay #pvFrame\{ position:absolute; inset:0;/.test(html) &&
   /#pdfModalOverlay #pvStripWrap\{ position:absolute; inset:0;/.test(html));
 check('[hidden] still wins over the absolute fill rules',
   /#pdfModalOverlay #pvFrame\[hidden\], #pdfModalOverlay #pvStripWrap\[hidden\]\{ display:none; \}/.test(html));
 check('fullscreen mode grows the viewer to the whole screen',
-  /#pdfModalOverlay:fullscreen \.pdf-preview-viewer\{\s*flex:1 1 auto; height:auto; min-height:0;/.test(html));
+  /#pdfModalOverlay:fullscreen \.pdf-preview-viewer\{\s*flex:1 1 auto; min-height:0;/.test(html));
 
 // The strip re-fits its pages when the available height changes (window
 // resize, entering/leaving fullscreen) without a full PDF re-render.
@@ -1144,13 +1144,13 @@ check('fullscreen button opts out of the global .mode-btn flex:1',
 // Two contexts sharing one dialog: Export (header button) vs focused PDF
 // preview (song-card icon).
 check('modal title is context-aware (pdfModalTitle)',
-  /id="pdfModalTitle"/.test(html) && /title\.textContent = 'PDF preview'/.test(html) && /title\.textContent = 'Export PDF'/.test(html));
+  /id="pdfModalTitle"/.test(html) && /title\.textContent = songName \+ ' PDF Preview'/.test(html) && /title\.textContent = 'Export PDF'/.test(html));
 check('preview context hides the songs/output columns',
   /columns\.style\.display = 'none'/.test(html));
 check('song-card entry point requests preview context',
   /pdfPendingPreviewMode = true;/.test(html) && /preparePdfModal\(sel, asPreview, pendingSl\)/.test(html));
 check('preview context names the song in the subtitle',
-  /sub\.textContent = g \? \(g\.name \|\| 'Untitled Song'\) \+ \(displayArtists\(g\)/.test(html));
+  /sub\.textContent = g && displayArtists\(g\) \? displayArtists\(g\) : ''/.test(html));
 
 // URL-import error box: always offer both the scraper and manual paste.
 check('scraper-and-paste copy is present',
@@ -1252,6 +1252,37 @@ check('MCP song-tools imports and exports setlist helpers',
   (() => { try { const s = require('fs').readFileSync(path.join(ROOT, 'setbook-mcp', 'song-tools.mjs'), 'utf8'); return s.includes('export function listSetlists') && s.includes('export function upsertSetlist') && s.includes('export function generateSetlist') && s.includes('export function deleteSetlist'); } catch(e){ return false; } })());
 check('legacy subset wording retired from Save flow',
   !/Name this subset/.test(html));
+// Design-header + no-stick page: back button in its own row, title in the
+// panel's header block, sticky action bar gone, equal-height controls.
+suite('pdf-page-redesign');
+check('page has a dedicated header row for the back button',
+  /<div class="pdf-head-row">\s*<button type="button" class="ghost small sdp-back" id="pdfPageBackBtn">/.test(html));
+check('title/sub live in a pdf-head-text block inside the panel',
+  /<div class="pdf-head-text">\s*<h2 id="pdfModalTitle">/.test(html));
+check('action bar is a plain flex row, no sticky overlap',
+  !/#pdfModalOverlay \.modal-actions\{\s*position:sticky/.test(html));
+check('controls share one min-height so buttons stop jumping',
+  /#pdfModalOverlay \.pdf-preview-controls \.mode-btn, #pdfModalOverlay \.pdf-preview-controls \.modal-select\{ min-height:38px; margin-bottom:0; \}/.test(html));
+check('short screens drop the subtitle, never the preview',
+  /@media \(max-height:700px\)\{\s*\.pdf-page \.pdf-head-text \.modal-sub\{ display:none; \}/.test(html) &&
+  /@media \(max-height:540px\)\{\s*\.pdf-page \.pdf-head-text\{ display:none; \}/.test(html));
+// Card page: accordion persistence + add buttons + mint-into-details.
+check('mirrored Sort & Filter panel keeps its open state across page re-renders',
+  /let libCloneAccordionOpen = false;/.test(html) &&
+  /fBody\.hidden = !libCloneAccordionOpen;/.test(html) &&
+  /libCloneAccordionOpen = fBody\.hidden;/.test(html));
+check('card page carries + New song and + Add song from URL next to its title',
+  /lib-add-actions/.test(html) && /newSongBtn\.textContent = '\+ New song';/.test(html) &&
+  /addUrlBtn2\.textContent = '\+ Add song from URL';/.test(html));
+check('card page + New song mints into a details page with focused name field',
+  /function mintSongFromCardPage\(\)/.test(html) &&
+  /mintSongFromCardPage\(\)\)/.test(html) &&
+  /\.song-details-page \.sdp-title'\)\?\.focus\(\)/.test(html));
+check('sidebar + New song opens the details page with focused name field',
+  /openSongDetails\(g\.id\);\s*\n    if \(filterFix\) showToast/.test(html) &&
+  /document\.querySelector\('\.song-details-page \.sdp-title'\)\?\.focus\(\);/.test(html));
+check('URL import opened from the card view exits to the editor surface first',
+  /createSongFromUrlText[\s\S]{0,2000}?if \(libraryGridOpen\)\{\s*\n\s*libraryGridOpen = false;\s*\n\s*applyLibraryGridChrome\(\);\s*\n\s*\}/.test(html));
 
 /* ================= summary ================= */
 Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks, cloudAdapterChecks]).then(() => {

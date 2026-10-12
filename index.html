@@ -513,30 +513,37 @@
      keeps the vertical-scrolling iframe above). Pages snap to center; the
      ‹ › buttons and arrow keys turn pages like a book. */
   #pvStripWrap{ position:relative; display:block; width:100%; height:54vh; min-height:300px; background:#262626; overflow:hidden; }
-  /* The page keeps its comfortable sizes at every window height — roomy
-     song list, generous viewer — and the page scrolls normally when the
-     window is shorter than the content. No height math, no flex
-     squeezing, no clipped preview: the page is a document like any other,
-     which is exactly the fix for “I can't scroll down to see the preview”.
-     The viewer is a real box (its frame/strip children fill it
-     absolutely); the action bar rides at the bottom of the viewport. */
+  /* Dedicated full page: a real viewport-height surface with a design
+     header (back button + "<Song> PDF Preview" title + the control
+     rowsets) and a viewer that flexes to fill every pixel of the space
+     left — no fixed 54vh box, no scrolling, no overlapping chrome. The
+     page owns its canvas: the strip refits its pages to the viewer's
+     actual height, and the fit re-runs on resize/fullscreen. */
   #pdfModalOverlay.pdf-page:not([hidden]){
     display:flex; flex-direction:column;
-    flex:1; min-width:0; overflow-y:auto; padding:24px 32px 60px;
+    flex:1; min-width:0; min-height:0; overflow:hidden; padding:18px 32px 14px;
   }
-  .pdf-page h2{ margin:0 0 10px; font-size:25px; font-weight:700; color:var(--text); }
-  .pdf-page .modal-sub{ margin-bottom:18px; }
-  /* the top back button hugs the left edge like on the other pages
-     (flex column children would otherwise stretch full width) */
-  .pdf-page .sdp-back{ align-self:flex-start; width:auto; }
   .pdf-page-panel{
-    flex:1; max-width:1080px; margin:0 auto; width:100%;
+    flex:1; min-height:0; max-width:1080px; margin:0 auto; width:100%;
     display:flex; flex-direction:column;
   }
-  /* The viewer is a real box: its frame/strip children fill it
-     absolutely, so it supplies its own height (the page scrolls
-     normally below and around it). */
-  #pdfModalOverlay .pdf-preview-viewer{ flex:0 0 auto; height:54vh; min-height:340px; }
+  .pdf-page h2{ margin:0 0 4px; font-size:25px; font-weight:700; color:var(--text); white-space:nowrap; }
+  .pdf-page .modal-sub{ margin-bottom:10px; }
+  /* Design header: back button, title/sub, and controls in one rowset —
+     the page is one composed screen, not a stacked form. */
+  .pdf-page .pdf-head-row{ display:flex; align-items:flex-start; gap:14px; width:100%; flex-wrap:wrap; }
+  .pdf-page .pdf-head-text{ display:flex; flex-direction:column; min-width:0; flex:1; }
+  .pdf-page .pdf-head-text .modal-sub{ margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  /* the back button keeps its own size (flex column children would
+     otherwise stretch full width) */
+  .pdf-page .sdp-back{ align-self:flex-start; width:auto; flex:0 0 auto; }
+  /* Equal heights across the controls row: pills, selects, and buttons
+     share one 38px box regardless of font size. */
+  #pdfModalOverlay .pdf-preview-controls{ align-items:center; margin:2px 0 10px; }
+  #pdfModalOverlay .pdf-preview-controls .mode-btn, #pdfModalOverlay .pdf-preview-controls .modal-select{ min-height:38px; margin-bottom:0; }
+  /* The viewer gets the remaining space: it is a real box whose
+     frame/strip children fill it absolutely. */
+  #pdfModalOverlay .pdf-preview-viewer{ flex:1 1 auto; min-height:180px; }
   #pdfModalOverlay #pvFrame{ position:absolute; inset:0; width:100%; height:100%; min-height:0; }
   #pdfModalOverlay #pvStripWrap{ position:absolute; inset:0; height:100%; min-height:0; }
   /* higher-specificity override so [hidden] still wins over the inset rules */
@@ -549,9 +556,9 @@
     background:var(--panel);
   }
   #pdfModalOverlay:fullscreen .pdf-preview-viewer{
-    flex:1 1 auto; height:auto; min-height:0;
+    flex:1 1 auto; min-height:0;
   }
-  #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
+  #pvStrip{ display:flex; align-items:center; gap:22px; height:100%; max-height:100%; padding:14px 60px; overflow-x:auto; overflow-y:hidden; scroll-snap-type:x mandatory; scrollbar-width:thin; position:relative; }
   .pv-page{ scroll-snap-align:center; flex:0 0 auto; line-height:0; box-shadow:0 6px 22px rgba(0,0,0,.5); border-radius:3px; }
   .pv-page canvas{ display:block; border-radius:3px; }
   .pv-turn{ position:absolute; top:50%; transform:translateY(-50%); width:44px; height:44px; border-radius:50%; border:1px solid rgba(255,255,255,.28); background:rgba(0,0,0,.55); color:#fff; font-size:22px; line-height:1; padding:0 0 3px; cursor:pointer; display:flex; align-items:center; justify-content:center; z-index:2; }
@@ -565,15 +572,15 @@
   /* standalone control (not inside a .mode-toggle), so opt out of the
      global .mode-btn flex:1 that would stretch it across the modal */
   #pdfModalOverlay #pvFullscreenBtn{ flex:0 0 auto; }
-  /* Action bar: a compact toolbar frozen to the bottom of the viewport
-     while the page scrolls — like the app header, not like a form footer.
-     Two balanced groups: (left) Back + the muted filename caption, so the
-     file name is metadata rather than a giant button label; (right) the
-     two real actions, Share and Download, as normal-sized buttons.
-     Download is the one primary action; Share is ghost, since browsers
-     without the file-share sheet hide it anyway. */
+  /* Action bar: a real bottom row at the end of the flex column (no
+     sticky pinning — with a fitted, non-scrolling viewer the sticky bar
+     used to slice right through the pages it overlapped). Two balanced
+     groups: (left) Back + the muted filename caption, so the file name
+     is metadata rather than a giant button label; (right) the two real
+     actions, Share and Download, as normal-sized buttons. Download is
+     the one primary action; Share is ghost, since browsers without the
+     file-share sheet hide it anyway. */
   #pdfModalOverlay .modal-actions{
-    position:sticky; bottom:0; z-index:2;
     margin:14px 0 0; margin-top:auto; padding:10px 6px 16px;
     display:flex; justify-content:space-between; align-items:center; gap:12px;
     flex-wrap:wrap;
@@ -590,17 +597,30 @@
     /* narrow screens: the caption is irrelevant next to two buttons */
     .pdf-file-caption{ display:none; }
   }
+  /* The page is one fitted screen: the bar can't wrap to a second row
+     (a wrapped row forces the overlay to scroll, and a mid-download
+     squeeze shouldn't grow the bar). The caption shrinks instead
+     (single-line ellipsis), and drops out entirely on narrow screens. */
+  #pdfModalOverlay .modal-actions{ flex-wrap:nowrap; }
   #pdfModalOverlay a.pdf-download-btn{ margin-bottom:0; }
   #pdfModalOverlay .pdf-download-btn{ flex:0 0 auto; }
   #pdfModalOverlay #pvFullscreenBtn{ flex:0 0 auto; }
   @media (max-width:560px){
+    #pdfModalOverlay.pdf-page:not([hidden]){ padding:12px 14px 10px; }
     .pdf-preview-controls{ flex-direction:column; align-items:stretch; }
     .pdf-preview-controls .mode-toggle{ display:flex; }
     .pdf-preview-controls .mode-toggle .mode-btn{ flex:1; }
     #pvStrip{ padding:10px 48px; gap:14px; }
     .pv-turn{ width:40px; height:40px; }
-    #pdfModalOverlay .pdf-preview-viewer{ height:52vh; min-height:300px; }
     #pdfModalOverlay .modal-actions{ padding:10px 0 12px; }
+  }
+  /* Short windows: drop the subtitle so the viewer keeps the space —
+     the page is one screen, so the header yields before the preview. */
+  @media (max-height:700px){
+    .pdf-page .pdf-head-text .modal-sub{ display:none; }
+  }
+  @media (max-height:540px){
+    .pdf-page .pdf-head-text{ display:none; }
   }
   button.pdf-download-link[hidden]{ display:none; }
   /* Drive connected badge: a compact always-visible status chip in the
@@ -1113,6 +1133,9 @@
   .lib-head-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
   .lib-head-row h2{ font-size:25px; font-weight:700; color:var(--text); margin:0; }
   .lib-count{ font-size:12.5px; color:var(--text-muted); }
+  /* New-song actions live beside the page title — same pair as the
+     sidebar's, since that (and those buttons) is hidden while open. */
+  .lib-add-actions{ display:flex; gap:8px; flex-wrap:wrap; }
   /* Search + sort/filter row, mirrored from the sidebar's controls.
      Mirroring the ids keeps every existing handler and summary update
      working without a second code path. */
@@ -2223,10 +2246,14 @@
      (the sidebar and header stay). Every element id from the old dialog
      version is unchanged, so the render/preview code works as before. -->
 <section class="pdf-page" id="pdfModalOverlay" hidden>
-    <button type="button" class="ghost small sdp-back" id="pdfPageBackBtn">&larr; Back to chart</button>
+    <div class="pdf-head-row">
+      <button type="button" class="ghost small sdp-back" id="pdfPageBackBtn">&larr; Back to chart</button>
+    </div>
     <div class="pdf-page-panel">
-    <h2 id="pdfModalTitle">Export PDF</h2>
-    <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
+    <div class="pdf-head-text">
+      <h2 id="pdfModalTitle">Export PDF</h2>
+      <p class="modal-sub" id="pdfModalSub">One page per section, a tappable table of contents, and text sized to read easily on an iPad.</p>
+    </div>
     <div class="pdf-preview-controls">
       <div class="mode-toggle" id="pvTypeToggle" role="group" aria-label="PDF type">
         <button type="button" class="mode-btn active" data-pvtype="performance">Performance PDF</button>
@@ -3370,6 +3397,22 @@ function renderLibraryGridPage(main){
   const h2 = document.createElement('h2');
   h2.textContent = 'Songs';
   headRow.appendChild(h2);
+  // The sidebar (and its + New song / + Add song from URL buttons) is
+  // hidden while this page is open, so the page carries its own pair —
+  // otherwise there would be no way to add a song from the card view.
+  const addActions = document.createElement('div');
+  addActions.className = 'lib-add-actions';
+  const newSongBtn = document.createElement('button');
+  newSongBtn.type = 'button';
+  newSongBtn.className = 'ghost small';
+  newSongBtn.textContent = '+ New song';
+  const addUrlBtn2 = document.createElement('button');
+  addUrlBtn2.type = 'button';
+  addUrlBtn2.className = 'ghost small';
+  addUrlBtn2.textContent = '+ Add song from URL';
+  addActions.appendChild(newSongBtn);
+  addActions.appendChild(addUrlBtn2);
+  headRow.appendChild(addActions);
   page.appendChild(headRow);
 
   // --- Controls: the sidebar's search + sort/filter, mirrored by id ---
@@ -3451,24 +3494,52 @@ function renderLibraryGridPage(main){
   page.appendChild(grid);
   main.appendChild(page);
   initLibraryGridControls(fHead, fBody, search);
+  // Same mint path as the sidebar's + New song (see renderSidebar):
+  // the new song opens on its empty details page, cursor in the name.
+  newSongBtn.addEventListener('click', () => mintSongFromCardPage());
+  addUrlBtn2.addEventListener('click', () => { urlImportModal.open(); });
+}
+
+/* + New song on the card page: the sidebar's mintSong closure lives in
+   renderSidebar (which doesn't run while the card page is open), so the
+   page needs its own path to the same behavior: create the song, then
+   open its details page with the cursor in the name field. */
+function mintSongFromCardPage(){
+  const g = { id: uid('grp'), name: '', artist: '', updatedAt: Date.now() };
+  state.sectionGroups.push(g);
+  state.sections.push({ id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [], updatedAt: Date.now() });
+  // A fresh song is Not Ready: widen the filters so it can't land hidden.
+  const filterFix = ensureFiltersAdmitSongs([g]);
+  scheduleSave();
+  openSongDetails(g.id);
+  if (filterFix) showToast(`Filters adjusted so the new song stays visible — ${filterFix}.`);
+  setTimeout(() => {
+    document.querySelector('.song-details-page .sdp-title')?.focus();
+  }, 0);
 }
 
 /* Wire the mirrored controls: #filtersPanel's nodes are cloned into the
    page so the card page shows the identical Sort & Filter panel. The
    clones reuse the sidebar ids and are driven by the same DELEGATED
-   document-level handlers (see above) — no separate wiring needed. A
-   fresh mirrored panel starts closed, independent of the sidebar's. */
+   document-level handlers (see above) — no separate wiring needed. The
+   clone's open/closed state persists across re-renders (module scope:
+   every pill click re-renders this page, and a fresh clone must not
+   reset what the user had open). */
+let libCloneAccordionOpen = false;
 function initLibraryGridControls(fHead, fBody, search){
   const proto = document.querySelector('nav.sidebar #filtersPanel');
   if (proto){
     [...proto.children].forEach(child => fBody.appendChild(child.cloneNode(true)));
   }
-  // A fresh mirrored panel starts closed, independent of the sidebar's note.
-  fBody.hidden = true;
+  // The mirrored panel re-opens at its last state instead of snapping shut
+  // on every control click (each pill click re-renders this whole page —
+  // a fresh clone must not reset what the user had open).
+  fBody.hidden = !libCloneAccordionOpen;
+  fHead.setAttribute('aria-expanded', String(libCloneAccordionOpen));
   fHead.addEventListener('click', () => {
-    const willOpen = fBody.hidden;
-    fBody.hidden = !willOpen;
-    fHead.setAttribute('aria-expanded', String(willOpen));
+    libCloneAccordionOpen = fBody.hidden; // toggling: open ↔ closed
+    fBody.hidden = !libCloneAccordionOpen;
+    fHead.setAttribute('aria-expanded', String(libCloneAccordionOpen));
   });
   search.addEventListener('input', (e) => {
     searchQuery = e.target.value;
@@ -4970,25 +5041,25 @@ function renderSidebar(){
   const addGroupBtn = document.createElement('button');
   addGroupBtn.className = 'add-group-btn';
   addGroupBtn.textContent = '+ New song';
-  addGroupBtn.addEventListener('click', () => {
+  // One mint path for a fresh song, shared with the card page's own
+  // button below. A new song opens on its (empty) details page with the
+  // cursor in the song-name field — naming is the first thing to do.
+  const mintSong = () => {
     const g = { id: uid('grp'), name: '', artist: '', updatedAt: Date.now() };
     state.sectionGroups.push(g);
     const introSec = { id: uid('sec'), groupId: g.id, nameType: 'intro', customName: '', nameSuffix: '', name: 'Intro', order: 0, lines: [], updatedAt: Date.now() };
     state.sections.push(introSec);
-    selectedGroupId = g.id;
-    selectedSectionId = introSec.id;
-    expandedGroups.add(g.id);
     // A fresh song is Not Ready: never let the filters hide it — and when a
     // pill had to come back on, say so instead of moving the list silently.
     const filterFix = ensureFiltersAdmitSongs([g]);
     scheduleSave();
-    renderAll();
+    openSongDetails(g.id);
     if (filterFix) showToast(`Filters adjusted so the new song stays visible — ${filterFix}.`);
     setTimeout(() => {
-      const input = el.querySelector(`.group-name[data-gid="${CSS.escape(g.id)}"] textarea`);
-      input?.focus();
+      document.querySelector('.song-details-page .sdp-title')?.focus();
     }, 0);
-  });
+  };
+  addGroupBtn.addEventListener('click', mintSong);
   el.appendChild(addGroupBtn);
   const addUrlBtn = document.createElement('button');
   addUrlBtn.className = 'add-group-btn';
@@ -6033,9 +6104,16 @@ function createSongFromUrlText(text, takeoverGroup){
   selectedGroupId = g.id;
   selectedSectionId = sec.id;
   expandedGroups.add(g.id);
+  // Opened from the card page: exit to the rows view first, because the
+  // staging editor lives in #main — hidden while the card page is up.
+  if (libraryGridOpen){
+    libraryGridOpen = false;
+    applyLibraryGridChrome();
+  }
   scheduleSave();
   massEntryCaretToStart = true;
   renderAll();
+  if (!libraryGridOpen) scrollSelectedSongHeadIntoView();
   closeSidebarAfterNavigate();
   scrollSelectedSongHeadIntoView();
   if (filterFix) showToast(`Filters adjusted so the ${takeoverGroup ? 'song' : 'new song'} stays visible — ${filterFix}.`);
@@ -10620,8 +10698,12 @@ function updatePdfModalCopy(){
     // Song-card entry point: a focused preview of one song. The dialog
     // names the song; the song-list/output chrome stays out of the way.
     const g = state.sectionGroups.find(x => pdfSelectedSongIds.has(x.id));
-    title.textContent = 'PDF preview';
-    sub.textContent = g ? (g.name || 'Untitled Song') + (displayArtists(g) ? ` — ${displayArtists(g)}` : '') : '';
+    // The page's title names the song (obvious what the page is for —
+    // same reasoning as a browser tab label); the subtitle carries the
+    // artist line on its own.
+    const songName = g ? (g.name || 'Untitled Song') : '';
+    title.textContent = songName + ' PDF Preview';
+    sub.textContent = g && displayArtists(g) ? displayArtists(g) : '';
     columns.style.display = 'none';
   } else {
     title.textContent = 'Export PDF';
@@ -11016,9 +11098,13 @@ async function renderPvStripPages(pdf, seq, keepPage){
   pvStripReady = false;
   strip.innerHTML = '';
   pvStripPages = pdf.numPages;
-  // Fit page height to the strip; render at up to 2x for crisp text.
   const dpr = Math.min(window.devicePixelRatio || 1, 2);
-  const targetCssH = Math.max(200, strip.clientHeight - 28);
+  // Fit page height to the strip; render at up to 2x for crisp text.
+  // No 200px floor (it painted 200px-tall pages into viewers smaller
+  // than 228px, letting the pages poke past the fitted page's edges);
+  // tiny boxes get tiny pages — and the settle pass below rechecks
+  // once the page has stopped moving, so the fit is not a guess.
+  const targetCssH = Math.max(120, strip.clientHeight - 28);
   for (let n = 1; n <= pdf.numPages; n++){
     if (seq !== pvRenderSeq || pdfPageHidden()){
       pvDestroyStripDoc();
@@ -11048,6 +11134,15 @@ async function renderPvStripPages(pdf, seq, keepPage){
   // Jump (instantly — this can be a mid-session relayout) to the page that
   // was showing before; pvGoToPage also syncs the indicator and buttons.
   pvGoToPage(Math.min(keepPage || 1, pvStripPages), true);
+  /* Settle pass: the render above measured the strip while the page's
+     flex layout may still have been settling (fonts, data list, controls
+     wrapping). If the strip's height changed since, one extra pass fits
+     the pages to the settled height. Bounded: pvFitViewerHeight recurses
+     only when the measured height actually changed, so this cannot spin. */
+  const settled = Math.max(120, strip.clientHeight - 28);
+  if (Math.abs(settled - targetCssH) > 8 && seq === pvRenderSeq){
+    pvFitViewerHeight();
+  }
 }
 
 // Which page is nearest the strip's center (for the indicator + buttons).
@@ -11109,7 +11204,7 @@ document.getElementById('pvStrip').addEventListener('scroll', () => {
   }, 120);
 });
 document.getElementById('pvPrevPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() - 1));
-document.getElementById('pvNextPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() + 1));
+  document.getElementById('pvNextPage').addEventListener('click', () => pvGoToPage(pvCurrentPage() + 1));
 document.addEventListener('keydown', (e) => {
   if (pdfPageHidden()) return;
   if (pdfType !== 'performance') return;
@@ -11138,12 +11233,27 @@ document.addEventListener('fullscreenchange', () => {
   const btn = document.getElementById('pvFullscreenBtn');
   btn.textContent = active ? '✕ Exit fullscreen' : '⛶ Fullscreen';
   btn.setAttribute('aria-pressed', String(active));
+  pvFitViewerHeight(); // the fullscreen reflow changes the viewer's height
   if (active && pdfType !== 'performance'){
     // The embedded PDF viewer (blob iframe) handles arrow-key scrolling
     // itself once it has focus.
     try{ document.getElementById('pvFrame').contentWindow.focus(); }catch(e){}
   }
 });
+
+/* Refit the strip's pages to the viewer's height after a reflow the
+   debounced window-resize listener doesn't cover (entering/leaving
+   fullscreen, reopening the page). renderPvStripPages re-reads the
+   viewer's clientHeight; the rAF wait gives that reflow one frame to
+   land first, so the fit measures the real final layout. */
+function pvFitViewerHeight(){
+  if (pdfPageHidden()) return;
+  if (document.getElementById('pvStripWrap').hidden) return;
+  requestAnimationFrame(() => {
+    if (!pvStripDoc || !pvStripReady || document.getElementById('pvStripWrap').hidden) return;
+    renderPvStripPages(pvStripDoc, pvRenderSeq, pvCurrentPage());
+  });
+}
 
 // Keep the strip's pages fitted to the viewer whenever the available height
 // changes (window resize, entering/leaving fullscreen). Debounced; no full
@@ -11179,6 +11289,7 @@ function pvTeardownPage(){
 }
 new MutationObserver(() => {
   if (pdfModal.hidden) pvTeardownPage();
+  else pvFitViewerHeight(); // reopening after teardown: refit the fresh render
 }).observe(pdfModal, { attributes: true, attributeFilter: ['hidden'] });
 
 // Every tap on the download link mints a fresh blob URL and claims the next

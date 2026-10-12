@@ -709,6 +709,46 @@ first three repair themselves in state) and each card opens its
 builder; regression now 265 checks (+2: render normalize + snapshot
 migration), MCP 14/14, all inline scripts parse.
 
+**Revision note (2026-10-11, PDF preview page redesign + card-view
+fixes):** four user-reported issues, one commit. (1) *The Export PDF
+page's sticky action bar sliced through the preview.* The bar was
+`position:sticky; bottom:0` over a fixed 54vh viewer, so on medium
+windows it rode up across the pages; in Export context the song
+checklist pushed the bar right through the strip. The page is now a
+designed single screen: `#pdfModalOverlay.pdf-page` is `overflow:hidden`
+flex column with a **header row** (← Back to chart, then a
+`.pdf-head-text` block), the control rowsets with every control at one
+38px height (`min-height:38px; margin-bottom:0` — pills, selects, and
+buttons no longer have uneven heights), and a `.pdf-preview-viewer`
+that is `flex:1 1 auto; min-height:180px` — the viewer takes every pixel
+left, and the action bar is a plain last flex row (`flex-wrap:nowrap`,
+sticky gone), so overlap is structurally impossible. The strip fits its
+pages to the viewer's measured height with no 200px floor (it previously
+painted 200px pages into boxes smaller than 228px), a bounded settle
+pass re-fits once flex layout stops moving, `pvFitViewerHeight()` re-fits
+on fullscreenchange and on page reopen, and short screens yield header
+first (subtitle hides `(max-height:700px)`, the whole title block at
+540px) so the preview never shrinks away. Focused preview context now
+titles the page **"<Song> PDF Preview"** (the song name goes in the
+h2, artists in the subtitle). (2) *Card-view accordion:* clicking any
+filter pill re-rendered `renderLibraryGridPage` and the mirrored
+Sort & Filter panel snapped shut on every tap — the clone's open state
+now persists in module scope (`libCloneAccordionOpen`). (3) *Card view
+got its own + New song / + Add song from URL buttons* beside the page
+title (`.lib-add-actions`); URL import from the card view exits the
+card page in `createSongFromUrlText` so the staging editor is visible,
+and `scrollSelectedSongHeadIntoView` is skipped while cards are open.
+(4) *+ New song now opens the new song's empty details page with the
+cursor in the song name field* (`.song-details-page .sdp-title`), both
+from the sidebar (`mintSong` closure in `renderSidebar`) and the card
+page (`mintSongFromCardPage`). Verified in-browser at 1732×900 and
+800×640 and 820×500: no overlap, no scroll above 540px window height,
+strip pages fit the viewer at every size, all three close paths (top
+Back, bottom Back, Escape) return to the chart; regression now 275
+checks (+10: fitted page, header, no-sticky, equal heights, accordion
+persistence, card-page add buttons, mint-into-details ×2, URL-import
+exit, short-screen yields), MCP 14/14, all inline scripts parse.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
