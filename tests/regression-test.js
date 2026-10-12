@@ -1261,8 +1261,14 @@ check('title/sub live in a pdf-head-text block inside the panel',
   /<div class="pdf-head-text">\s*<h2 id="pdfModalTitle">/.test(html));
 check('action bar is a plain flex row, no sticky overlap',
   !/#pdfModalOverlay \.modal-actions\{\s*position:sticky/.test(html));
-check('controls share one min-height so buttons stop jumping',
-  /#pdfModalOverlay \.pdf-preview-controls \.mode-btn, #pdfModalOverlay \.pdf-preview-controls \.modal-select\{ min-height:38px; margin-bottom:0; \}/.test(html));
+check('controls share one fixed height so buttons stop jumping',
+  /#pdfModalOverlay \.pdf-preview-controls \.mode-btn, #pdfModalOverlay \.pdf-preview-controls \.modal-select\{ min-height:38px; margin-bottom:0; height:38px; \}/.test(html));
+check('download is a real primary button, not a bare anchor',
+  /<button type="button" class="primary small" id="pvDownloadBtn"/.test(html) &&
+  /function triggerPdfDownload\(\)/.test(html));
+check('redundant bottom back button removed (header owns back)',
+  !/pdfCancelBtn/.test(html) &&
+  /<span class="pdf-file-caption" id="pdfFileCaption" role="status">Preview ready<\/span>/.test(html));
 check('short screens drop the subtitle, never the preview',
   /@media \(max-height:700px\)\{\s*\.pdf-page \.pdf-head-text \.modal-sub\{ display:none; \}/.test(html) &&
   /@media \(max-height:540px\)\{\s*\.pdf-page \.pdf-head-text\{ display:none; \}/.test(html));

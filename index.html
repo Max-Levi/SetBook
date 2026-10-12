@@ -530,9 +530,12 @@
   .pdf-page h2{ margin:0 0 4px; font-size:25px; font-weight:700; color:var(--text); white-space:nowrap; }
   .pdf-page .modal-sub{ margin-bottom:10px; }
   /* Design header: back button, title/sub, and controls in one rowset —
-     the page is one composed screen, not a stacked form. */
+     the page is one composed screen, not a stacked form. The header text
+     must NOT flex vertically (this is a column flex page): flex:1 made it
+     swallow all free space and push the controls + viewer to the bottom,
+     the "too much padding between title and contents" look. */
   .pdf-page .pdf-head-row{ display:flex; align-items:flex-start; gap:14px; width:100%; flex-wrap:wrap; }
-  .pdf-page .pdf-head-text{ display:flex; flex-direction:column; min-width:0; flex:1; }
+  .pdf-page .pdf-head-text{ display:flex; flex-direction:column; min-width:0; flex:0 0 auto; }
   .pdf-page .pdf-head-text .modal-sub{ margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   /* the back button keeps its own size (flex column children would
      otherwise stretch full width) */
@@ -540,7 +543,10 @@
   /* Equal heights across the controls row: pills, selects, and buttons
      share one 38px box regardless of font size. */
   #pdfModalOverlay .pdf-preview-controls{ align-items:center; margin:2px 0 10px; }
-  #pdfModalOverlay .pdf-preview-controls .mode-btn, #pdfModalOverlay .pdf-preview-controls .modal-select{ min-height:38px; margin-bottom:0; }
+  #pdfModalOverlay .pdf-preview-controls .mode-btn, #pdfModalOverlay .pdf-preview-controls .modal-select{ min-height:38px; margin-bottom:0; height:38px; }
+  /* The select's vertical padding fights height:38 — zero it out so the
+     device dropdown is exactly the same height as its pill neighbors. */
+  #pdfModalOverlay .pdf-preview-controls .modal-select{ padding-top:0; padding-bottom:0; }
   /* The viewer gets the remaining space: it is a real box whose
      frame/strip children fill it absolutely. */
   #pdfModalOverlay .pdf-preview-viewer{ flex:1 1 auto; min-height:180px; }
@@ -581,14 +587,15 @@
      the one primary action; Share is ghost, since browsers without the
      file-share sheet hide it anyway. */
   #pdfModalOverlay .modal-actions{
-    margin:14px 0 0; margin-top:auto; padding:10px 6px 16px;
+    margin:12px 0 0; padding:6px 6px 10px;
     display:flex; justify-content:space-between; align-items:center; gap:12px;
     flex-wrap:wrap;
     background:var(--panel); border-top:1px solid var(--border);
   }
   .pdf-action-left, .pdf-action-right{ display:flex; align-items:center; gap:8px; min-width:0; }
-  /* The caption is inside the whole page flex column: shrink to the
-     available space (Bar may wrap on narrow widths), keep it single-line. */
+  /* The caption sits at the bar's left (the redundant second Back button
+     is gone — the header row owns back); shrink to available space,
+     single line. */
   .pdf-file-caption{
     font-size:12px; color:var(--text-muted); white-space:nowrap;
     overflow:hidden; text-overflow:ellipsis; min-width:0; flex:0 1 auto;
@@ -602,7 +609,6 @@
      squeeze shouldn't grow the bar). The caption shrinks instead
      (single-line ellipsis), and drops out entirely on narrow screens. */
   #pdfModalOverlay .modal-actions{ flex-wrap:nowrap; }
-  #pdfModalOverlay a.pdf-download-btn{ margin-bottom:0; }
   #pdfModalOverlay .pdf-download-btn{ flex:0 0 auto; }
   #pdfModalOverlay #pvFullscreenBtn{ flex:0 0 auto; }
   @media (max-width:560px){
@@ -2342,13 +2348,10 @@
     </p>
 
     <div class="modal-actions pdf-action-bar">
-      <div class="pdf-action-left">
-        <button type="button" class="ghost small" id="pdfCancelBtn">← Back to chart</button>
-        <span class="pdf-file-caption" id="pdfFileCaption" role="status">Preview ready</span>
-      </div>
+      <span class="pdf-file-caption" id="pdfFileCaption" role="status">Preview ready</span>
       <div class="pdf-action-right">
         <button type="button" class="ghost small" id="pdfShareBtn" style="display:none;" hidden>↗ Share…</button>
-        <a id="pvDownloadLink" class="primary small pdf-download-btn" style="display:none;" download="">↓ Download PDF</a>
+        <button type="button" class="primary small" id="pvDownloadBtn" style="display:none;">↓ Download PDF</button>
       </div>
     </div>
     </div>
@@ -10676,7 +10679,6 @@ function closePdfPage(){
   pvTeardownPage();
 }
 document.getElementById('btnPdf').addEventListener('click', openPdfPage);
-document.getElementById('pdfCancelBtn').addEventListener('click', closePdfPage);
 document.getElementById('pdfPageBackBtn').addEventListener('click', closePdfPage);
 const pdfProjectNameInput = document.getElementById('pdfProjectName');
 const pdfShareBtn = document.getElementById('pdfShareBtn');
@@ -10976,7 +10978,7 @@ function schedulePdfRender(){
   const loading = document.getElementById('pvLoading');
   loading.textContent = 'Rendering preview…';
   loading.style.display = 'flex';
-  document.getElementById('pvDownloadLink').style.display = 'none';
+  document.getElementById('pvDownloadBtn').style.display = 'none';
   pdfShareBtn.hidden = true;
   pdfShareBtn.style.display = 'none';
   pvRenderTimer = setTimeout(renderPdfPreview, 350);
@@ -10987,7 +10989,7 @@ async function renderPdfPreview(){
   const loading = document.getElementById('pvLoading');
   const frame = document.getElementById('pvFrame');
   const stripWrap = document.getElementById('pvStripWrap');
-  const link = document.getElementById('pvDownloadLink');
+  const link = document.getElementById('pvDownloadBtn');
   try{
     const songIds = new Set(pdfSelectedSongIds);
     if (!songIds.size){
@@ -11012,10 +11014,12 @@ async function renderPdfPreview(){
     pvBlob = blob;
     pvFileName = filename;
     if (pvBlobUrl) URL.revokeObjectURL(pvBlobUrl);
-    pvBlobUrl = URL.createObjectURL(blob);
-    updatePdfFileCaption();
-    link.style.display = '';
-    showPdfShareBtn();
+  pvBlobUrl = URL.createObjectURL(blob);
+  updatePdfFileCaption();
+  link.style.display = '';
+  showPdfShareBtn();
+  // The download is a real button now (was an <a download>): the click
+  // handler below mints the blob URL + unique filename per invocation.
     if (pdfType === 'performance'){
       try{
         await ensurePdfJs();
@@ -11292,22 +11296,28 @@ new MutationObserver(() => {
   else pvFitViewerHeight(); // reopening after teardown: refit the fresh render
 }).observe(pdfModal, { attributes: true, attributeFilter: ['hidden'] });
 
-// Every tap on the download link mints a fresh blob URL and claims the next
-// unique filename, so downloading the same rendered PDF twice (or ten
+// Every tap on the download button mints a fresh blob URL and claims the
+// next unique filename, so downloading the same rendered PDF twice (or ten
 // times) always works — browsers that refuse a repeat download with an
 // identical name get a numbered one instead. Changing the song selection
 // and letting the preview re-render replaces the file; the numbering keeps
 // counting so the new file can't collide with earlier downloads either.
-document.getElementById('pvDownloadLink').addEventListener('click', () => {
+// (Button instead of an <a download>: an anchor ignored the .primary gold
+// styling, so ↓ Download PDF rendered as a bare blue link.)
+function triggerPdfDownload(){
   if (!pvBlob) return;
-  const link = document.getElementById('pvDownloadLink');
   if (pvDownloadUrl) URL.revokeObjectURL(pvDownloadUrl);
   pvDownloadUrl = URL.createObjectURL(pvBlob);
   const uniqueName = claimUniquePdfName(pvFileName);
-  link.href = pvBlobUrl;
-  link.download = uniqueName;
+  const a = document.createElement('a');
+  a.href = pvDownloadUrl;
+  a.download = uniqueName;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
   updatePdfFileCaption();
-});
+}
+document.getElementById('pvDownloadBtn').addEventListener('click', triggerPdfDownload);
 // Muted caption next to Back: the next download's filename (with the
 // session's "(n)" numbering already predicted), not a button label.
 function updatePdfFileCaption(){

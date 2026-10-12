@@ -749,6 +749,26 @@ checks (+10: fitted page, header, no-sticky, equal heights, accordion
 persistence, card-page add buttons, mint-into-details ×2, URL-import
 exit, short-screen yields), MCP 14/14, all inline scripts parse.
 
+**Revision note (2026-10-11 follow-up, preview page polish):** three
+user-reported refinements. (1) *Huge gap between the title and the
+controls*: `.pdf-head-text` had `flex:1` — correct in a row context,
+but it sits in the page's column flex, so it stretched vertically and
+swallowed every spare pixel (measured 495px tall at 1620×1245, pushing
+the controls and viewer to the bottom). Now `flex:0 0 auto` (52px)
+and all free space goes to the viewer. (2) *Uneven control heights*:
+`min-height:38px` let fonts/padding steer real heights; the controls
+now have a fixed `height:38px` and the device select zeroes its
+vertical padding so pills + select measure identically. (3) *Bar
+simplification*: the bottom “← Back to chart” (`pdfCancelBtn`) was
+redundant with the header one — removed (its listener gone; the header
+owns back), and the download anchor `<a id="pvDownloadLink">` became
+a real `button.primary.small#pvDownloadBtn` (an anchor ignores
+`button.primary`, so ↓ Download PDF rendered as a bare blue link).
+Download flow unchanged: `triggerPdfDownload()` mints a fresh blob URL
++ unique filename per tap. Regression 277 checks (+2: fixed-height
+controls + real download button, −1 merged redundant-back check), MCP
+14/14, verified in-browser at 1620×1245.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.
