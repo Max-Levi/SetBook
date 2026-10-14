@@ -519,6 +519,16 @@
   .pdf-tuning-head[aria-expanded="true"] .pdf-tuning-chev{ transform:rotate(90deg); }
   .pdf-tuning-summary{ flex:1; min-width:0; font-weight:600; text-transform:none; letter-spacing:0; color:var(--text-muted); font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
   .pdf-tuning-body[hidden]{ display:none; }
+  /* #pdfTuningColumns keeps the .modal-columns class (the old dialog id
+     and render code depend on it) but on the dedicated page the head and
+     the Songs/Output groups are its direct children — a two-column flex
+     row there squeezed the collapsed head to 736px and, when expanded,
+     forced Songs and Output side-by-side into ~330px cards across a
+     1080px panel (the "Songs section floats far right" look). This page
+     stacks the block instead: head on top, Songs then Output beneath,
+     each owning the panel width. */
+  #pdfTuningColumns{ display:block; }
+  #pdfTuningColumns .modal-group{ width:100%; }
   /* When the accordion is open the fitted page grows: the overlay allows
      scrolling again so the whole panel + preview stay reachable. */
   #pdfModalOverlay.pdf-page.pdf-tuning-open{ overflow-y:auto; }

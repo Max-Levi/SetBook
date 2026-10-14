@@ -816,6 +816,21 @@ song-preview context hides `#pdfTuningColumns` entirely (as before) and
 clears the class. Regression 277/277, MCP 14/14, all inline scripts
 parse; verified in-browser at 1620×1245 in both contexts.
 
+**Revision note (2026-10-14, tuning accordion width — Songs floated right):**
+on the dedicated Export PDF page the accordion container `#pdfTuningColumns`
+kept the dialog-era `.modal-columns{ display:flex }` rule, which turned its
+now-direct children (`.pdf-tuning-head` + `.modal-group` blocks) into flex
+items: collapsed, the head was squeezed to ~736px of the 1080px panel;
+expanded, Songs and Output were forced side-by-side into narrow cards — the
+user-visible "Songs section sits far right / crammed in the corner" bug
+(screenshot-confirmed: Songs card at x≈930 in a 1080px panel). Fix: page-
+scoped override `#pdfTuningColumns{ display:block }` +
+`#pdfTuningColumns .modal-group{ width:100% }` (the `.modal-columns` class
+stays — old markup/id and render code depend on it). Verified in-browser:
+collapsed head and expanded Songs/Output groups now span the full 1080px
+panel, head/body flush at the panel's left edge.
+Regression 291/291 (two new checks, TDD red→green).
+
 **Revision note (2026-10-12, Setlists page left-justified):** same fix
 as the song details page — the Setlists page was a centered 980px column
 (`.setlists-page{ max-width:980px; margin:0 auto }`) while the section

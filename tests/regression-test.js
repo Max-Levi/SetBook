@@ -1147,6 +1147,18 @@ check('modal title is context-aware (pdfModalTitle)',
   /id="pdfModalTitle"/.test(html) && /title\.textContent = songName \+ ' PDF Preview'/.test(html) && /title\.textContent = 'Export PDF'/.test(html));
 check('preview context hides the songs/output columns',
   /columns\.style\.display = 'none'/.test(html));
+// Export-context fine-tuning accordion: #pdfTuningColumns keeps the dialog-era
+// .modal-columns class, but on the dedicated page the accordion head and the
+// Songs/Output groups are its DIRECT children — the two-column flex row
+// squeezed the collapsed head to ~736px and, when expanded, forced Songs and
+// Output side-by-side into narrow cards despite a 1080px panel (the "Songs
+// floats far right" regression). The page must stack the block instead.
+check('tuning accordion container stacks instead of flex columns',
+  /#pdfTuningColumns\{ display:block; \}/.test(html) &&
+  /#pdfTuningColumns \.modal-group\{ width:100%; \}/.test(html));
+check('tuning accordion head keeps full panel width when collapsed',
+  /#pdfTuningColumns\{ display:block; \}/.test(html) &&
+  !/#pdfTuningColumns \{[^}]*display:flex/.test(html));
 check('song-card entry point requests preview context',
   /pdfPendingPreviewMode = true;/.test(html) && /preparePdfModal\(sel, asPreview, pendingSl\)/.test(html));
 check('preview context names the song in the subtitle',
