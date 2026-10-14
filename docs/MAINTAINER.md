@@ -829,6 +829,42 @@ The library card page (`.lib-page`) still keeps its centered 980px
 column — not part of this change. Regression 277/277, MCP 14/14,
 scripts parse; verified in-browser: `.setlists-page` content left = 302px.
 
+**Revision note (2026-10-14, song list UX + subpage consistency — 7
+improvements):** (1) *Subpage geometry, exit wording, and PDF sidebar
+consistency:* `.lib-page` is now left-justified (`padding:0 0 80px`,
+matching `.song-details-page` and `.setlists-page` instead of a centered
+980px column); its exit button reads `← Back to songs` (matching the
+other pages' `← Back to …` grammar); and opening the Export PDF page
+adds `body.pdf-page-open` (`closePdfPage` and `pvTeardownPage` remove
+it) so the sidebar hides while the PDF task page owns the screen.
+(2) *Progressive reveal of row actions:* focus (`◎`) and delete (`✕`)
+icons in `.group-head-main` hide at rest and appear on row
+`:hover`/`:focus-within`; at phone/coarse widths (`≤760px`), PDF preview,
+focus, and delete collapse into a single `⋯` overflow popover button
+(`.group-more-btn[data-action="group-more"]`), leaving only `ⓘ` and `⋯`
+on the row. (3) *Compressed badge row + light-theme AA contrast:*
+default `Cover` and `Not Ready` badges carry `.is-default-badge` and
+hide at rest on un-hovered/un-focused/inactive rows (and un-hovered
+library cards) so only non-default `Original` / `In Progress` / `Ready`
+pills show while scanning; hovering or selecting a song reveals both
+badges so one-click status cycling stays immediate. Light-theme active
+sort/filter pills (`html[data-theme="light"] .sort-btn.active`) and gold
+badges use `--gold-dim` (`#7a5f16`, 5.22:1 on `--gold-tint`), clearing
+the WCAG AA contrast finding. (4) *Left-edge status stripe:* `.group-head`
+carries `.status-ready` (3px `--gold` left border) or
+`.status-in-progress` (3px `#c98a2d` left border) updated live by
+`renderReadyBadge()`. (5) *Unified sidebar control row:* `View: cards`,
+`Expand all`, and `Collapse all` share a single compact
+`.tools-buttons.expand-collapse-row.list-view-row` above the Sort &
+Filter panel. (6) *Search results header:* `renderSearchResults`
+prepends `.search-results-head` ("Lyric & chord matches — N songs" + a
+`Clear` button). (7) *Video link & empty-filter polish:* the song details
+video edit button reads `+ Add link` / `✎ Edit link` (instead of bare
+`+ Video` / `✐`), and empty filter/search states in both the sidebar and
+card page render `buildFilterEmptyState()` with inline `Clear filters`
+and `+ New song` buttons. Regression 289/289 (+12 in suite
+`song-list-ux-7`), external 65-song corpus 386/386, MCP 14/14.
+
 ---
 
 *Maintainer guide extracted from the in-app documentation on 2026-10-01.

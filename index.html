@@ -856,15 +856,13 @@
   .filters-toggle-row{ display:flex; gap:8px; align-items:stretch; margin-bottom:9px; }
   .filters-toggle-row .filters-toggle{ flex:1; min-width:0; width:auto; margin-bottom:0; }
   .filters-clear{ flex-shrink:0; }
-  /* Library view toggle (View: rows / View: cards): a full-width button
-     on its own row, always visible above the collapsible Sort & Filter
-     panel. "View: cards" opens the dedicated full-page card grid; while
-     that page is open the button reads "View: rows" to return. */
+  /* Library view toggle (View: cards) + Expand/Collapse share a single
+     compact row above the collapsible Sort & Filter panel so the song list
+     reclaims vertical space. */
   .list-view-row{ margin-bottom:9px; }
-  .list-view-row .sort-btn{ width:100%; }
   .filters-clear[hidden]{ display:none; }
   /* Expand/Collapse live outside the panel, always reachable. */
-  .expand-collapse-row{ margin-top:12px; margin-bottom:9px; }
+  .expand-collapse-row{ margin-top:0; margin-bottom:9px; }
   /* Per-dropdown clear buttons: each appears only while its dropdown has a
      selection; the row stretches the button to the select's height. */
   .filter-select-row{ display:flex; gap:8px; align-items:stretch; }
@@ -918,9 +916,24 @@
   .tag-add-input:focus{ outline:none; border-bottom-color:var(--gold); }
   .tag-add-input::placeholder{ color:var(--placeholder); }
   .sort-btn.active{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  html[data-theme="light"] .sort-btn.active{ color: var(--gold-dim); }
   .sort-chev{ display:inline-block; font-size:9px; margin-left:2px; }
   .sidebar-list{
     flex:1; overflow-y:auto; padding: 10px 10px 40px;
+  }
+  .search-results-head{
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+    font-size:11px; color:var(--text-muted); padding:2px 2px 8px;
+    border-bottom:1px solid var(--border); margin-bottom:6px;
+  }
+  .search-results-head button{
+    background:transparent; border:none; color:var(--gold);
+    font-family:inherit; font-size:11px; font-weight:600;
+    padding:2px 4px; cursor:pointer;
+  }
+  .search-results-head button:hover{ text-decoration:underline; }
+  .filter-empty-actions{
+    display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin-top:10px;
   }
   .search-result-song{
     font-size:11.5px; font-weight:600; color: var(--text-muted);
@@ -946,26 +959,56 @@
   }
   .group-head{
     display:flex; flex-direction:column; gap:3px;
-    padding:8px 10px;
+    padding:8px 10px 8px 9px;
     cursor:pointer;
     border-radius:6px;
+    border-left:3px solid transparent;
   }
+  .group-head.status-ready{ border-left:3px solid var(--gold); }
+  .group-head.status-in-progress{ border-left:3px solid #c98a2d; }
   .group-head-main{
     display:flex; align-items:center; gap:6px;
   }
-  /* Four action buttons share the header row now (PDF, details, focus,
-     delete); keep them compact so the song name keeps its room instead
-     of wrapping to three lines. */
+  /* Progressive reveal: PDF and details stay handy; focus (◎) and delete (✕)
+     stay tucked away at rest and appear on row hover or keyboard focus so a
+     65-song library scans cleanly without a wall of danger buttons. */
   .group-head-main button.icon{ padding:4px 5px; }
+  .group-head-main button.icon[data-action="focus"],
+  .group-head-main button.icon[data-action="del-group"]{ display:none; }
+  .group-head:hover .group-head-main button.icon[data-action="focus"],
+  .group-head:focus-within .group-head-main button.icon[data-action="focus"],
+  .group-head:hover .group-head-main button.icon[data-action="del-group"],
+  .group-head:focus-within .group-head-main button.icon[data-action="del-group"]{ display:inline-flex; }
+  .group-more-btn{ display:none; }
+  @media (max-width: 760px), (max-height: 500px) and (pointer: coarse){
+    .group-head-main button.icon[data-action="pdf-preview"],
+    .group-head-main button.icon[data-action="focus"],
+    .group-head-main button.icon[data-action="del-group"],
+    .group-head:hover .group-head-main button.icon[data-action="focus"],
+    .group-head:focus-within .group-head-main button.icon[data-action="focus"],
+    .group-head:hover .group-head-main button.icon[data-action="del-group"],
+    .group-head:focus-within .group-head-main button.icon[data-action="del-group"]{ display:none; }
+    .group-more-btn{
+      display:inline-flex; align-items:center; justify-content:center;
+      min-width:36px; min-height:36px; font-size:15px;
+    }
+  }
   .group-badges{ padding-left:22px; }
   .group-badges .group-type{ margin-top:0; }
+  /* Default states (Cover, Not Ready) hide at rest so non-default badges
+     (Original, In Progress, Ready) stand out immediately; hovering, focusing,
+     or selecting the song reveals the default pills so one-click cycling stays
+     discoverable. */
+  .group-head:not(:hover):not(:focus-within):not(.active) .group-type-badge.is-default-badge{ display:none; }
+  .group-head:not(:hover):not(:focus-within):not(.active) .group-badges:not(:has(.group-type-badge:not(.is-default-badge))){ display:none; }
+  .lib-card:not(:hover):not(:focus-within) .group-type-badge.is-default-badge{ display:none; }
   .group-head:hover{ background: var(--panel-2); }
   .group-head.active{ background: var(--panel-2); }
   .group-head .chev{ color: var(--text); font-size:15px; width:14px; flex-shrink:0; text-align:center; }
   .group-head:hover .chev{ color: var(--gold); }
   /* P2 review: keep the destructive song-delete button visually separated
      from the neutral focus button — a mis-tap on touch is otherwise easy. */
-  .group-head button.icon.danger{ margin-left:10px; }
+  .group-head button.icon.danger{ margin-left:6px; }
   .group-titles{
     flex:1; min-width:0; display:flex; flex-direction:column; gap:1px;
   }
@@ -1018,6 +1061,8 @@
   .group-type-badge:hover{ border-color: var(--focus-border); }
   .group-type-badge.is-original{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
   .group-type-badge.is-ready{ border-color: var(--gold); color: var(--gold); background: var(--gold-tint); }
+  html[data-theme="light"] .group-type-badge.is-original,
+  html[data-theme="light"] .group-type-badge.is-ready{ color: var(--gold-dim); }
   .group-type-badge.is-in-progress{ border-color: #c98a2d; color: #e0a04a; background: color-mix(in srgb, #c98a2d 12%, transparent); }
   .group-artist-summary{
     color: var(--text-muted); font-size:11px; line-height:1.35; overflow-wrap:break-word;
@@ -1159,8 +1204,10 @@
      controls at the top. */
   body.lib-grid-open nav.sidebar{ display:none; }
   body.lib-grid-open .sidebar-scrim{ display:none; }
+  body.pdf-page-open nav.sidebar{ display:none; }
+  body.pdf-page-open .sidebar-scrim{ display:none; }
   .lib-page{
-    max-width:980px; margin:0 auto; padding:28px 24px 80px;
+    padding:0 0 80px;
     display:flex; flex-direction:column; gap:20px;
   }
   .lib-page .sdp-back{ align-self:flex-start; }
@@ -2111,7 +2158,7 @@
   <div class="modal modal-help">
     <div class="modal-close-wrap"><button type="button" class="modal-close" aria-label="Close dialog"><svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button></div>
     <h2>SetBook Help</h2>
-    <p class="modal-sub">Last updated 2026-10-08.</p>
+    <p class="modal-sub">Last updated 2026-10-14.</p>
     <div class="help-layout">
       <nav class="help-nav">
         <a href="#help-start">1. Your songbook</a>
@@ -2132,11 +2179,11 @@
         <section id="help-library">
           <h3>2. Finding songs</h3>
           <ul>
-            <li><strong>Search</strong> matches titles, artists, tags, chords, and lyric lines — it shows you the matching line in each section.</li>
+            <li><strong>Search</strong> matches titles, artists, tags, chords, and lyric lines — it shows you the matching line in each section, with a count of matched songs and a quick Clear link at the top.</li>
             <li><strong>Sort</strong> by title or artist; <strong>filter</strong> by Cover/Original, tags, or artist. The Sort &amp; Filter panel tucks these away so the list gets the room.</li>
-            <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready. Tap the badge to move a song along as you learn it, then filter to Ready only when the gig's coming.</li>
-            <li><strong>Focus (◎):</strong> tap it on a song to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
-            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list opens a full-page grid of cards — one per song, showing its artist, ready status, and a quick summary of its sections. The page has its own search and Sort &amp; Filter controls at the top; the sidebar's song list is hidden while the cards are up. Click a card to open that song's details page; “View: rows” brings the song list back.</li>
+            <li><strong>Ready status:</strong> every song carries a badge — Not Ready, In Progress, or Ready — plus a left-edge color stripe (gold for Ready, amber for In Progress) so you can scan gig readiness at a glance. Default Cover / Not Ready badges stay tucked away until you hover or select a song; tap a badge to cycle its status, then filter to Ready only when the gig's coming.</li>
+            <li><strong>Focus (◎):</strong> hover a song row (or open ⋯ on phones) and tap ◎ to hide everything else and work on just that song. &ldquo;&larr; All songs&rdquo; brings the list back.</li>
+            <li><strong>Card view:</strong> the “View: cards” button at the top of the song list opens a full-page grid of cards — one per song, showing its artist, ready status, and a quick summary of its sections. The page has its own search and Sort &amp; Filter controls at the top; the sidebar's song list is hidden while the cards are up. Click a card to open that song's details page; “&larr; Back to songs” brings the song list back.</li>
             <li><strong>Setlists</strong> (Songs &rarr; Setlists&hellip;): an ordered, labelled song list for a gig. Create one, add songs, <strong>drag rows to reorder</strong>, and add set labels (Set 1, Set 2, Encore&hellip;) that can start before any song. Export PDF… renders the songs in your chosen order with the labels on the contents page.</li>
             <li><strong>Details</strong> (the ⓘ icon on each song): a full page for the song's title, artists (one per line), tags, type, ready status, and video links — album version and live video, each with a Watch button — plus a notes field for reminders that never appear in PDFs.</li>
             <li>On phones the list becomes a drawer — tap the menu button; picking a song hands the full screen to the chart.</li>
@@ -2224,8 +2271,10 @@
       </button>
       <button type="button" id="filtersClearBtn" class="ghost small filters-clear" title="Clear search and all filters" aria-label="Clear search and all filters" hidden>Clear all</button>
       </div>
-      <div class="tools-buttons list-view-row">
+      <div class="tools-buttons expand-collapse-row list-view-row">
         <button type="button" class="ghost small sort-btn" id="listViewToggle" title="Open the full-page card grid of songs" aria-pressed="false">View: cards</button>
+        <button class="ghost small sort-btn" id="expandAllBtn">Expand all</button>
+        <button class="ghost small sort-btn" id="collapseAllBtn">Collapse all</button>
       </div>
       <div id="filtersPanel" class="filters-panel">
       <div class="tools-section">
@@ -2263,10 +2312,6 @@
         </div>
       </div>
       </div><!-- /filtersPanel -->
-      <div class="tools-buttons expand-collapse-row">
-        <button class="ghost small sort-btn" id="expandAllBtn">Expand all</button>
-        <button class="ghost small sort-btn" id="collapseAllBtn">Collapse all</button>
-      </div>
     </div>
     <div id="sidebarList" class="sidebar-list"></div>
     <div class="sidebar-resize-handle" id="sidebarResizeHandle"></div>
@@ -3408,6 +3453,27 @@ function renderSetlistGrid(page){
   page.appendChild(grid);
 }
 
+function buildFilterEmptyState(className, msgHtml){
+  const empty = document.createElement('div');
+  empty.className = className;
+  empty.innerHTML = `<div>${msgHtml}</div>`;
+  const act = document.createElement('div');
+  act.className = 'filter-empty-actions';
+  const clrBtn = document.createElement('button');
+  clrBtn.type = 'button';
+  clrBtn.className = 'ghost small';
+  clrBtn.textContent = 'Clear filters';
+  clrBtn.addEventListener('click', clearAllFiltersAndSearch);
+  const newBtn = document.createElement('button');
+  newBtn.type = 'button';
+  newBtn.className = 'ghost small';
+  newBtn.textContent = '+ New song';
+  newBtn.addEventListener('click', () => mintSongFromCardPage());
+  act.append(clrBtn, newBtn);
+  empty.appendChild(act);
+  return empty;
+}
+
 /* Library card view page: one summarized card per song — title, artist,
    type, ready status, and a plain-text section summary. The sidebar is
    hidden while the page is open, so the page mirrors the sidebar's
@@ -3424,7 +3490,7 @@ function renderLibraryGridPage(main){
   const exitBtn = document.createElement('button');
   exitBtn.type = 'button';
   exitBtn.className = 'ghost small sdp-back';
-  exitBtn.innerHTML = '&larr; View: rows';
+  exitBtn.innerHTML = '&larr; Back to songs';
   exitBtn.title = 'Return to the song list in the sidebar';
   exitBtn.addEventListener('click', exitLibraryGridViewToRows);
   page.appendChild(exitBtn);
@@ -3495,10 +3561,7 @@ function renderLibraryGridPage(main){
   const grid = document.createElement('div');
   grid.className = 'lib-grid';
   if (!songs.length){
-    const empty = document.createElement('div');
-    empty.className = 'sl-empty-hint';
-    empty.textContent = 'No songs match the current search and filters — adjust them above and try again.';
-    grid.appendChild(empty);
+    grid.appendChild(buildFilterEmptyState('sl-empty-hint', 'No songs match the current search and filters — adjust them above and try again.'));
   }
   songs.forEach(group => {
     const card = document.createElement('button');
@@ -3521,8 +3584,8 @@ function renderLibraryGridPage(main){
       ${displayArtists(group) ? `<span class="lic-artist">${escapeHtml(displayArtists(group))}</span>` : ''}
       <span class="lic-sections">${escapeHtml(secSummary)}</span>
       <span class="lic-pills">
-        <span class="group-type-badge ${isOrig ? 'is-original' : ''}">${isOrig ? 'Original' : 'Cover'}</span>
-        <span class="group-type-badge ${st === 'ready' ? 'is-ready' : st === 'in-progress' ? 'is-in-progress' : ''}">${st === 'ready' ? 'Ready' : st === 'in-progress' ? 'In Progress' : 'Not Ready'}</span>
+        <span class="group-type-badge ${isOrig ? 'is-original' : 'is-default-badge'}">${isOrig ? 'Original' : 'Cover'}</span>
+        <span class="group-type-badge ${st === 'ready' ? 'is-ready' : st === 'in-progress' ? 'is-in-progress' : 'is-default-badge'}">${st === 'ready' ? 'Ready' : st === 'in-progress' ? 'In Progress' : 'Not Ready'}</span>
       </span>
     `;
     card.addEventListener('click', () => openSongDetails(group.id));
@@ -4377,19 +4440,20 @@ function updateFiltersSummary(){
 function afterLibraryGridChange(){
   if (libraryGridOpen) renderLibraryGridPage(document.getElementById('main'));
 }
+function clearAllFiltersAndSearch(){
+  state.tagFilter = '';
+  state.artistFilter = '';
+  state.songTypeFilter = { cover: true, original: true };
+  state.readyFilter = { ready: true, inProgress: true, notReady: true };
+  searchQuery = '';
+  document.querySelectorAll('#sidebarSearch').forEach(input => { input.value = ''; });
+  scheduleSave();
+  afterLibraryGridChange(); // refresh the card grid when it's open, sidebar otherwise
+  renderAll();
+}
 document.addEventListener('click', e => {
   const btn = e.target.closest('#filtersClearBtn');
-  if (btn){
-    state.tagFilter = '';
-    state.artistFilter = '';
-    state.songTypeFilter = { cover: true, original: true };
-    state.readyFilter = { ready: true, notReady: true };
-    searchQuery = '';
-    document.querySelectorAll('#sidebarSearch').forEach(input => { input.value = ''; });
-    scheduleSave();
-    afterLibraryGridChange(); // refresh the card grid when it's open, sidebar otherwise
-    renderAll();
-  }
+  if (btn) clearAllFiltersAndSearch();
 });
 document.addEventListener('click', e => {
   const btn = e.target.closest('#tagFilterClear');
@@ -4749,7 +4813,7 @@ function renderSongDetailsPage(main, group){
       } else {
         videoInput.style.display = 'none';
         videoEditBtn.style.display = 'inline-flex';
-        videoEditBtn.textContent = group[field] ? '\u2710' : '+ Video';
+        videoEditBtn.textContent = group[field] ? '\u270e Edit link' : '+ Add link';
         videoEditBtn.title = group[field] ? 'Edit ' + linkNoun : 'Add a ' + linkNoun;
       }
     }
@@ -4836,7 +4900,13 @@ function renderSidebar(){
     return;
   }
 
-  (focusGroup ? [focusGroup] : sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter).filter(matchesTagFilter).filter(matchesArtistFilter)).forEach(group => {
+  const visibleGroups = focusGroup
+    ? [focusGroup]
+    : sortedSongGroups().filter(matchesSongTypeFilter).filter(matchesReadyFilter).filter(matchesTagFilter).filter(matchesArtistFilter);
+  if (!focusGroup && !visibleGroups.length && state.sectionGroups.length){
+    el.appendChild(buildFilterEmptyState('search-empty', 'No songs match the current filters.'));
+  }
+  visibleGroups.forEach(group => {
     const secs = groupSections(group.id);
     const isExpanded = focusGroup ? true : expandedGroups.has(group.id);
 
@@ -4845,7 +4915,10 @@ function renderSidebar(){
     gDiv.dataset.gid = group.id;
 
     const head = document.createElement('div');
-    head.className = 'group-head' + (selectedGroupId === group.id ? ' active' : '');
+    const initSt = songStatus(group);
+    head.className = 'group-head'
+      + (selectedGroupId === group.id ? ' active' : '')
+      + (initSt === 'ready' ? ' status-ready' : initSt === 'in-progress' ? ' status-in-progress' : '');
     /* Two-row card: the main row holds the expand chevron, editable name,
        artist summary, and action buttons; the badges row below spans the
        full card width so Cover / Ready always share one line. */
@@ -4861,6 +4934,7 @@ function renderSidebar(){
         <button class="icon" data-action="song-details" data-gid="${escapeAttr(group.id)}" title="Song details"><svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><circle cx="8" cy="8" r="6.3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 7.4v4.1" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="8" cy="4.7" r="1.15" fill="currentColor"/></svg></button>
         ${focusGroup ? '' : `<button class="icon" data-action="focus" data-gid="${escapeAttr(group.id)}" title="Focus on this song — hide search, sorting, and other songs">◎</button>`}
         <button class="icon danger" data-action="del-group" data-gid="${escapeAttr(group.id)}" title="Delete song">✕</button>
+        <button class="icon group-more-btn" data-action="group-more" data-gid="${escapeAttr(group.id)}" title="More song actions" aria-label="More song actions">⋯</button>
       </div>
       <div class="group-badges"><span class="group-type"></span></div>
     `;
@@ -4908,6 +4982,7 @@ function renderSidebar(){
       const type = group.type || 'cover';
       typeBtn.textContent = type === 'original' ? 'Original' : 'Cover';
       typeBtn.classList.toggle('is-original', type === 'original');
+      typeBtn.classList.toggle('is-default-badge', type !== 'original');
       typeBtn.title = 'Click to mark as ' + (type === 'original' ? 'a cover' : 'an original');
     }
     renderTypeBadge();
@@ -4931,6 +5006,9 @@ function renderSidebar(){
       readyBtn.textContent = st === 'ready' ? 'Ready' : st === 'in-progress' ? 'In Progress' : 'Not Ready';
       readyBtn.classList.toggle('is-ready', st === 'ready');
       readyBtn.classList.toggle('is-in-progress', st === 'in-progress');
+      readyBtn.classList.toggle('is-default-badge', st === 'not-ready');
+      head.classList.toggle('status-ready', st === 'ready');
+      head.classList.toggle('status-in-progress', st === 'in-progress');
       readyBtn.title = 'Click to mark as ' + (st === 'ready' ? 'In Progress' : st === 'in-progress' ? 'Not Ready' : 'Ready');
     }
     renderReadyBadge();
@@ -4959,6 +5037,40 @@ function renderSidebar(){
     if (songDetailsBtn) songDetailsBtn.addEventListener('click', (e) => {
       e.stopPropagation();
       openSongDetails(group.id);
+    });
+    const groupMoreBtn = head.querySelector('[data-action="group-more"]');
+    if (groupMoreBtn) groupMoreBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeActivePopover();
+      const pop = document.createElement('div');
+      pop.className = 'popover-menu';
+      const items = [
+        ['pdf-preview', 'Preview PDF', '📄', ''],
+        ...(focusGroup ? [] : [['focus', 'Focus on this song', '◎', '']]),
+        ['del-group', 'Delete song', '✕', 'danger']
+      ];
+      items.forEach(([action, label, glyph, cls]) => {
+        const src = head.querySelector(`[data-action="${action}"]`);
+        if (!src) return;
+        const b = document.createElement('button');
+        b.type = 'button';
+        if (cls) b.className = cls;
+        const g = document.createElement('span');
+        g.setAttribute('aria-hidden', 'true');
+        g.textContent = glyph;
+        const t = document.createElement('span');
+        t.textContent = label;
+        b.append(g, t);
+        b.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          closeActivePopover();
+          src.click();
+        });
+        pop.appendChild(b);
+      });
+      positionPopover(pop, groupMoreBtn);
+      activePopover = pop;
+      armPopoverDocCloser();
     });
     head.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
@@ -5114,9 +5226,24 @@ function renderSearchResults(el){
   updateArtistDatalist();
 
   if (!results.length){
-    el.innerHTML = `<div class="search-empty">No matches for "${escapeHtml(searchQuery.trim())}"</div>`;
+    el.appendChild(buildFilterEmptyState('search-empty', `No matches for "${escapeHtml(searchQuery.trim())}"`));
     return;
   }
+
+  const matchedSongCount = new Set(results.map(r => r.group.id)).size;
+  const searchHead = document.createElement('div');
+  searchHead.className = 'search-results-head';
+  searchHead.innerHTML = `<span>Lyric &amp; chord matches \u2014 ${matchedSongCount} song${matchedSongCount === 1 ? '' : 's'}</span>`;
+  const clearSearchBtn = document.createElement('button');
+  clearSearchBtn.type = 'button';
+  clearSearchBtn.textContent = 'Clear';
+  clearSearchBtn.addEventListener('click', () => {
+    searchQuery = '';
+    document.querySelectorAll('#sidebarSearch').forEach(input => { input.value = ''; });
+    renderSidebar();
+  });
+  searchHead.appendChild(clearSearchBtn);
+  el.appendChild(searchHead);
 
   let lastGroupId = null;
   results.forEach(({ group, section, snippet }) => {
@@ -10700,6 +10827,7 @@ function openPdfPage(){
   pdfPendingPreviewMode = false;
   pdfPendingSetlistId = null;
   pdfModal.hidden = false;
+  document.body.classList.add('pdf-page-open');
   document.getElementById('main').style.display = 'none';
   document.getElementById('pdfShareBooksHint').style.display = 'none';
   preparePdfModal(sel, asPreview, pendingSl);
@@ -10709,6 +10837,7 @@ function openPdfPage(){
 function closePdfPage(){
   if (document.fullscreenElement === pdfModal){ document.exitFullscreen().catch(() => {}); }
   pdfModal.hidden = true;
+  document.body.classList.remove('pdf-page-open');
   document.getElementById('main').style.display = '';
   pvTeardownPage();
 }
@@ -11374,6 +11503,7 @@ window.addEventListener('resize', () => {
 // editor returns without stale pages around. Observed too, because the
 // close paths are three different buttons.
 function pvTeardownPage(){
+  document.body.classList.remove('pdf-page-open');
   if (pvBlobUrl){ URL.revokeObjectURL(pvBlobUrl); pvBlobUrl = null; }
   if (pvDownloadUrl){ URL.revokeObjectURL(pvDownloadUrl); pvDownloadUrl = null; }
   pvBlob = null;

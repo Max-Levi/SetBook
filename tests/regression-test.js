@@ -1218,8 +1218,8 @@ check('card page hides the sidebar and carries mirrored search + filter controls
   /body\.lib-grid-open nav\.sidebar\{ display:none; \}/.test(html) &&
   /initLibraryGridControls/.test(html) &&
   /nav\.sidebar #filtersPanel/.test(html));
-check('card page exits explicitly back to the row view (View: rows)',
-  /&larr; View: rows/.test(html) && /function exitLibraryGridViewToRows\(\)/.test(html) &&
+check('card page exits explicitly back to the row view (Back to songs)',
+  /&larr; Back to songs/.test(html) && /function exitLibraryGridViewToRows\(\)/.test(html) &&
   /if \(libraryGridOpen\) return; \/\/ the card page owns the whole surface/.test(html));
 check('library card view is a full-page grid, no sidebar tile CSS left behind',
   /\.lib-page\{/.test(html) && /\.lib-grid\{/.test(html) && /function renderLibraryGridPage\(/.test(html) &&
@@ -1290,6 +1290,51 @@ check('sidebar + New song opens the details page with focused name field',
   /document\.querySelector\('\.song-details-page \.sdp-title'\)\?\.focus\(\);/.test(html));
 check('URL import opened from the card view exits to the editor surface first',
   /createSongFromUrlText[\s\S]{0,2000}?if \(libraryGridOpen\)\{\s*\n\s*libraryGridOpen = false;\s*\n\s*applyLibraryGridChrome\(\);\s*\n\s*\}/.test(html));
+
+/* ================= 7 UX improvements (song list + subpage consistency) ================= */
+suite('song-list-ux-7');
+// 1. Subpage geometry & exit consistency + PDF page sidebar hiding
+check('1a: library card page (.lib-page) is left-justified like details and Setlists pages',
+  /\.lib-page\{\s*padding:0 0 80px;/.test(html) && !/\.lib-page\{[^}]*max-width:980px/.test(html));
+check('1b: library card page exit button reads "← Back to songs"',
+  /exitBtn\.innerHTML = '&larr; Back to songs';/.test(html));
+check('1c: PDF page hides the sidebar while open (body.pdf-page-open)',
+  /body\.pdf-page-open nav\.sidebar\{ display:none; \}/.test(html) &&
+  /document\.body\.classList\.add\('pdf-page-open'\)/.test(html) &&
+  /document\.body\.classList\.remove\('pdf-page-open'\)/.test(html));
+
+// 2. Progressive reveal of per-row actions (focus & delete hidden at rest, overflow menu on mobile)
+check('2a: focus and delete icons hide at rest and reveal on row hover/focus-within',
+  /\.group-head-main button\.icon\[data-action="focus"\][\s\S]{0,160}display:none/.test(html) &&
+  /\.group-head:hover \.group-head-main button\.icon\[data-action="focus"\]/.test(html));
+check('2b: song row includes a mobile/touch overflow ⋯ menu button (.group-more-btn)',
+  /data-action="group-more"/.test(html) && /\.group-more-btn/.test(html));
+
+// 3. Compress badge row (default Cover & Not Ready badges hidden at rest, revealed on hover/active; light-theme AA contrast)
+check('3a: default Cover and Not Ready badges carry .is-default-badge and collapse at rest',
+  /is-default-badge/.test(html) &&
+  /\.group-head:not\(:hover\):not\(:focus-within\):not\(\.active\) \.group-type-badge\.is-default-badge\{\s*display:none;/.test(html));
+check('3b: light-theme active filter pills use high-contrast text token (--gold-dim)',
+  /html\[data-theme="light"\] \.sort-btn\.active\{[^}]*color:\s*var\(--gold-dim\)/.test(html));
+
+// 4. Left-edge status stripe on song rows
+check('4: song row carries a left-edge status stripe for Ready and In Progress states',
+  /status-ready/.test(html) && /status-in-progress/.test(html) &&
+  /\.group-head\.status-ready\{[^}]*border-left:3px solid var\(--gold\)/.test(html));
+
+// 5. Compact sidebar control stack (View: cards + Expand all + Collapse all share one compact toolbar row)
+check('5: View: cards, Expand all, and Collapse all share a single compact toolbar row',
+  /<div class="tools-buttons expand-collapse-row list-view-row">[\s\S]{0,400}id="listViewToggle"[\s\S]{0,400}id="expandAllBtn"[\s\S]{0,400}id="collapseAllBtn"/.test(html));
+
+// 6. Disambiguate search results with a summary header and clear button
+check('6: search results render an orienting header with match count and Clear action',
+  /search-results-head/.test(html) && /Lyric &amp; chord matches/.test(html));
+
+// 7. Polish: video link button copy ("+ Add link" / "✎ Edit link") and filter-empty state actions
+check('7a: details page video row uses clear "+ Add link" and "✎ Edit link" labels',
+  /\+ Add link/.test(html) && /Edit link/.test(html));
+check('7b: empty filter state in sidebar and card page offers inline Clear filters and + New song actions',
+  /filter-empty-actions/.test(html) && /Clear filters/.test(html));
 
 /* ================= summary ================= */
 Promise.all([recoveryStoreChecks, lazyPdfChecks, driveConflictChecks, adapterChecks, cloudAdapterChecks]).then(() => {
