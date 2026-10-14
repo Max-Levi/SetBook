@@ -1230,6 +1230,20 @@ check('card page hides the sidebar and carries mirrored search + filter controls
   /body\.lib-grid-open nav\.sidebar\{ display:none; \}/.test(html) &&
   /initLibraryGridControls/.test(html) &&
   /nav\.sidebar #filtersPanel/.test(html));
+// Regression (844b65c): when the sidebar's filter controls were made event-
+// delegated (so the card page's mirrored clones work), the Sort & Filter
+// toggle itself was dropped from the wiring — nothing called
+// setFiltersPanelOpen on click, so the accordion stopped opening. The
+// toggle must be a delegated handler that flips the module flag + persists
+// the preference + refreshes the panel.
+check('Sort & Filter toggle is wired on click (regression: lost in 844b65c)',
+  /e\.target\.closest\('#filtersToggle'\)/.test(html) &&
+  /setFiltersPanelOpen\(!filtersPanelOpen\)/.test(html) &&
+  /function setFiltersPanelOpen\(open/.test(html));
+check('setFiltersPanelOpen persists the preference and drives class + chevron',
+  /localStorage\.setItem\(FILTERS_PANEL_KEY, filtersPanelOpen \? '1' : '0'\)/.test(html) &&
+  /function setFiltersPanelOpen\(open[\s\S]{0,600}?filters-collapsed/.test(html) &&
+  /function setFiltersPanelOpen\(open[\s\S]{0,600}?filtersToggleChev/.test(html));
 check('card page exits explicitly back to the row view (Back to songs)',
   /&larr; Back to songs/.test(html) && /function exitLibraryGridViewToRows\(\)/.test(html) &&
   /if \(libraryGridOpen\) return; \/\/ the card page owns the whole surface/.test(html));

@@ -816,6 +816,21 @@ song-preview context hides `#pdfTuningColumns` entirely (as before) and
 clears the class. Regression 277/277, MCP 14/14, all inline scripts
 parse; verified in-browser at 1620×1245 in both contexts.
 
+**Revision note (2026-10-14, Sort & Filter accordion stopped opening):** when
+the sidebar's filter controls were moved onto delegated document-level
+handlers so the card page's mirrored clones could share them (844b65c), the
+Sort & Filter toggle's own click wiring was dropped — `#filtersToggle` had
+callers only for state *syncing* (`updateFiltersPanel`), none that flipped
+`filtersPanelOpen`, so the accordion went open-only-by-luck (it only ever
+opened when localStorage happened to hold '1'). Fix: extract
+`setFiltersPanelOpen(open, persist=true)` (flag + localStorage persistence
++ `.filters-collapsed` class + aria-expanded + chevron) and wire the toggle
+through a delegated `closest('#filtersToggle')` handler like its neighbors;
+`updateFiltersPanel` now delegates to it with `persist=false`. Regression
+293/293 (two new TDD checks, red→green) + MCP suite, verified in-browser:
+click opens the panel (display:none → block, ▾, aria-expanded=true) and
+toggling off persists '0'.
+
 **Revision note (2026-10-14, tuning accordion width — Songs floated right):**
 on the dedicated Export PDF page the accordion container `#pdfTuningColumns`
 kept the dialog-era `.modal-columns{ display:flex }` rule, which turned its

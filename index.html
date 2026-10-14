@@ -4392,6 +4392,17 @@ let filtersPanelOpen = false;
 try { filtersPanelOpen = localStorage.getItem(FILTERS_PANEL_KEY) === '1'; } catch(_){}
 
 function updateFiltersPanel(){
+  setFiltersPanelOpen(filtersPanelOpen, false);
+}
+/* PDF-page accordion and Sort & Filter toggle share one toggle path: flip
+   the module flag, persist the per-device preference, refresh the panel
+   visuals. (persist=false keeps initial/sync callers from rewriting the
+   stored value.) */
+function setFiltersPanelOpen(open, persist = true){
+  filtersPanelOpen = !!open;
+  if (persist){
+    try { localStorage.setItem(FILTERS_PANEL_KEY, filtersPanelOpen ? '1' : '0'); } catch(_){}
+  }
   const tools = document.querySelector('.sidebar-tools');
   if (tools) tools.classList.toggle('filters-collapsed', !filtersPanelOpen);
   const toggle = document.getElementById('filtersToggle');
@@ -4399,6 +4410,14 @@ function updateFiltersPanel(){
   const chev = document.getElementById('filtersToggleChev');
   if (chev) chev.textContent = filtersPanelOpen ? '▾' : '▸';
 }
+
+/* The toggle is DELEGATED like its neighbors: when 844b65c moved the
+   sidebar's filter controls onto document-level handlers (so the card
+   page's mirrored clones fire the same code), the Sort & Filter toggle's
+   click wiring was lost and the accordion stopped opening. */
+document.addEventListener('click', e => {
+  if (e.target.closest('#filtersToggle')) setFiltersPanelOpen(!filtersPanelOpen);
+});
 
 function updateFiltersSummary(){
   const parts = [];
